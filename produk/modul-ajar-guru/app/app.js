@@ -1,7 +1,8 @@
 /**
- * RuangAjar Merdeka — Pengendali Utama Web App Guru
- * Mencakup: Login, Dashboard, Wizard 3 Langkah (.docx & .pdf), Penyusun Rapor (.csv),
- * Perpustakaan 120 Item + Halaman Detail, Riwayat, Favorit, Pengaturan, & Tema Terang/Gelap.
+ * RuangAjar Merdeka — Pengendali Utama Studio Web App Guru
+ * Mencakup: Login, Dashboard Bento + Kalender Kapsul + Ticket Cards,
+ * Wizard 3 Langkah (.docx & .pdf), Penyusun Rapor (.csv),
+ * Perpustakaan 120 Item + Modal Detail, Riwayat, Favorit, Pengaturan, & Tema Gelap/Terang.
  */
 
 import { LIBRARY_CATEGORIES, LIBRARY_ITEMS } from './data/library-items.js';
@@ -21,8 +22,13 @@ const KEYS = {
   HISTORY: 'ruangajar_history_v1',
   FAVORITES: 'ruangajar_favs_v1',
   RAPOR: 'ruangajar_rapor_v1',
-  THEME: 'ruangajar_theme_v1'
+  THEME: 'ruangajar_theme_v2'
 };
+
+const BULAN_ID = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+];
 
 function loadJson(key, fallback) {
   try {
@@ -43,6 +49,17 @@ function escHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function getInitials(name) {
+  const parts = String(name || 'Guru')
+    .replace(/[,.*]/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter((w) => !/^(ibu|bapak|pak|bu|drs|dra|s|m|pd|gr)$/i.test(w));
+  if (parts.length === 0) return 'GR';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
 function triggerBlobDownload(blob, filename) {
@@ -72,7 +89,9 @@ const state = {
   raporList: loadJson(KEYS.RAPOR, []),
   activeLibCategory: 'SEMUA',
   activeModalItem: null,
-  currentComposedModul: null
+  currentComposedModul: null,
+  weekOffset: 0,
+  selectedDayIso: new Date().toISOString().slice(0, 10)
 };
 
 function showToast(msg) {
@@ -85,9 +104,9 @@ function showToast(msg) {
   }, 2600);
 }
 
-// TEMA TERANG / GELAP
+// TEMA GELAP (DEFAULT STUDIO) & TERANG
 function initTheme() {
-  const saved = localStorage.getItem(KEYS.THEME) || 'light';
+  const saved = localStorage.getItem(KEYS.THEME) || 'dark';
   applyTheme(saved);
 
   const toggle = () => {
@@ -161,13 +180,17 @@ function enterApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-layout').classList.add('active');
   syncSettingsToInputs();
+  renderWeekCalendar();
   refreshDashboardAndBadges();
 }
 
-// NAVIGASI VIEW & SIDEBAR HP
+// NAVIGASI VIEW, SIDEBAR & BOTTOM BAR HP
 function switchView(viewName) {
   for (const btn of document.querySelectorAll('.nav-btn')) {
     btn.classList.toggle('active', btn.dataset.view === viewName);
+  }
+  for (const mbtn of document.querySelectorAll('.m-tab-btn')) {
+    mbtn.classList.toggle('active', mbtn.dataset.mview === viewName);
   }
   for (const sec of document.querySelectorAll('.view-section')) {
     sec.classList.toggle('active', sec.id === `view-${viewName}`);
@@ -191,6 +214,10 @@ function initNavigation() {
   for (const btn of document.querySelectorAll('.nav-btn')) {
     btn.addEventListener('click', () => switchView(btn.dataset.view));
   }
+  for (const mbtn of document.querySelectorAll('.m-tab-btn')) {
+    mbtn.addEventListener('click', () => switchView(mbtn.dataset.mview));
+  }
+
   document.getElementById('btn-open-sidebar').addEventListener('click', () => {
     document.getElementById('sidebar').classList.add('open');
     document.getElementById('sidebar-overlay').classList.add('open');
@@ -200,16 +227,80 @@ function initNavigation() {
   document.getElementById('dash-btn-new-modul').addEventListener('click', () => switchView('wizard'));
   document.getElementById('dash-btn-open-rapor').addEventListener('click', () => switchView('rapor'));
   document.getElementById('quick-wizard-btn').addEventListener('click', () => switchView('wizard'));
+  document.getElementById('bento-go-wizard').addEventListener('click', () => switchView('wizard'));
   document.getElementById('quick-library-btn').addEventListener('click', () => switchView('library'));
+  document.getElementById('bento-go-rapor').addEventListener('click', () => switchView('rapor'));
+  document.getElementById('bento-go-fav').addEventListener('click', () => switchView('favorites'));
   document.getElementById('quick-settings-btn').addEventListener('click', () => switchView('settings'));
+  document.getElementById('slot-edit-school').addEventListener('click', () => switchView('settings'));
+  document.getElementById('slot-plus-modul').addEventListener('click', () => switchView('wizard'));
+  document.getElementById('dash-go-history').addEventListener('click', () => switchView('history'));
+  document.getElementById('mobile-fab-add').addEventListener('click', () => switchView('wizard'));
+
+  // Search Pill di Dashboard langsung membuka Perpustakaan sesuai kata kunci
+  document.getElementById('dash-search-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const q = document.getElementById('dash-search-input').value.trim();
+    document.getElementById('lib-search').value = q;
+    switchView('library');
+  });
 }
 
-// DASHBOARD & KARTU ANGKA
+// KALENDER KAPSUL PEKAN MENGAJAR (Senin - Sabtu)
+function renderWeekCalendar() {
+  const strip = document.getElementById('cal-days-strip');
+  const monthLabel = document.getElementById('cal-month-label');
+  if (!strip || !monthLabel) return;
+
+  const base = new Date();
+  base.setDate(base.getDate() + state.weekOffset * 7);
+  const dayOfWeek = base.getDay(); // 0=Minggu, 1=Senin...
+  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(base);
+  monday.setDate(base.getDate() + diffToMonday);
+
+  monthLabel.textContent = `${BULAN_ID[monday.getMonth()]} ${monday.getFullYear()}`;
+  const dayLetters = ['S', 'S', 'R', 'K', 'J', 'S'];
+
+  strip.innerHTML = '';
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const iso = d.toISOString().slice(0, 10);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `cal-day-pill ${iso === state.selectedDayIso ? 'active' : ''}`;
+    btn.innerHTML = `
+      <span class="d-let">${dayLetters[i]}</span>
+      <span class="d-num">${String(d.getDate()).padStart(2, '0')}</span>
+    `;
+    btn.addEventListener('click', () => {
+      state.selectedDayIso = iso;
+      document.getElementById('f-tanggal').value = iso;
+      renderWeekCalendar();
+      showToast(`Tanggal dokumen diatur ke ${d.getDate()} ${BULAN_ID[d.getMonth()]} ${d.getFullYear()}`);
+    });
+    strip.appendChild(btn);
+  }
+}
+
+function initCalendarControls() {
+  document.getElementById('cal-prev-week').addEventListener('click', () => {
+    state.weekOffset -= 1;
+    renderWeekCalendar();
+  });
+  document.getElementById('cal-next-week').addEventListener('click', () => {
+    state.weekOffset += 1;
+    renderWeekCalendar();
+  });
+}
+
+// DASHBOARD BENTO & TICKET CARDS
 function refreshDashboardAndBadges() {
   const guruName = state.user?.name || state.settings.namaGuru || 'Bapak/Ibu Guru';
-  document.getElementById('greeting-title').textContent = `Selamat mengajar, ${guruName}! 👋`;
+  document.getElementById('greeting-title').textContent = `Halo, ${guruName}`;
   document.getElementById('greeting-school').textContent =
-    `Satuan Pendidikan Aktif: ${state.settings.namaSekolah || 'Belum diatur'} • Tahun Pelajaran ${state.settings.tahunAjaran || '2026/2027'}`;
+    `${state.settings.namaSekolah || 'Sekolah belum diatur'} · Tahun Pelajaran ${state.settings.tahunAjaran || '2026/2027'}`;
 
   document.getElementById('stat-modul-count').textContent = String(state.history.length);
   document.getElementById('stat-rapor-count').textContent = String(state.raporList.length);
@@ -219,25 +310,88 @@ function refreshDashboardAndBadges() {
   document.getElementById('badge-lib-count').textContent = String(LIBRARY_ITEMS.length);
   document.getElementById('badge-history-count').textContent = String(state.history.length);
   document.getElementById('badge-fav-count').textContent = String(state.favorites.length);
+  document.getElementById('dash-doc-pill').textContent = String(state.history.length).padStart(2, '0');
+  document.getElementById('mobile-top-badge').textContent =
+    state.history.length > 0 ? String(state.history.length).padStart(2, '0') : String(LIBRARY_ITEMS.length);
 
   const recentBox = document.getElementById('dash-recent-list');
+  recentBox.innerHTML = '';
+
+  const chevronCircleSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="10 8 14 12 10 16"/></svg>`;
+
   if (state.history.length === 0) {
-    recentBox.innerHTML = 'Belum ada modul yang disimpan. Klik <strong>+ Buat Modul Ajar Baru</strong> untuk memulai.';
-  } else {
-    recentBox.innerHTML = '';
-    for (const item of state.history.slice(0, 4)) {
-      const row = document.createElement('div');
-      row.style.cssText =
-        'display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:10px;background:var(--surface-2);gap:8px;';
-      row.innerHTML = `
-        <div>
-          <strong style="color:var(--text);display:block;">${escHtml(item.identitas.mapel)} — ${escHtml(item.identitas.topik)}</strong>
-          <span style="font-size:0.78rem;">${escHtml(item.identitas.kelasFase)} • ${escHtml(item.identitas.tanggalDokumen)}</span>
+    // Tampilkan 2 kartu pratinjau alur kerja bergaya Ticket supaya beranda langsung hidup & rapi
+    const starterCard = document.createElement('div');
+    starterCard.className = 'ticket-card';
+    starterCard.innerHTML = `
+      <div class="ticket-top">
+        <div class="dual-gold-pill">
+          <span>Fase B</span>
+          <span>2 JP · 70m</span>
         </div>
-        <button type="button" class="btn btn-secondary" style="padding:6px 10px;font-size:0.78rem;">Buka</button>
+        <span class="ref-code-tag">SIAP SUSUN</span>
+      </div>
+      <div class="ticket-title">IPAS — Perubahan Wujud Benda dalam Kehidupan Sehari-hari</div>
+      <div class="ticket-footer">
+        <div class="guru-chip">
+          <span class="guru-avatar">${escHtml(getInitials(guruName))}</span>
+          <span class="guru-chip-text">${escHtml(guruName)}</span>
+        </div>
+        <button type="button" class="detail-link-btn">Coba Susun ${chevronCircleSvg}</button>
+      </div>
+    `;
+    starterCard.querySelector('button').addEventListener('click', () => {
+      document.getElementById('btn-fill-sample-modul').click();
+      switchView('wizard');
+    });
+    recentBox.appendChild(starterCard);
+
+    const raporStarter = document.createElement('div');
+    raporStarter.className = 'ticket-card';
+    raporStarter.innerHTML = `
+      <div class="ticket-top">
+        <div class="dual-gold-pill">
+          <span>e-Rapor</span>
+          <span>CSV Excel</span>
+        </div>
+        <span class="ref-code-tag">DESKRIPSI</span>
+      </div>
+      <div class="ticket-title">Generator Kalimat Capaian Kompetensi Rapor Siswa Otomatis</div>
+      <div class="ticket-footer">
+        <div class="guru-chip">
+          <span class="guru-avatar">RP</span>
+          <span class="guru-chip-text">${escHtml(state.settings.namaSekolah || 'Semua Kelas')}</span>
+        </div>
+        <button type="button" class="detail-link-btn">Buka Rapor ${chevronCircleSvg}</button>
+      </div>
+    `;
+    raporStarter.querySelector('button').addEventListener('click', () => switchView('rapor'));
+    recentBox.appendChild(raporStarter);
+  } else {
+    for (const item of state.history.slice(0, 3)) {
+      const refCode = `MOD-${String(item.id || '').slice(-5).toUpperCase()}`;
+      const shortJp = (item.identitas.alokasiWaktu || '2 JP').split('(')[0].trim();
+      const card = document.createElement('div');
+      card.className = 'ticket-card';
+      card.innerHTML = `
+        <div class="ticket-top">
+          <div class="dual-gold-pill">
+            <span>${escHtml(item.identitas.fase || 'Fase B')}</span>
+            <span>${escHtml(shortJp)}</span>
+          </div>
+          <span class="ref-code-tag">${escHtml(refCode)}</span>
+        </div>
+        <div class="ticket-title">${escHtml(item.identitas.mapel)} — ${escHtml(item.identitas.topik)}</div>
+        <div class="ticket-footer">
+          <div class="guru-chip">
+            <span class="guru-avatar">${escHtml(getInitials(item.identitas.namaGuru))}</span>
+            <span class="guru-chip-text">${escHtml(item.identitas.kelasFase)} · ${escHtml(item.identitas.tanggalDokumen)}</span>
+          </div>
+          <button type="button" class="detail-link-btn">Buka ${chevronCircleSvg}</button>
+        </div>
       `;
-      row.querySelector('button').addEventListener('click', () => loadModulFromHistory(item));
-      recentBox.appendChild(row);
+      card.querySelector('button').addEventListener('click', () => loadModulFromHistory(item));
+      recentBox.appendChild(card);
     }
   }
 }
@@ -253,7 +407,6 @@ function syncSettingsToInputs() {
   document.getElementById('s-nip-kepsek').value = s.nipKepsek || '-';
   document.getElementById('s-tahun').value = s.tahunAjaran || '2026/2027';
 
-  // Isi juga default ke form Wizard Langkah 1
   document.getElementById('f-sekolah').value = s.namaSekolah || '';
   document.getElementById('f-kota').value = s.kota || '';
   document.getElementById('f-guru').value = s.namaGuru || state.user?.name || '';
@@ -348,63 +501,57 @@ function buildAndRenderModulPreview() {
   const id = modul.identitas;
   const ki = modul.komponenInti;
 
-  const esc = (s) =>
-    String(s ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-
   const listHtml = (arr) =>
-    `<ol style="padding-left:20px;margin:4px 0 10px;">${arr.map((x) => `<li>${esc(x)}</li>`).join('')}</ol>`;
+    `<ol style="padding-left:20px;margin:4px 0 10px;">${arr.map((x) => `<li>${escHtml(x)}</li>`).join('')}</ol>`;
 
   document.getElementById('modul-paper-preview').innerHTML = `
     <h3>MODUL AJAR KURIKULUM MERDEKA</h3>
-    <p style="text-align:center;font-weight:700;margin-bottom:14px;">${esc(id.namaSekolah.toUpperCase())} • TP ${esc(id.tahunAjaran)}</p>
+    <p style="text-align:center;font-weight:700;margin-bottom:14px;">${escHtml(id.namaSekolah.toUpperCase())} · TP ${escHtml(id.tahunAjaran)}</p>
 
     <div class="sec-head">A. INFORMASI UMUM PERANGKAT AJAR</div>
     <table class="paper-table">
-      <tr><th>Nama Penyusun</th><td>${esc(id.namaGuru)} (NIP. ${esc(id.nipGuru)})</td></tr>
-      <tr><th>Kelas / Fase / Semester</th><td>${esc(id.kelasFase)} — Semester ${esc(id.semester)}</td></tr>
-      <tr><th>Mata Pelajaran</th><td>${esc(id.mapel)}</td></tr>
-      <tr><th>Topik / Materi Pokok</th><td><strong>${esc(id.topik)}</strong></td></tr>
-      <tr><th>Alokasi Waktu</th><td>${esc(id.alokasiWaktu)}</td></tr>
-      <tr><th>Model Pembelajaran</th><td>${esc(id.modelBelajar)}</td></tr>
-      <tr><th>Dimensi Karakter</th><td>${esc(id.dimensiKarakter)}</td></tr>
-      <tr><th>Sarana & Sumber</th><td>${esc(id.sarana)}</td></tr>
+      <tr><th>Nama Penyusun</th><td>${escHtml(id.namaGuru)} (NIP. ${escHtml(id.nipGuru)})</td></tr>
+      <tr><th>Kelas / Fase / Semester</th><td>${escHtml(id.kelasFase)} — Semester ${escHtml(id.semester)}</td></tr>
+      <tr><th>Mata Pelajaran</th><td>${escHtml(id.mapel)}</td></tr>
+      <tr><th>Topik / Materi Pokok</th><td><strong>${escHtml(id.topik)}</strong></td></tr>
+      <tr><th>Alokasi Waktu</th><td>${escHtml(id.alokasiWaktu)}</td></tr>
+      <tr><th>Model Pembelajaran</th><td>${escHtml(id.modelBelajar)}</td></tr>
+      <tr><th>Dimensi Karakter</th><td>${escHtml(id.dimensiKarakter)}</td></tr>
+      <tr><th>Sarana & Sumber</th><td>${escHtml(id.sarana)}</td></tr>
     </table>
 
     <div class="sec-head">B. KOMPONEN INTI PEMBELAJARAN</div>
-    <p><strong>1. Tujuan Pembelajaran:</strong><br/>${esc(ki.tujuanPembelajaran)}</p>
-    <p style="margin-top:8px;"><strong>2. Pemahaman Bermakna:</strong><br/>${esc(ki.pemahamanBermakna)}</p>
-    <p style="margin-top:8px;white-space:pre-line;"><strong>3. Pertanyaan Pemantik:</strong>\n${esc(ki.pertanyaanPemantik)}</p>
+    <p><strong>1. Tujuan Pembelajaran:</strong><br/>${escHtml(ki.tujuanPembelajaran)}</p>
+    <p style="margin-top:8px;"><strong>2. Pemahaman Bermakna:</strong><br/>${escHtml(ki.pemahamanBermakna)}</p>
+    <p style="margin-top:8px;white-space:pre-line;"><strong>3. Pertanyaan Pemantik:</strong>\n${escHtml(ki.pertanyaanPemantik)}</p>
 
     <p style="margin-top:10px;"><strong>4. Kegiatan Pembelajaran:</strong></p>
-    <p><em>a) Kegiatan Pendahuluan (${esc(ki.pendahuluan.durasi)})</em></p>
+    <p><em>a) Kegiatan Pendahuluan (${escHtml(ki.pendahuluan.durasi)})</em></p>
     ${listHtml(ki.pendahuluan.langkah)}
-    <p><em>b) Kegiatan Inti — ${esc(id.modelBelajar)} (${esc(ki.inti.durasi)})</em></p>
+    <p><em>b) Kegiatan Inti — ${escHtml(id.modelBelajar)} (${escHtml(ki.inti.durasi)})</em></p>
     ${listHtml(ki.inti.langkah)}
-    <p><em>c) Kegiatan Penutup (${esc(ki.penutup.durasi)})</em></p>
+    <p><em>c) Kegiatan Penutup (${escHtml(ki.penutup.durasi)})</em></p>
     ${listHtml(ki.penutup.langkah)}
 
-    <p style="white-space:pre-line;"><strong>5. Rencana Asesmen:</strong>\n${esc(ki.asesmen)}</p>
+    <p style="white-space:pre-line;"><strong>5. Rencana Asesmen:</strong>\n${escHtml(ki.asesmen)}</p>
     <p style="margin-top:8px;"><strong>6. Pengayaan & Remedial:</strong><br/>
-      • <em>Pengayaan:</em> ${esc(ki.pengayaanRemedial.pengayaan)}<br/>
-      • <em>Remedial:</em> ${esc(ki.pengayaanRemedial.remedial)}
+      • <em>Pengayaan:</em> ${escHtml(ki.pengayaanRemedial.pengayaan)}<br/>
+      • <em>Remedial:</em> ${escHtml(ki.pengayaanRemedial.remedial)}
     </p>
 
     <div class="sec-head">C. LAMPIRAN LEMBAR KERJA PESERTA DIDIK (LKPD)</div>
-    <p><strong>${esc(modul.lkpd.judul)}</strong></p>
+    <p><strong>${escHtml(modul.lkpd.judul)}</strong></p>
     ${listHtml(modul.lkpd.tugas)}
 
     <table style="width:100%;margin-top:22px;font-size:0.84rem;border:none;">
       <tr>
-        <td style="width:50%;border:none;">
-          Mengetahui,<br/><strong>Kepala ${esc(id.namaSekolah)}</strong><br/><br/><br/>
-          <strong><u>${esc(id.namaKepsek)}</u></strong><br/>NIP. ${esc(id.nipKepsek)}
+        <td style="width:50%;border:none;color:#0f172a;">
+          Mengetahui,<br/><strong>Kepala ${escHtml(id.namaSekolah)}</strong><br/><br/><br/>
+          <strong><u>${escHtml(id.namaKepsek)}</u></strong><br/>NIP. ${escHtml(id.nipKepsek)}
         </td>
-        <td style="width:50%;border:none;">
-          ${esc(id.kota)}, ${esc(id.tanggalDokumen)}<br/><strong>Guru Pengampu,</strong><br/><br/><br/>
-          <strong><u>${esc(id.namaGuru)}</u></strong><br/>NIP. ${esc(id.nipGuru)}
+        <td style="width:50%;border:none;color:#0f172a;">
+          ${escHtml(id.kota)}, ${escHtml(id.tanggalDokumen)}<br/><strong>Guru Pengampu,</strong><br/><br/><br/>
+          <strong><u>${escHtml(id.namaGuru)}</u></strong><br/>NIP. ${escHtml(id.nipGuru)}
         </td>
       </tr>
     </table>
@@ -539,14 +686,14 @@ function renderRaporTable() {
     return;
   }
 
-  let html = `<table class="paper-table" style="background:var(--surface);color:var(--text);">
+  let html = `<table class="rapor-table">
     <thead>
       <tr>
-        <th style="width:45px;background:var(--surface-2);color:var(--text);">No</th>
-        <th style="width:180px;background:var(--surface-2);color:var(--text);">Nama Siswa</th>
-        <th style="width:70px;background:var(--surface-2);color:var(--text);">Nilai</th>
-        <th style="background:var(--surface-2);color:var(--text);">Kalimat Deskripsi Capaian e-Rapor</th>
-        <th style="width:90px;background:var(--surface-2);color:var(--text);">Aksi</th>
+        <th style="width:45px;">No</th>
+        <th style="width:180px;">Nama Siswa</th>
+        <th style="width:70px;">Nilai</th>
+        <th>Kalimat Deskripsi Capaian e-Rapor</th>
+        <th style="width:90px;">Aksi</th>
       </tr>
     </thead>
     <tbody>`;
@@ -556,10 +703,10 @@ function renderRaporTable() {
       <tr>
         <td>${idx + 1}</td>
         <td><strong>${escHtml(row.nama)}</strong></td>
-        <td>${escHtml(row.nilai)}</td>
+        <td><span class="cat-tag">${escHtml(row.nilai)}</span></td>
         <td>${escHtml(row.deskripsi)}</td>
         <td>
-          <button type="button" class="btn btn-secondary btn-copy-rapor" data-idx="${idx}" style="padding:5px 9px;font-size:0.76rem;">Salin</button>
+          <button type="button" class="btn btn-secondary btn-copy-rapor" data-idx="${idx}" style="padding:6px 10px;font-size:0.76rem;">Salin</button>
         </td>
       </tr>`;
   });
@@ -668,7 +815,6 @@ function initLibrary() {
   document.getElementById('lib-search').addEventListener('input', renderLibraryGrid);
   document.getElementById('lib-jenjang').addEventListener('change', renderLibraryGrid);
 
-  // Modal actions
   document.getElementById('m-btn-close').addEventListener('click', closeItemModal);
   document.getElementById('item-modal').addEventListener('click', (e) => {
     if (e.target.id === 'item-modal') closeItemModal();
@@ -761,11 +907,18 @@ function createLibraryCardEl(item) {
   el.className = 'lib-card';
   el.innerHTML = `
     <div class="lib-meta">
-      <span class="cat-tag">${item.category}</span>
-      <span class="jenjang-tag">${isFav ? '★ ' : ''}${item.jenjang}</span>
+      <span class="cat-tag">${escHtml(item.category)}</span>
+      <span class="jenjang-tag">${isFav ? 'Tersimpan · ' : ''}${escHtml(item.jenjang)}</span>
     </div>
-    <h3>${item.title}</h3>
-    <p>${item.summary}</p>
+    <h3>${escHtml(item.title)}</h3>
+    <p>${escHtml(item.summary)}</p>
+    <div class="lib-card-foot">
+      <span>${escHtml(item.id.toUpperCase())}</span>
+      <span style="color:var(--text);display:inline-flex;align-items:center;gap:4px;">
+        Detail
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polyline points="10 8 14 12 10 16"/></svg>
+      </span>
+    </div>
   `;
   el.addEventListener('click', () => openItemModal(item));
   return el;
@@ -786,7 +939,7 @@ function openItemModal(item) {
 function updateModalFavButton() {
   if (!state.activeModalItem) return;
   const isFav = state.favorites.includes(state.activeModalItem.id);
-  document.getElementById('m-btn-fav').textContent = isFav ? '★ Tersimpan di Favorit' : '☆ Simpan Favorit';
+  document.getElementById('m-btn-fav').textContent = isFav ? 'Tersimpan di Favorit' : 'Simpan Favorit';
 }
 
 function closeItemModal() {
@@ -830,18 +983,25 @@ function renderHistoryView() {
   box.innerHTML = '';
   state.history.forEach((mod, idx) => {
     const card = document.createElement('div');
-    card.className = 'card';
+    card.className = 'ticket-card';
+    card.style.marginBottom = '12px';
     card.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
-        <div>
-          <h2>${escHtml(mod.identitas.mapel)} — ${escHtml(mod.identitas.topik)}</h2>
-          <p class="sub" style="margin-bottom:6px;">
-            ${escHtml(mod.identitas.kelasFase)} • ${escHtml(mod.identitas.namaSekolah)} • Disusun ${escHtml(mod.identitas.tanggalDokumen)}
-          </p>
+      <div class="ticket-top">
+        <div class="dual-gold-pill">
+          <span>${escHtml(mod.identitas.kelasFase)}</span>
+          <span>${escHtml(mod.identitas.semester)}</span>
+        </div>
+        <span class="ref-code-tag">${escHtml(mod.identitas.tanggalDokumen)}</span>
+      </div>
+      <div class="ticket-title">${escHtml(mod.identitas.mapel)} — ${escHtml(mod.identitas.topik)}</div>
+      <div class="ticket-footer">
+        <div class="guru-chip">
+          <span class="guru-avatar">${escHtml(getInitials(mod.identitas.namaGuru))}</span>
+          <span class="guru-chip-text">${escHtml(mod.identitas.namaSekolah)}</span>
         </div>
         <div class="btn-row">
-          <button type="button" class="btn btn-primary btn-h-open">Lihat & Unduh</button>
-          <button type="button" class="btn btn-danger btn-h-del">Hapus</button>
+          <button type="button" class="btn btn-primary btn-h-open" style="padding:7px 14px;font-size:0.8rem;">Buka & Unduh</button>
+          <button type="button" class="btn btn-danger btn-h-del" style="padding:7px 12px;font-size:0.8rem;">Hapus</button>
         </div>
       </div>
     `;
@@ -863,7 +1023,7 @@ function renderFavoritesView() {
 
   if (favItems.length === 0) {
     grid.innerHTML =
-      '<div class="card" style="grid-column:1/-1;"><p style="color:var(--muted);">Belum ada item favorit. Buka <strong>Perpustakaan Guru</strong> lalu klik tombol bintang pada item yang sering kamu pakai.</p></div>';
+      '<div class="card" style="grid-column:1/-1;"><p style="color:var(--muted);">Belum ada item favorit. Buka <strong>Perpustakaan Guru</strong> lalu klik Simpan Favorit pada item yang sering kamu pakai.</p></div>';
     return;
   }
   for (const item of favItems) {
@@ -874,6 +1034,7 @@ function renderFavoritesView() {
 // JALANKAN SEMUA INISIALISASI
 initTheme();
 initNavigation();
+initCalendarControls();
 initSettings();
 initWizard();
 initRaporTool();
