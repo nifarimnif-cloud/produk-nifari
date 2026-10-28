@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RuangAjar Merdeka — Generator Modul Ajar & Rapor Guru</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <!-- LAYAR LOGIN PEMBELI -->
+  <section class="login-screen" id="login-screen">
+    <div class="login-card">
+      <div class="brand-row">
+        <!-- Logo simbolik: Buku Terbuka + Pena & Bintang Pendidikan -->
+        <svg viewBox="0 0 40 40" fill="none" aria-hidden="true">
+          <rect x="2" y="2" width="36" height="36" rx="10" fill="#0F766E" />
+          <path d="M9 13C13 11.5 17 12.2 20 14.5C23 12.2 27 11.5 31 13V28C27 26.8 23 27.5 20 29.5C17 27.5 13 26.8 9 28V13Z" fill="#FFFFFF" />
+          <path d="M20 14.5V29.5" stroke="#0F766E" stroke-width="2" />
+          <path d="M27.5 8.5L30.5 11.5L23.5 18.5L20.2 18.8L20.5 15.5L27.5 8.5Z" fill="#FBBF24" />
+        </svg>
+        <div>
+          <div class="brand-title">RuangAjar Merdeka</div>
+          <div class="brand-sub">Aplikasi Penyusun Modul Ajar & Rapor Guru</div>
+        </div>
+      </div>
+
+      <p style="font-size:0.88rem;color:var(--muted);margin-bottom:18px;">
+        Masuk menggunakan nama lengkap, email, dan kode akses pembelian untuk mulai menyusun perangkat ajar siap cetak.
+      </p>
+
+      <form id="login-form">
+        <div class="field">
+          <label for="login-name">Nama Lengkap & Gelar Guru</label>
+          <input
+            type="text"
+            id="login-name"
+            placeholder="Contoh: Siti Aminah, S.Pd."
+            required
+          />
+        </div>
+        <div class="field">
+          <label for="login-email">Alamat Email</label>
+          <input
+            type="email"
+            id="login-email"
+            placeholder="Contoh: sitiaminah@guru.id"
+            required
+          />
+        </div>
+        <div class="field">
+          <label for="login-code">Kode Akses Pembeli</label>
+          <input
+            type="text"
+            id="login-code"
+            placeholder="Contoh: GURU-MERDEKA-2026"
+            required
+          />
+        </div>
+        <p id="login-error" style="color:var(--danger);font-size:0.82rem;font-weight:700;display:none;margin-bottom:10px;"></p>
+
+        <button type="submit" class="btn btn-primary" style="width:100%;margin-bottom:10px;">
+          Masuk ke Ruang Kerja Guru
+        </button>
+        <button type="button" class="btn btn-secondary" id="btn-demo-fill" style="width:100%;font-size:0.82rem;">
+          Isi Cepat Contoh Akun Pembeli
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <!-- LAYOUT UTAMA WEB APP -->
+  <div class="app-layout" id="app-layout">
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <!-- SIDEBAR NAVIGASI -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand-row" style="padding: 0 8px 10px; border-bottom: 1px solid var(--border);">
+        <svg viewBox="0 0 40 40" fill="none" aria-hidden="true">
+          <rect x="2" y="2" width="36" height="36" rx="10" fill="#0F766E" />
+          <path d="M9 13C13 11.5 17 12.2 20 14.5C23 12.2 27 11.5 31 13V28C27 26.8 23 27.5 20 29.5C17 27.5 13 26.8 9 28V13Z" fill="#FFFFFF" />
+          <path d="M20 14.5V29.5" stroke="#0F766E" stroke-width="2" />
+          <path d="M27.5 8.5L30.5 11.5L23.5 18.5L20.2 18.8L20.5 15.5L27.5 8.5Z" fill="#FBBF24" />
+        </svg>
+        <div>
+          <div class="brand-title" style="font-size:1rem;">RuangAjar</div>
+          <div class="brand-sub">Kurikulum Merdeka</div>
+        </div>
+      </div>
+
+      <div class="nav-group-label">Menu Utama</div>
+      <button type="button" class="nav-btn active" data-view="dashboard">
+        <span>Beranda Guru</span>
+      </button>
+      <button type="button" class="nav-btn" data-view="wizard">
+        <span>Buat Modul Ajar</span>
+        <span class="nav-badge">Utama</span>
+      </button>
+      <button type="button" class="nav-btn" data-view="rapor">
+        <span>Penyusun Rapor</span>
+      </button>
+      <button type="button" class="nav-btn" data-view="library">
+        <span>Perpustakaan Guru</span>
+        <span class="nav-badge" id="badge-lib-count">120</span>
+      </button>
+
+      <div class="nav-group-label">Tersimpan</div>
+      <button type="button" class="nav-btn" data-view="history">
+        <span>Riwayat Dokumen</span>
+        <span class="nav-badge" id="badge-history-count">0</span>
+      </button>
+      <button type="button" class="nav-btn" data-view="favorites">
+        <span>Koleksi Favorit</span>
+        <span class="nav-badge" id="badge-fav-count">0</span>
+      </button>
+      <button type="button" class="nav-btn" data-view="settings">
+        <span>Pengaturan Sekolah</span>
+      </button>
+
+      <div class="sidebar-footer">
+        <button type="button" class="btn btn-secondary" id="btn-theme-toggle" style="width:100%;">
+          Mode Gelap
+        </button>
+        <button type="button" class="btn btn-danger" id="btn-logout" style="width:100%;">
+          Keluar Akun
+        </button>
+      </div>
+    </aside>
+
+    <!-- AREA KONTEN -->
+    <div class="main-area">
+      <header class="mobile-header">
+        <button type="button" class="btn btn-secondary" id="btn-open-sidebar" style="padding:8px 12px;">
+          ☰ Menu
+        </button>
+        <strong style="font-size:0.95rem;">RuangAjar Merdeka</strong>
+        <button type="button" class="btn btn-secondary" id="btn-theme-mobile" style="padding:8px 10px;">
+          Tema
+        </button>
+      </header>
+
+      <main class="content-wrap">
+        <!-- 1. VIEW DASHBOARD -->
+        <section class="view-section active" id="view-dashboard">
+          <div class="page-header">
+            <div>
+              <h1 id="greeting-title">Selamat mengajar, Bapak/Ibu Guru!</h1>
+              <p id="greeting-school">Siapkan Modul Ajar resmi dan kalimat rapor dalam hitungan menit.</p>
+            </div>
+            <div class="btn-row">
+              <button type="button" class="btn btn-primary" id="dash-btn-new-modul">
+                + Buat Modul Ajar Baru
+              </button>
+              <button type="button" class="btn btn-secondary" id="dash-btn-open-rapor">
+                Susun Kalimat Rapor
+              </button>
+            </div>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-label">Modul Ajar Selesai</div>
+              <div class="stat-value" id="stat-modul-count">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Deskripsi Rapor Siswa</div>
+              <div class="stat-value" id="stat-rapor-count">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Koleksi Siap Pakai</div>
+              <div class="stat-value" id="stat-lib-total">120</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Tersimpan di Favorit</div>
+              <div class="stat-value" id="stat-fav-total">0</div>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="card">
+              <h2>Mulai Cepat Hari Ini</h2>
+              <p class="sub">Pilih pekerjaan administrasi kelas yang ingin langsung diselesaikan.</p>
+              <div style="display:flex;flex-direction:column;gap:10px;">
+                <button type="button" class="btn btn-primary" id="quick-wizard-btn" style="justify-content:space-between;">
+                  <span>1. Susun Modul Ajar Lengkap + LKPD (Word & PDF)</span>
+                  <span>→</span>
+                </button>
+                <button type="button" class="btn btn-secondary" id="quick-library-btn" style="justify-content:space-between;">
+                  <span>2. Cari Ide Ice Breaking, Pemantik & Rubrik (120 Item)</span>
+                  <span>→</span>
+                </button>
+                <button type="button" class="btn btn-secondary" id="quick-settings-btn" style="justify-content:space-between;">
+                  <span>3. Simpan Data Sekolah, Kepala Sekolah & NIP Tetap</span>
+                  <span>→</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>Modul Ajar Terakhir Dibuat</h2>
+              <p class="sub">Klik untuk membuka ulang atau mengunduh kembali file Word/PDF.</p>
+              <div id="dash-recent-list" style="display:flex;flex-direction:column;gap:8px;font-size:0.88rem;color:var(--muted);">
+                Belum ada modul yang dibuat. Yuk buat modul pertamamu!
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. VIEW WIZARD MODUL AJAR (3 LANGKAH) -->
+        <section class="view-section" id="view-wizard">
+          <div class="page-header">
+            <div>
+              <h1>Wizard Penyusun Modul Ajar Resmi</h1>
+              <p>Ikuti 3 langkah berurutan untuk mengunduh file Word (.docx) yang bisa diedit dan PDF siap cetak.</p>
+            </div>
+            <button type="button" class="btn btn-secondary" id="btn-fill-sample-modul">
+              Isi Contoh Materi Cepat
+            </button>
+          </div>
+
+          <div class="wizard-steps">
+            <button type="button" class="wiz-tab active" data-wstep="1">
+              1. Identitas & Materi Pokok
+            </button>
+            <button type="button" class="wiz-tab" data-wstep="2">
+              2. Model Belajar & Kegiatan
+            </button>
+            <button type="button" class="wiz-tab" data-wstep="3">
+              3. Pratinjau & Unduh Word/PDF
+            </button>
+          </div>
+
+          <!-- LANGKAH 1 -->
+          <div class="wiz-pane active" id="wiz-pane-1">
+            <div class="card">
+              <h2>Langkah 1 — Identitas Sekolah, Kelas & Topik Materi</h2>
+              <p class="sub">Data sekolah & NIP otomatis diambil dari Pengaturan supaya tidak perlu ketik berulang.</p>
+
+              <div class="grid-2">
+                <div class="field">
+                  <label for="f-sekolah">Nama Satuan Pendidikan (Sekolah)</label>
+                  <input type="text" id="f-sekolah" placeholder="Contoh: SD Negeri 2 Harapan Bangsa" />
+                </div>
+                <div class="field">
+                  <label for="f-kelas">Jenjang / Kelas / Fase</label>
+                  <select id="f-kelas"></select>
+                </div>
+              </div>
+
+              <div class="grid-3">
+                <div class="field">
+                  <label for="f-mapel">Mata Pelajaran</label>
+                  <input type="text" id="f-mapel" placeholder="Contoh: IPAS / Matematika / Bahasa Indonesia" />
+                </div>
+                <div class="field">
+                  <label for="f-semester">Semester</label>
+                  <select id="f-semester">
+                    <option value="Ganjil">Ganjil</option>
+                    <option value="Genap">Genap</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="f-jp">Alokasi Jam Pelajaran (JP)</label>
+                  <input type="number" id="f-jp" min="1" max="12" value="2" />
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="f-topik">Topik / Materi Pokok Pertemuan Ini</label>
+                <input
+                  type="text"
+                  id="f-topik"
+                  placeholder="Contoh: Perubahan Wujud Benda dalam Kehidupan Sehari-hari"
+                />
+              </div>
+
+              <div class="grid-2">
+                <div class="field">
+                  <label for="f-guru">Nama Guru Pengampu</label>
+                  <input type="text" id="f-guru" />
+                </div>
+                <div class="field">
+                  <label for="f-nip-guru">NIP / NUPTK Guru (isi - bila belum ada)</label>
+                  <input type="text" id="f-nip-guru" placeholder="-" />
+                </div>
+              </div>
+
+              <div class="grid-2">
+                <div class="field">
+                  <label for="f-kepsek">Nama Kepala Sekolah</label>
+                  <input type="text" id="f-kepsek" placeholder="Contoh: Drs. Hendra Wijaya, M.Pd." />
+                </div>
+                <div class="field">
+                  <label for="f-nip-kepsek">NIP Kepala Sekolah</label>
+                  <input type="text" id="f-nip-kepsek" placeholder="19750412 200003 1 004" />
+                </div>
+              </div>
+
+              <div class="grid-3">
+                <div class="field">
+                  <label for="f-kota">Kota / Kabupaten Pengesahan</label>
+                  <input type="text" id="f-kota" placeholder="Contoh: Bandung" />
+                </div>
+                <div class="field">
+                  <label for="f-tanggal">Tanggal Dokumen</label>
+                  <input type="date" id="f-tanggal" />
+                </div>
+                <div class="field">
+                  <label for="f-tahun">Tahun Pelajaran</label>
+                  <input type="text" id="f-tahun" value="2026/2027" />
+                </div>
+              </div>
+
+              <div class="btn-row" style="justify-content:flex-end;">
+                <button type="button" class="btn btn-primary" id="btn-to-wstep-2">
+                  Lanjut ke Model & Kegiatan →
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- LANGKAH 2 -->
+          <div class="wiz-pane" id="wiz-pane-2">
+            <div class="card">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px;">
+                <div>
+                  <h2>Langkah 2 — Model Pembelajaran, Kegiatan Inti & Asesmen</h2>
+                  <p class="sub" style="margin-bottom:0;">Kosongkan bila ingin disusun otomatis sesuai topik, atau klik tombol isi otomatis untuk mengeditnya.</p>
+                </div>
+                <button type="button" class="btn btn-secondary" id="btn-autofill-komponen">
+                  Susun Draf Otomatis Sesuai Topik
+                </button>
+              </div>
+
+              <div class="grid-2" style="margin-top:14px;">
+                <div class="field">
+                  <label for="f-model">Model Pembelajaran Utama</label>
+                  <select id="f-model"></select>
+                </div>
+                <div class="field">
+                  <label for="f-sarana">Sarana, Alat & Sumber Belajar</label>
+                  <input
+                    type="text"
+                    id="f-sarana"
+                    placeholder="Contoh: Buku paket, LKPD kelompok, proyektor / benda nyata di kelas"
+                  />
+                </div>
+              </div>
+
+              <div class="field">
+                <label>Dimensi Profil Lulusan / Karakter yang Dikuatkan</label>
+                <div class="checkbox-pills" id="karakter-pills">
+                  <label class="check-pill"><input type="checkbox" value="Keimanan & Akhlak Mulia" checked /> Keimanan & Akhlak</label>
+                  <label class="check-pill"><input type="checkbox" value="Penalaran Kritis" checked /> Penalaran Kritis</label>
+                  <label class="check-pill"><input type="checkbox" value="Kolaborasi (Gotong Royong)" checked /> Kolaborasi</label>
+                  <label class="check-pill"><input type="checkbox" value="Kemandirian" /> Kemandirian</label>
+                  <label class="check-pill"><input type="checkbox" value="Kreativitas" /> Kreativitas</label>
+                  <label class="check-pill"><input type="checkbox" value="Komunikasi" checked /> Komunikasi</label>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="f-tp">Tujuan Pembelajaran (TP)</label>
+                <textarea id="f-tp" placeholder="Akan disusun otomatis sesuai topik & model belajar bila dikosongkan..."></textarea>
+              </div>
+
+              <div class="grid-2">
+                <div class="field">
+                  <label for="f-pemantik">Pertanyaan Pemantik</label>
+                  <textarea id="f-pemantik" placeholder="Pertanyaan pembuka yang memancing rasa ingin tahu murid..."></textarea>
+                </div>
+                <div class="field">
+                  <label for="f-icebreaking">Ice Breaking / Pengkondisian Fokus</label>
+                  <textarea id="f-icebreaking" placeholder="Permainan singkat 3 menit pengembali fokus..."></textarea>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="f-inti">Rincian Langkah Kegiatan Inti (1 baris = 1 langkah)</label>
+                <textarea id="f-inti" style="min-height:120px;" placeholder="Otomatis mengikuti sintaks model belajar yang dipilih bila dikosongkan..."></textarea>
+              </div>
+
+              <div class="field">
+                <label for="f-asesmen">Rencana Asesmen (Diagnostik, Formatif, Sumatif)</label>
+                <textarea id="f-asesmen" placeholder="Otomatis terisi instrumen asesmen awal, proses, dan akhir bila dikosongkan..."></textarea>
+              </div>
+
+              <div class="btn-row" style="justify-content:space-between;">
+                <button type="button" class="btn btn-secondary" id="btn-back-wstep-1">
+                  ← Kembali ke Identitas
+                </button>
+                <button type="button" class="btn btn-primary" id="btn-to-wstep-3">
+                  Susun Dokumen & Lihat Pratinjau →
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- LANGKAH 3 -->
+          <div class="wiz-pane" id="wiz-pane-3">
+            <div class="card">
+              <h2>Langkah 3 — Modul Ajar Siap Diunduh (Word .docx & PDF Resmi)</h2>
+              <p class="sub">
+                Dokumen di bawah sudah lengkap dengan Informasi Umum, Kegiatan Pembelajaran, Rubrik 4 Skala, Lampiran LKPD, dan kolom tanda tangan Kepala Sekolah & Guru.
+              </p>
+
+              <div class="btn-row">
+                <button type="button" class="btn btn-primary" id="btn-download-docx">
+                  Unduh File Word (.docx)
+                </button>
+                <button type="button" class="btn btn-accent" id="btn-download-pdf">
+                  Unduh File PDF Resmi (.pdf)
+                </button>
+                <button type="button" class="btn btn-secondary" id="btn-save-history">
+                  Simpan ke Riwayat
+                </button>
+                <button type="button" class="btn btn-secondary" id="btn-handoff-ai">
+                  Salin Prompt Buat 10 Soal ke ChatGPT/Gemini
+                </button>
+              </div>
+
+              <div class="paper-preview" id="modul-paper-preview"></div>
+
+              <div class="btn-row" style="margin-top:14px;">
+                <button type="button" class="btn btn-secondary" id="btn-back-wstep-2">
+                  ← Edit Kembali Isi Modul
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. VIEW PENYUSUN DESKRIPSI RAPOR CEPAT -->
+        <section class="view-section" id="view-rapor">
+          <div class="page-header">
+            <div>
+              <h1>Penyusun Kalimat Deskripsi e-Rapor</h1>
+              <p>Masukkan capaian siswa untuk menghasilkan kalimat rapor santun siap tempel ke e-Rapor atau unduh tabel CSV Excel.</p>
+            </div>
+            <button type="button" class="btn btn-secondary" id="btn-sample-rapor">
+              Muat Contoh 3 Siswa
+            </button>
+          </div>
+
+          <div class="card">
+            <h2>Tambah Siswa ke Daftar Rapor</h2>
+            <div class="grid-3">
+              <div class="field">
+                <label for="r-mapel">Mata Pelajaran</label>
+                <input type="text" id="r-mapel" value="IPAS" />
+              </div>
+              <div class="field">
+                <label for="r-nama">Nama Peserta Didik</label>
+                <input type="text" id="r-nama" placeholder="Contoh: Aditya Pratama" />
+              </div>
+              <div class="field">
+                <label for="r-nilai">Nilai Akhir (0–100)</label>
+                <input type="number" id="r-nilai" min="0" max="100" value="86" />
+              </div>
+            </div>
+
+            <div class="grid-2">
+              <div class="field">
+                <label for="r-capai">Kompetensi yang Sudah Dikuasai Baik</label>
+                <input
+                  type="text"
+                  id="r-capai"
+                  placeholder="Contoh: mengidentifikasi perubahan wujud benda melalui pengamatan"
+                />
+              </div>
+              <div class="field">
+                <label for="r-bimbing">Kompetensi yang Perlu Bimbingan (opsional)</label>
+                <input
+                  type="text"
+                  id="r-bimbing"
+                  placeholder="Contoh: menuliskan kesimpulan hubungan sebab-akibat secara lengkap"
+                />
+              </div>
+            </div>
+
+            <div class="btn-row">
+              <button type="button" class="btn btn-primary" id="btn-add-rapor-row">
+                + Buat & Tambahkan Kalimat Rapor
+              </button>
+              <button type="button" class="btn btn-accent" id="btn-export-rapor-csv">
+                Unduh Rekap Excel (.csv)
+              </button>
+              <button type="button" class="btn btn-danger" id="btn-clear-rapor">
+                Bersihkan Daftar
+              </button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Hasil Kalimat Deskripsi Rapor Kelas</h2>
+            <div id="rapor-table-wrap" style="overflow-x:auto;margin-top:10px;"></div>
+          </div>
+        </section>
+
+        <!-- 4. VIEW PERPUSTAKAAN 120 ITEM -->
+        <section class="view-section" id="view-library">
+          <div class="page-header">
+            <div>
+              <h1>Perpustakaan Perangkat Guru (120 Koleksi)</h1>
+              <p>Klik salah satu item untuk membaca penjelasan lengkap, tips kelas, dan langsung memasukkannya ke Modul Ajar.</p>
+            </div>
+          </div>
+
+          <div class="card" style="padding:16px;">
+            <div class="grid-2" style="margin-bottom:10px;">
+              <div class="field" style="margin-bottom:0;">
+                <label for="lib-search">Cari Topik / Kata Kunci</label>
+                <input type="text" id="lib-search" placeholder="Ketik misal: pecahan, ice breaking, PBL, rapor..." />
+              </div>
+              <div class="field" style="margin-bottom:0;">
+                <label for="lib-jenjang">Filter Jenjang Kelas</label>
+                <select id="lib-jenjang">
+                  <option value="ALL">Semua Jenjang (SD, SMP, SMA/SMK)</option>
+                  <option value="SD">SD / MI</option>
+                  <option value="SMP">SMP / MTs</option>
+                  <option value="SMA/SMK">SMA / MA / SMK</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-bar" id="lib-category-chips" style="margin-bottom:0;"></div>
+          </div>
+
+          <div class="library-grid" id="library-grid"></div>
+        </section>
+
+        <!-- 5. VIEW RIWAYAT DOKUMEN -->
+        <section class="view-section" id="view-history">
+          <div class="page-header">
+            <div>
+              <h1>Riwayat Modul Ajar Tersimpan</h1>
+              <p>Semua modul yang pernah kamu susun tersimpan di browser ini dan bisa diunduh ulang kapan saja.</p>
+            </div>
+          </div>
+          <div id="history-container"></div>
+        </section>
+
+        <!-- 6. VIEW FAVORIT -->
+        <section class="view-section" id="view-favorites">
+          <div class="page-header">
+            <div>
+              <h1>Koleksi Favorit Saya</h1>
+              <p>Daftar ide pemantik, ice breaking, rubrik, dan kalimat rapor yang kamu tandai bintang.</p>
+            </div>
+          </div>
+          <div class="library-grid" id="favorites-grid"></div>
+        </section>
+
+        <!-- 7. VIEW PENGATURAN SEKOLAH -->
+        <section class="view-section" id="view-settings">
+          <div class="page-header">
+            <div>
+              <h1>Pengaturan Identitas Sekolah & Guru</h1>
+              <p>Simpan sekali saja di sini agar setiap kali membuat Modul Ajar baru semua kolom identitas langsung terisi otomatis.</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <form id="settings-form">
+              <div class="grid-2">
+                <div class="field">
+                  <label for="s-sekolah">Nama Sekolah Tetap</label>
+                  <input type="text" id="s-sekolah" placeholder="Contoh: SMP Negeri 4 Surabaya" />
+                </div>
+                <div class="field">
+                  <label for="s-kota">Kota / Kabupaten</label>
+                  <input type="text" id="s-kota" placeholder="Contoh: Surabaya" />
+                </div>
+              </div>
+              <div class="grid-2">
+                <div class="field">
+                  <label for="s-guru">Nama Lengkap & Gelar Guru</label>
+                  <input type="text" id="s-guru" />
+                </div>
+                <div class="field">
+                  <label for="s-nip-guru">NIP / NUPTK Guru</label>
+                  <input type="text" id="s-nip-guru" />
+                </div>
+              </div>
+              <div class="grid-2">
+                <div class="field">
+                  <label for="s-kepsek">Nama Kepala Sekolah</label>
+                  <input type="text" id="s-kepsek" />
+                </div>
+                <div class="field">
+                  <label for="s-nip-kepsek">NIP Kepala Sekolah</label>
+                  <input type="text" id="s-nip-kepsek" />
+                </div>
+              </div>
+              <div class="field">
+                <label for="s-tahun">Tahun Pelajaran Aktif</label>
+                <input type="text" id="s-tahun" value="2026/2027" />
+              </div>
+
+              <div class="btn-row">
+                <button type="submit" class="btn btn-primary">Simpan Pengaturan Sekolah</button>
+                <button type="button" class="btn btn-secondary" id="btn-export-backup">
+                  Unduh Cadangan Data (.json)
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- MODAL DETAIL ITEM PERPUSTAKAAN -->
+  <div class="modal-backdrop" id="item-modal">
+    <div class="modal-box">
+      <div class="lib-meta" style="margin-bottom:10px;">
+        <span class="cat-tag" id="m-category">Kategori</span>
+        <span class="jenjang-tag" id="m-jenjang">Jenjang</span>
+      </div>
+      <h2 id="m-title" style="margin-bottom:8px;">Judul Item</h2>
+      <p id="m-explanation" style="font-size:0.88rem;color:var(--muted);margin-bottom:12px;"></p>
+
+      <strong style="font-size:0.84rem;">Teks Contoh Siap Pakai:</strong>
+      <div class="example-box" id="m-example"></div>
+
+      <div style="background:var(--accent-soft);padding:12px;border-radius:8px;font-size:0.84rem;margin-bottom:16px;">
+        <strong>Tips Penerapan di Kelas:</strong>
+        <p id="m-tips" style="margin-top:4px;"></p>
+      </div>
+
+      <div class="btn-row" style="justify-content:space-between;">
+        <div class="btn-row">
+          <button type="button" class="btn btn-primary" id="m-btn-use">
+            Masukkan ke Wizard Modul Ajar
+          </button>
+          <button type="button" class="btn btn-secondary" id="m-btn-copy">
+            Salin Teks
+          </button>
+          <button type="button" class="btn btn-secondary" id="m-btn-fav">
+            ☆ Simpan Favorit
+          </button>
+        </div>
+        <button type="button" class="btn btn-secondary" id="m-btn-close">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Berhasil disimpan!</div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

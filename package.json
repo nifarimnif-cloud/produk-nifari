@@ -10,6 +10,8 @@
   },
   "devDependencies": {
     "esbuild": "^0.28.2",
+    "fflate": "^0.8.3",
+    "jspdf": "^4.2.1",
     "mediabunny": "^1.62.1",
     "mp4-muxer": "^5.2.2",
     "mp4box": "^2.5.0",
