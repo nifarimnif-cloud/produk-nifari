@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TarifKarya Studio — Pembuat Proposal, Kartu Harga (Rate Card) & Invoice Jasa</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <!-- ================= LAYAR LOGIN PEMBELI ================= -->
+  <section class="login-screen" id="login-screen">
+    <div class="login-grid">
+      <!-- Kiri: Obsidian Showcase gaya Osmo -->
+      <div class="login-showcase">
+        <div>
+          <div class="brand-lockup" style="margin-bottom:22px;">
+            <span class="brand-symbol" aria-hidden="true">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="8" y1="13" x2="16" y2="13"/>
+                <line x1="8" y1="17" x2="13" y2="17"/>
+              </svg>
+            </span>
+            <span class="brand-name" style="color:#f4f4f4;">TarifKarya</span>
+            <span class="volt-badge sharp">V2.6 STUDIO</span>
+          </div>
+
+          <h1 class="display-stamp" style="color:#f4f4f4;margin-bottom:14px;">
+            Kirim harga jasa rapi dalam 5 menit.
+          </h1>
+          <p style="color:#b8b8b8;font-size:15px;max-width:440px;">
+            Tanpa ikut kursus mahal berjam-jam — susun 3 paket kartu harga, surat penawaran PDF, invoice DP, dan kontrak batas revisi langsung dari browser.
+          </p>
+        </div>
+
+        <div>
+          <span class="marker-note" style="margin-bottom:12px;">
+            <span>Langsung keluar 4 file siap kirim ke WA klien</span>
+            <svg width="26" height="16" viewBox="0 0 26 16" fill="none" stroke="#f84131" stroke-width="2"><path d="M1 3c8 0 15 3 21 10m0 0v-6m0 6h-6"/></svg>
+          </span>
+          <div class="login-fan-row">
+            <div class="mini-fan-tile">
+              <span class="mono-stamp" style="color:#a1ff62;">FILE 01 · PNG</span>
+              <div style="font-weight:700;font-size:13.5px;margin-top:6px;">Kartu Harga 3 Paket</div>
+            </div>
+            <div class="mini-fan-tile">
+              <span class="mono-stamp" style="color:#a1ff62;">FILE 02 · PDF</span>
+              <div style="font-weight:700;font-size:13.5px;margin-top:6px;">Proposal & Invoice DP</div>
+            </div>
+            <div class="mini-fan-tile">
+              <span class="mono-stamp" style="color:#a1ff62;">FILE 03 · DOCX</span>
+              <div style="font-weight:700;font-size:13.5px;margin-top:6px;">Klausul Batas Revisi</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Kanan: Form Masuk Lisensi -->
+      <div class="login-form-tile">
+        <span class="mono-stamp" style="color:var(--text-muted);margin-bottom:8px;">AKSES LISENSI PEMBELI</span>
+        <h2 class="section-title" style="margin-bottom:8px;">Masuk ke Ruang Kerja</h2>
+        <p class="muted-copy" style="margin-bottom:20px;">
+          Masukkan nama usaha/kreator, email, dan kode akses pembelian untuk membuka seluruh alat.
+        </p>
+
+        <form id="login-form">
+          <div class="field">
+            <label for="login-name">Nama Penyedia Jasa / Studio</label>
+            <input type="text" id="login-name" placeholder="Contoh: Dimas Prakoso — Karya Visual" required />
+          </div>
+          <div class="field">
+            <label for="login-email">Alamat Email</label>
+            <input type="email" id="login-email" placeholder="Contoh: dimas@karyavisual.id" required />
+          </div>
+          <div class="field">
+            <label for="login-code">Kode Lisensi Pembeli</label>
+            <input type="text" id="login-code" placeholder="Contoh: FREELANCE-2026-PRO" required />
+          </div>
+
+          <p id="login-error" style="display:none;font-size:13px;padding:8px 10px;border:1px solid #f84131;color:#f84131;margin-bottom:12px;"></p>
+
+          <button type="submit" class="btn btn-volt" style="width:100%;margin-bottom:8px;">
+            Masuk ke TarifKarya Studio
+          </button>
+          <button type="button" class="btn btn-ghost" id="btn-demo-login" style="width:100%;">
+            Isi Cepat Akun Contoh Pembeli
+          </button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SHELL UTAMA STUDIO ================= -->
+  <div class="app-shell" id="app-shell">
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+    <!-- SIDEBAR NAVIGASI -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-head">
+        <div class="brand-lockup">
+          <span class="brand-symbol" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="8" y1="13" x2="16" y2="13"/>
+              <line x1="8" y1="17" x2="13" y2="17"/>
+            </svg>
+          </span>
+          <div>
+            <div class="brand-name">TarifKarya</div>
+            <span class="mono-stamp" style="color:var(--text-muted);font-size:9.5px;">RATE CARD & INVOICE</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="nav-group-label">Alat Utama</div>
+      <button type="button" class="nav-btn active" data-view="dashboard">
+        <span class="nav-btn-left">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          <span>Beranda & Hitung Tarif</span>
+        </span>
+      </button>
+
+      <button type="button" class="nav-btn" data-view="wizard">
+        <span class="nav-btn-left">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span>Wizard Paket & Invoice</span>
+        </span>
+        <span class="nav-count">UTAMA</span>
+      </button>
+
+      <button type="button" class="nav-btn" data-view="wareply">
+        <span class="nav-btn-left">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>Penangkis Nawar WA</span>
+        </span>
+      </button>
+
+      <button type="button" class="nav-btn" data-view="library">
+        <span class="nav-btn-left">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <span>Pustaka Jasa</span>
+        </span>
+        <span class="nav-count" id="nav-lib-badge">120</span>
+      </button>
+
+      <div class="nav-group-label">Arsip & Profil</div>
+      <button type="button" class="nav-btn" data-view="history">
+        <span class="nav-btn-left">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>Riwayat Dokumen</span>
+        </span>
+        <span class="nav-count" id="nav-hist-badge">0</span>
+      </button>
+
+      <button type="button" class="nav-btn" data-view="favorites">
+        <span class="nav-btn-left">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+          <span>Koleksi Favorit</span>
+        </span>
+        <span class="nav-count" id="nav-fav-badge">0</span>
+      </button>
+
+      <button type="button" class="nav-btn" data-view="settings">
+        <span class="nav-btn-left">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.77 1.02 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>Profil & Rekening</span>
+        </span>
+      </button>
+
+      <div class="sidebar-foot">
+        <button type="button" class="btn btn-ghost btn-sm" id="btn-theme-toggle" style="width:100%;">
+          Mode Gelap
+        </button>
+        <button type="button" class="btn btn-ink btn-sm" id="btn-logout" style="width:100%;">
+          Keluar Akun
+        </button>
+      </div>
+    </aside>
+
+    <!-- AREA UTAMA KANAN -->
+    <div class="main-stage">
+      <!-- Floating Pill Bar di HP (gaya Osmo DESIGN 4.md) -->
+      <header class="mobile-pill-bar">
+        <button type="button" class="btn btn-ghost btn-sm" id="btn-open-drawer">Menu</button>
+        <div class="brand-lockup">
+          <span class="brand-symbol" style="width:26px;height:26px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </span>
+          <span class="brand-name" style="font-size:17px;">TarifKarya</span>
+        </div>
+        <button type="button" class="btn btn-volt btn-sm" id="btn-theme-mobile">Tema</button>
+      </header>
+
+      <main class="stage-container">
+        <!-- ================= 1. BERANDA & KALKULATOR TARIF IDEAL ================= -->
+        <section class="view-section active" id="view-dashboard">
+          <div class="page-header">
+            <div>
+              <span class="volt-badge" style="margin-bottom:8px;">STUDIO DOKUMEN JASA MANDIRI</span>
+              <h1 class="display-stamp" id="dash-greeting">Halo, Dimas Prakoso</h1>
+              <p class="muted-copy" style="margin-top:8px;">
+                Susun kartu harga 3 paket, surat penawaran, invoice tagihan DP, dan kontrak batas revisi agar jasamu dihargai layak.
+              </p>
+            </div>
+            <div class="btn-row">
+              <button type="button" class="btn btn-volt" id="dash-btn-start-wizard">
+                Buat Paket & Invoice Baru
+              </button>
+              <button type="button" class="btn btn-ghost" id="dash-btn-open-wareply">
+                Balas Klien Nawar
+              </button>
+            </div>
+          </div>
+
+          <!-- 4 Kartu Angka Tajam 5px -->
+          <div class="bento-4">
+            <div class="tile-card">
+              <span class="mono-stamp" style="color:var(--text-muted);">DOKUMEN SELESAI</span>
+              <div class="stat-num" id="stat-docs-count">0</div>
+              <span class="muted-copy" style="font-size:12.5px;">Rate card, proposal & invoice</span>
+            </div>
+
+            <div class="obsidian-card">
+              <span class="mono-stamp" style="color:#a1ff62;">TARIF AMAN / JAM</span>
+              <div class="stat-num" id="stat-hourly-rate" style="color:#f4f4f4;">Rp 75.000</div>
+              <span style="font-size:12.5px;color:#b8b8b8;">Patokan bawah anti-boncos</span>
+            </div>
+
+            <div class="tile-card">
+              <span class="mono-stamp" style="color:var(--text-muted);">PUSTAKA SIAP PAKAI</span>
+              <div class="stat-num" id="stat-lib-count">120</div>
+              <span class="muted-copy" style="font-size:12.5px;">Skrip WA, klausul & paket</span>
+            </div>
+
+            <div class="tile-card">
+              <span class="mono-stamp" style="color:var(--text-muted);">KOLEKSI FAVORIT</span>
+              <div class="stat-num" id="stat-fav-count">0</div>
+              <span class="muted-copy" style="font-size:12.5px;">Template tersimpan cepat</span>
+            </div>
+          </div>
+
+          <!-- Featured Card Ultraviolet (#6840ff sesuai DESIGN 4.md) + Riwayat Terakhir -->
+          <div class="grid-2">
+            <div class="ultraviolet-card">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;">
+                <span class="volt-badge">KALKULATOR ANTI HARGA TEMAN</span>
+                <span class="mono-stamp" style="color:#eaeaea;">HITUNG OTOMATIS</span>
+              </div>
+              <h2 class="section-title" style="color:#ffffff;margin-bottom:10px;">
+                Berapa tarif minimalmu supaya tidak kerja bakti?
+              </h2>
+              <p style="font-size:14px;color:#eaeaea;margin-bottom:16px;">
+                Masukkan target penghasilan bersih per bulan dan jam kerja realistismu untuk menemukan patokan harga paket minimal.
+              </p>
+
+              <div class="grid-3" style="margin-bottom:14px;align-items:end;">
+                <div>
+                  <label style="font-size:11.5px;font-weight:700;display:block;margin-bottom:4px;">Target Bersih / Bln (Rp)</label>
+                  <input type="number" id="calc-income-input" value="8000000" step="500000" style="width:100%;padding:9px;border-radius:5px;border:1px solid #151313;background:#f4f4f4;color:#151313;font-weight:700;" />
+                </div>
+                <div>
+                  <label style="font-size:11.5px;font-weight:700;display:block;margin-bottom:4px;">Biaya Alat/Kuota (Rp)</label>
+                  <input type="number" id="calc-cost-input" value="500000" step="100000" style="width:100%;padding:9px;border-radius:5px;border:1px solid #151313;background:#f4f4f4;color:#151313;font-weight:700;" />
+                </div>
+                <div>
+                  <label style="font-size:11.5px;font-weight:700;display:block;margin-bottom:4px;">Jam Produktif / Bln</label>
+                  <input type="number" id="calc-hours-input" value="100" step="5" style="width:100%;padding:9px;border-radius:5px;border:1px solid #151313;background:#f4f4f4;color:#151313;font-weight:700;" />
+                </div>
+              </div>
+
+              <div class="obsidian-card" style="padding:14px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                <div>
+                  <span class="mono-stamp" style="color:#b8b8b8;">SARAN PAKET POPULER (15–20 JAM KERJA)</span>
+                  <div style="font-size:24px;font-weight:700;color:#a1ff62;margin-top:4px;" id="calc-recommended-pkg">
+                    Rp 1.700.000
+                  </div>
+                </div>
+                <button type="button" class="btn btn-volt btn-sm" id="btn-apply-calc-to-wizard">
+                  Terapkan ke 3 Paket Wizard
+                </button>
+              </div>
+            </div>
+
+            <div class="tile-card" style="display:flex;flex-direction:column;justify-content:space-between;">
+              <div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                  <span class="mono-stamp" style="color:var(--text-muted);">ARSIP TERBARU</span>
+                  <button type="button" class="text-link" id="dash-see-history">Lihat Semua</button>
+                </div>
+                <h2 class="card-title" style="margin-bottom:12px;">Dokumen Klien Terakhir</h2>
+                <div id="dash-recent-list"></div>
+              </div>
+
+              <div style="padding-top:14px;border-top:1px solid var(--border-subtle);margin-top:14px;">
+                <span class="marker-note">
+                  <span>Klik bidang jasa di Wizard, langsung terisi otomatis!</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= 2. WIZARD 3 LANGKAH (RATE CARD, PROPOSAL, INVOICE, SPK) ================= -->
+        <section class="view-section" id="view-wizard">
+          <div class="page-header">
+            <div>
+              <span class="mono-stamp" style="color:var(--text-muted);">MESIN DOKUMEN KLIEN 3 LANGKAH</span>
+              <h1 class="section-title" style="margin-top:4px;">Penyusun Kartu Harga, Proposal & Invoice</h1>
+            </div>
+            <span class="volt-badge" id="wiz-active-service-badge">ADMIN SOSMED & KONTEN</span>
+          </div>
+
+          <nav class="stepper-bar" aria-label="Tahapan Wizard">
+            <button type="button" class="step-pill active" data-step="1">
+              <span class="step-num-dot">01</span>
+              <span>Pilih Jasa & Info Klien</span>
+            </button>
+            <button type="button" class="step-pill" data-step="2">
+              <span class="step-num-dot">02</span>
+              <span>Atur 3 Paket & Klausul</span>
+            </button>
+            <button type="button" class="step-pill" data-step="3">
+              <span class="step-num-dot">03</span>
+              <span>Pratinjau & Unduh 4 File</span>
+            </button>
+          </nav>
+
+          <!-- LANGKAH 1 -->
+          <div class="wiz-pane active" id="wiz-step-1">
+            <div class="tile-card" style="margin-bottom:16px;">
+              <span class="mono-stamp" style="color:var(--text-muted);display:block;margin-bottom:8px;">
+                PILIH TEMPLATE BIDANG JASA (OTOMATIS ISI RINCIAN 3 PAKET)
+              </span>
+              <div class="service-preset-grid" id="service-preset-grid"></div>
+
+              <div class="grid-2">
+                <div class="field">
+                  <label for="inp-client-name">Nama Calon Klien / Perusahaan</label>
+                  <input type="text" id="inp-client-name" value="Kopi Senja Nusantara" />
+                </div>
+                <div class="field">
+                  <label for="inp-project-name">Nama Proyek / Kebutuhan Klien</label>
+                  <input type="text" id="inp-project-name" value="Pengelolaan Konten Instagram & Reels Bulanan" />
+                </div>
+              </div>
+
+              <div class="grid-3">
+                <div class="field">
+                  <label for="inp-turnaround">Estimasi Durasi Kerja</label>
+                  <input type="text" id="inp-turnaround" value="30 Hari Kalender" />
+                </div>
+                <div class="field">
+                  <label for="inp-dp-percent">Persentase Uang Muka / DP (%)</label>
+                  <select id="inp-dp-percent">
+                    <option value="50" selected>50% Awal — 50% Pelunasan</option>
+                    <option value="30">30% Awal — 70% Pelunasan</option>
+                    <option value="70">70% Awal — 30% Pelunasan</option>
+                    <option value="100">100% Bayar Lunas di Depan</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="inp-revision-limit">Kuota Revisi Gratis di Paket</label>
+                  <input type="text" id="inp-revision-limit" value="2x Revisi Minor Terarah" />
+                </div>
+              </div>
+
+              <div style="display:flex;justify-content:flex-end;margin-top:6px;">
+                <button type="button" class="btn btn-volt" id="btn-to-step-2">
+                  Lanjut Atur 3 Paket Harga
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- LANGKAH 2 -->
+          <div class="wiz-pane" id="wiz-step-2">
+            <div class="ash-card" style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+              <div>
+                <span class="mono-stamp">SESUAIKAN SKALA HARGA CEPAT</span>
+                <p class="muted-copy" style="font-size:13.5px;margin-top:3px;">
+                  Klik paket mana yang direkomendasikan untuk Invoice klien ini, atau ubah angka & rincian itemnya langsung.
+                </p>
+              </div>
+              <button type="button" class="btn btn-ghost btn-sm" id="btn-pick-clause-lib">
+                Ambil Klausul dari 120 Pustaka
+              </button>
+            </div>
+
+            <div class="tiers-grid" id="tiers-editor-container"></div>
+
+            <div class="grid-2" style="margin-bottom:16px;">
+              <div class="tile-card">
+                <span class="mono-stamp" style="color:var(--text-muted);display:block;margin-bottom:8px;">
+                  OPSI BIAYA TAMBAHAN (ADD-ON UNTUK INVOICE)
+                </span>
+                <div id="addons-checkbox-list"></div>
+              </div>
+
+              <div class="tile-card">
+                <div class="field" style="margin-bottom:0;">
+                  <label for="inp-custom-clause">Klausul Perlindungan Kerja (Tercetak di Proposal & Kontrak Word)</label>
+                  <textarea id="inp-custom-clause">Selama tahap pratinjau, hasil kerja dikirim ber-watermark. File akhir resolusi penuh tanpa watermark diserahkan maksimal 1x24 jam setelah pelunasan 100% diterima. Permintaan di luar lingkup awal atau file mentah dikenakan biaya tambahan sesuai kartu harga.</textarea>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+              <button type="button" class="btn btn-ghost" id="btn-back-step-1">Kembali ke Info Klien</button>
+              <button type="button" class="btn btn-volt" id="btn-to-step-3">Lanjut ke Pratinjau & Unduh File</button>
+            </div>
+          </div>
+
+          <!-- LANGKAH 3 -->
+          <div class="wiz-pane" id="wiz-step-3">
+            <div class="preview-split">
+              <!-- Kiri: Kertas Pratinjau Dokumen Resmi -->
+              <div class="paper-preview" id="live-paper-preview"></div>
+
+              <!-- Kanan: Panel Unduh 4 File Jadi + Hand-off AI -->
+              <div style="display:grid;gap:14px;">
+                <div class="obsidian-card">
+                  <span class="volt-badge" style="margin-bottom:10px;">SIAP UNDUH · 4 FORMAT ASLI</span>
+                  <h3 class="card-title" style="color:#f4f4f4;margin-bottom:6px;">Simpan & Kirim ke WhatsApp Klien</h3>
+                  <p style="font-size:13.5px;color:#b8b8b8;margin-bottom:16px;">
+                    Seluruh dokumen di bawah dibuat langsung di browser lengkap kop usaha, perhitungan DP otomatis, dan nomor referensi resmi.
+                  </p>
+
+                  <div style="display:grid;gap:8px;">
+                    <button type="button" class="btn btn-volt" id="btn-dl-ratecard-png" style="width:100%;justify-content:space-between;text-align:left;">
+                      <span>1. Unduh Gambar Rate Card 3 Paket</span>
+                      <span class="mono-stamp" style="white-space:nowrap;flex-shrink:0;">.PNG HD</span>
+                    </button>
+
+                    <button type="button" class="btn btn-ghost" id="btn-dl-proposal-pdf" style="width:100%;justify-content:space-between;text-align:left;background:#f4f4f4;color:#151313;">
+                      <span>2. Unduh Surat Penawaran Resmi</span>
+                      <span class="mono-stamp" style="white-space:nowrap;flex-shrink:0;">.PDF A4</span>
+                    </button>
+
+                    <button type="button" class="btn btn-ghost" id="btn-dl-invoice-pdf" style="width:100%;justify-content:space-between;text-align:left;background:#f4f4f4;color:#151313;">
+                      <span>3. Unduh Invoice Tagihan DP & Lunas</span>
+                      <span class="mono-stamp" style="white-space:nowrap;flex-shrink:0;">.PDF A4</span>
+                    </button>
+
+                    <button type="button" class="btn btn-ghost" id="btn-dl-spk-docx" style="width:100%;justify-content:space-between;text-align:left;background:#f4f4f4;color:#151313;">
+                      <span>4. Unduh Kesepakatan & Revisi</span>
+                      <span class="mono-stamp" style="white-space:nowrap;flex-shrink:0;">.DOCX</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="tile-card">
+                  <span class="mono-stamp" style="color:var(--text-muted);">OPSIONAL · TANPA BIAYA AI</span>
+                  <h3 class="card-title" style="margin:6px 0;">Hand-Off Prompt Audit Klien</h3>
+                  <p class="muted-copy" style="font-size:13.5px;margin-bottom:12px;">
+                    Salin prompt khusus proyek ini ke ChatGPT atau Gemini gratis untuk menyusun poin audit pembuka supaya klien makin yakin memilih paketmu.
+                  </p>
+                  <button type="button" class="btn btn-ghost btn-sm" id="btn-copy-ai-prompt" style="width:100%;">
+                    Salin Prompt Riset Klien ke Papan Klip
+                  </button>
+                </div>
+
+                <button type="button" class="btn btn-ghost btn-sm" id="btn-back-step-2">
+                  Ubah Angka Paket di Langkah 2
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= 3. PENANGKIS NAWAR WA ================= -->
+        <section class="view-section" id="view-wareply">
+          <div class="page-header">
+            <div>
+              <span class="volt-badge" style="margin-bottom:8px;">GENERATOR BALASAN WHATSAPP</span>
+              <h1 class="section-title">Penangkis Klien Nawar Sadis & Penagih Sopan</h1>
+              <p class="muted-copy" style="margin-top:6px;">
+                Otomatis menyisipkan nama studio, nama klien, harga paket aktif, dan nomor rekeningmu ke dalam draf balasan sopan nan tegas.
+              </p>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="tile-card">
+              <div class="field">
+                <label for="wa-scenario-select">Pilih Situasi Chat Klien yang Sedang Dihadapi</label>
+                <select id="wa-scenario-select"></select>
+              </div>
+
+              <div class="ash-card" style="padding:14px;">
+                <span class="mono-stamp">DATA OTOMATIS DARI WIZARD AKTIF:</span>
+                <p class="muted-copy" style="font-size:13px;margin-top:6px;" id="wa-context-summary"></p>
+              </div>
+            </div>
+
+            <div class="tile-card">
+              <div class="field">
+                <label for="wa-output-text">Pesan Siap Kirim ke WhatsApp (Bebas Diedit)</label>
+                <textarea id="wa-output-text" style="min-height:190px;"></textarea>
+              </div>
+              <button type="button" class="btn btn-volt" id="btn-copy-wa-reply" style="width:100%;">
+                Salin Balasan WhatsApp Sekarang
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= 4. PUSTAKA 120 KOLEKSI JASA ================= -->
+        <section class="view-section" id="view-library">
+          <div class="page-header">
+            <div>
+              <span class="mono-stamp" style="color:var(--text-muted);">BANK CONTEKAN PRAKTIS</span>
+              <h1 class="section-title" style="margin-top:4px;">Pustaka 120 Skrip, Klausul, Paket & Prompt</h1>
+            </div>
+            <span class="volt-badge" id="lib-result-badge">120 KOLEKSI</span>
+          </div>
+
+          <div class="ash-card">
+            <div class="grid-2">
+              <div class="field" style="margin-bottom:0;">
+                <label for="lib-search-input">Cari Kata Kunci / Masalah Klien</label>
+                <input type="text" id="lib-search-input" placeholder="Ketik misal: harga teman, DP, revisi, file mentah, invoice..." />
+              </div>
+              <div class="field" style="margin-bottom:0;">
+                <label for="lib-niche-filter">Filter Bidang Layanan</label>
+                <select id="lib-niche-filter"></select>
+              </div>
+            </div>
+            <div class="cat-strip" id="lib-cat-strip"></div>
+          </div>
+
+          <div class="library-grid" id="library-grid"></div>
+        </section>
+
+        <!-- ================= 5. RIWAYAT DOKUMEN ================= -->
+        <section class="view-section" id="view-history">
+          <div class="page-header">
+            <div>
+              <span class="mono-stamp" style="color:var(--text-muted);">ARSIP LOKAL PERANGKAT</span>
+              <h1 class="section-title" style="margin-top:4px;">Riwayat Paket & Invoice yang Dibuat</h1>
+            </div>
+            <button type="button" class="btn btn-ghost btn-sm" id="btn-clear-history">Bersihkan Riwayat</button>
+          </div>
+          <div id="history-container"></div>
+        </section>
+
+        <!-- ================= 6. KOLEKSI FAVORIT ================= -->
+        <section class="view-section" id="view-favorites">
+          <div class="page-header">
+            <div>
+              <span class="mono-stamp" style="color:var(--text-muted);">SIMPANAN CEPAT</span>
+              <h1 class="section-title" style="margin-top:4px;">Koleksi Skrip & Klausul Favorit</h1>
+            </div>
+          </div>
+          <div class="library-grid" id="favorites-grid"></div>
+        </section>
+
+        <!-- ================= 7. PROFIL USAHA & REKENING ================= -->
+        <section class="view-section" id="view-settings">
+          <div class="page-header">
+            <div>
+              <span class="mono-stamp" style="color:var(--text-muted);">IDENTITAS KOP DOKUMEN</span>
+              <h1 class="section-title" style="margin-top:4px;">Pengaturan Studio & Rekening Invoice</h1>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="tile-card">
+              <h2 class="card-title" style="margin-bottom:14px;">Kop Resmi Proposal, Rate Card & Invoice</h2>
+              <div class="field">
+                <label for="set-studio-name">Nama Studio / Usaha Jasa</label>
+                <input type="text" id="set-studio-name" placeholder="Contoh: Karya Visual Studio" />
+              </div>
+              <div class="field">
+                <label for="set-creator-name">Nama Penanggung Jawab / Penanda Tangan</label>
+                <input type="text" id="set-creator-name" placeholder="Contoh: Dimas Prakoso" />
+              </div>
+              <div class="field">
+                <label for="set-phone">Nomor WhatsApp / Kontak Resmi</label>
+                <input type="text" id="set-phone" placeholder="Contoh: 0812-3456-7890" />
+              </div>
+              <div class="field">
+                <label for="set-bank">Informasi Rekening Bank / Pembayaran</label>
+                <input type="text" id="set-bank" placeholder="Contoh: BCA 8410-2291-88 a.n. Dimas Prakoso" />
+              </div>
+              <button type="button" class="btn btn-volt" id="btn-save-settings">
+                Simpan Identitas Kop Studio
+              </button>
+            </div>
+
+            <div class="tile-card">
+              <h2 class="card-title" style="margin-bottom:10px;">Cadangan & Pulihkan Data (.JSON)</h2>
+              <p class="muted-copy" style="margin-bottom:16px;">
+                Seluruh riwayat penawaran klien, nomor rekening, dan daftar favorit tersimpan aman di browser perangkatmu. Unduh cadangannya kapan saja bila ingin pindah laptop.
+              </p>
+              <div class="btn-row">
+                <button type="button" class="btn btn-ghost btn-sm" id="btn-export-backup">
+                  Unduh Cadangan .JSON
+                </button>
+                <button type="button" class="btn btn-ghost btn-sm" id="btn-import-backup">
+                  Pulihkan dari File .JSON
+                </button>
+                <input type="file" id="inp-import-backup" accept="application/json,.json" hidden />
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- NAVIGASI BAWAH KHUSUS HP 390PX -->
+      <nav class="mobile-dock" aria-label="Navigasi Bawah HP">
+        <button type="button" class="dock-btn active" data-mview="dashboard">Beranda</button>
+        <button type="button" class="dock-btn" data-mview="wizard">Buat Paket</button>
+        <button type="button" class="dock-btn" data-mview="wareply">Balas WA</button>
+        <button type="button" class="dock-btn" data-mview="library">120 Pustaka</button>
+      </nav>
+    </div>
+  </div>
+
+  <!-- MODAL DETAIL PUSTAKA -->
+  <div class="modal-backdrop" id="lib-modal" role="dialog" aria-modal="true">
+    <div class="modal-box">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;">
+        <span class="volt-badge" id="modal-cat-badge">KATEGORI</span>
+        <span class="mono-pill" id="modal-niche-badge">BIDANG</span>
+      </div>
+      <h2 class="section-title" id="modal-title" style="font-size:26px;margin-bottom:10px;">Judul Koleksi</h2>
+      <p class="muted-copy" id="modal-explanation"></p>
+
+      <div style="margin-top:14px;">
+        <span class="mono-stamp">CONTOH KALIMAT / FORMAT SIAP PAKAI</span>
+        <div class="callout-quote" id="modal-example"></div>
+      </div>
+
+      <div style="margin-bottom:18px;">
+        <span class="mono-stamp">TIPS PENERAPAN ANTI-RUGI</span>
+        <p class="muted-copy" id="modal-tips" style="margin-top:5px;"></p>
+      </div>
+
+      <div class="btn-row" style="justify-content:space-between;padding-top:14px;border-top:1px solid var(--border-card);">
+        <div class="btn-row">
+          <button type="button" class="btn btn-volt btn-sm" id="modal-btn-apply">
+            Gunakan di Studio / Salin
+          </button>
+          <button type="button" class="btn btn-ghost btn-sm" id="modal-btn-fav">
+            Simpan Favorit
+          </button>
+        </div>
+        <button type="button" class="btn btn-ink btn-sm" id="modal-btn-close">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,957 @@
+/* ==========================================================================
+   TARIFKARYA STUDIO — OSMO BRUTALIST EDITORIAL DESIGN SYSTEM (DESIGN 4.md)
+   Palette: Concrete #f4f4f4 · Ash #eaeaea · Ink #201d1d · Obsidian #151313
+   Accents: Volt #a1ff62 · Ultraviolet #6840ff (featured card) · Vermillion #f84131 (marker)
+   Radii: Sharp 2px/5px content tiles + Extreme 1600px pill buttons & badges
+   Zero shadows · Zero gradients · Compressed display leading
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Inter+Tight:wght@500;600;700&family=Inter:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --color-concrete: #f4f4f4;
+  --color-ash-gray: #eaeaea;
+  --color-bone: #e1e1e1;
+  --color-smoke: #b8b8b8;
+  --color-graphite: #4f4c4c;
+  --color-steel: #7a7a7a;
+  --color-charcoal: #312e2e;
+  --color-ink: #201d1d;
+  --color-obsidian: #151313;
+  --color-volt: #a1ff62;
+  --color-volt-hover: #90f54e;
+  --color-ultraviolet: #6840ff;
+  --color-vermillion: #f84131;
+
+  --surface-canvas: var(--color-concrete);
+  --surface-card: #ffffff;
+  --surface-elevated: var(--color-ash-gray);
+  --surface-inverse: var(--color-obsidian);
+  --border-card: var(--color-charcoal);
+  --border-subtle: var(--color-bone);
+  --text-primary: var(--color-ink);
+  --text-secondary: var(--color-graphite);
+  --text-muted: var(--color-steel);
+  --input-bg: var(--color-ash-gray);
+
+  --font-display: 'Inter Tight', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-body: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+  --font-annotation: 'Caveat', cursive;
+
+  --radius-sharp: 2px;
+  --radius-cards: 5px;
+  --radius-inputs: 5px;
+  --radius-buttons: 1600px;
+  --radius-badges: 1600px;
+}
+
+[data-theme="dark"] {
+  --surface-canvas: #151313;
+  --surface-card: #1d1a1a;
+  --surface-elevated: #262222;
+  --surface-inverse: #0e0c0c;
+  --border-card: #3d3939;
+  --border-subtle: #2e2a2a;
+  --text-primary: #f4f4f4;
+  --text-secondary: #c9c7c7;
+  --text-muted: #969292;
+  --input-bg: #242020;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: 15.5px;
+  line-height: 1.42;
+  letter-spacing: -0.01em;
+  background-color: var(--surface-canvas);
+  color: var(--text-primary);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Cegah meluber di layar HP 390px */
+.app-shell > *,
+.bento-4 > *,
+.grid-2 > *,
+.grid-3 > *,
+.tiers-grid > *,
+.preview-split > *,
+.library-grid > * {
+  min-width: 0;
+}
+
+/* TIPOGRAFI OSMO */
+.display-stamp {
+  font-family: var(--font-display);
+  font-size: clamp(34px, 4.2vw, 54px);
+  font-weight: 600;
+  line-height: 0.92;
+  letter-spacing: -0.04em;
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: clamp(26px, 3vw, 36px);
+  font-weight: 600;
+  line-height: 0.98;
+  letter-spacing: -0.03em;
+}
+
+.card-title {
+  font-family: var(--font-body);
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.mono-stamp {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.marker-note {
+  font-family: var(--font-annotation);
+  font-size: 24px;
+  line-height: 0.88;
+  color: var(--color-vermillion);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.muted-copy {
+  color: var(--text-secondary);
+  font-size: 14.5px;
+  line-height: 1.45;
+}
+
+/* BADGES & MONO PILLS */
+.volt-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--radius-badges);
+  background-color: var(--color-volt);
+  color: #201d1d;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.volt-badge.sharp {
+  border-radius: var(--radius-sharp);
+}
+
+.mono-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--radius-badges);
+  background-color: var(--surface-canvas);
+  border: 1.5px solid var(--border-card);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* TOMBOL PILL 1600PX (KONTRAS DENGAN KARTU TAJAM 5PX) */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 22px;
+  border-radius: var(--radius-buttons);
+  border: 1px solid transparent;
+  font-family: var(--font-body);
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.14s ease, border-color 0.14s ease;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-volt {
+  background-color: var(--color-volt);
+  border-color: #201d1d;
+  color: #201d1d;
+}
+
+.btn-volt:hover:not(:disabled) {
+  background-color: var(--color-volt-hover);
+}
+
+.btn-ink {
+  background-color: var(--color-obsidian);
+  border-color: var(--color-obsidian);
+  color: #f4f4f4;
+}
+
+[data-theme="dark"] .btn-ink {
+  background-color: #f4f4f4;
+  border-color: #f4f4f4;
+  color: #151313;
+}
+
+.btn-ghost {
+  background-color: var(--surface-card);
+  border-color: var(--border-card);
+  color: var(--text-primary);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  border-color: var(--color-volt);
+}
+
+.btn-sm {
+  padding: 8px 15px;
+  font-size: 13px;
+}
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.text-link {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid currentColor;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 700;
+  padding-bottom: 1px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+/* KARTU TAJAM 5PX (ZERO BOX-SHADOW) */
+.tile-card {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-cards);
+  padding: 20px;
+}
+
+.ash-card {
+  background-color: var(--surface-elevated);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-cards);
+  padding: 20px;
+}
+
+.obsidian-card {
+  background-color: var(--color-obsidian);
+  border: 1px solid #312e2e;
+  border-radius: var(--radius-cards);
+  padding: 20px;
+  color: #f4f4f4;
+}
+
+/* Satu-satunya Featured Card per Section (#6840ff sesuai DESIGN 4.md) */
+.ultraviolet-card {
+  background-color: var(--color-ultraviolet);
+  border: 1px solid #201d1d;
+  border-radius: var(--radius-cards);
+  padding: 24px;
+  color: #f4f4f4;
+}
+
+/* INPUT FIELDS (ASH GRAY #EAEAEA, 5PX RADIUS, FOCUS 2PX VOLT RING) */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+
+.field label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.field input[type="text"],
+.field input[type="email"],
+.field input[type="number"],
+.field select,
+.field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius-inputs);
+  border: 1px solid var(--border-card);
+  background-color: var(--input-bg);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  outline: none;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: 2px solid var(--color-volt);
+  outline-offset: 1px;
+}
+
+.field textarea {
+  min-height: 78px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+/* ================= LAYAR LOGIN ================= */
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background-color: var(--surface-canvas);
+}
+
+.login-grid {
+  width: 100%;
+  max-width: 980px;
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 20px;
+  align-items: stretch;
+}
+
+.login-showcase {
+  background-color: var(--color-obsidian);
+  border: 1px solid #312e2e;
+  border-radius: var(--radius-cards);
+  padding: 36px;
+  color: #f4f4f4;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.login-fan-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.mini-fan-tile {
+  background-color: #201d1d;
+  border: 1px solid #4f4c4c;
+  border-radius: var(--radius-cards);
+  padding: 12px;
+}
+
+.mini-fan-tile:nth-child(1) {
+  transform: rotate(-2deg);
+}
+
+.mini-fan-tile:nth-child(3) {
+  transform: rotate(2deg);
+}
+
+.login-form-tile {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-cards);
+  padding: 36px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* ================= LAYOUT STUDIO UTAMA ================= */
+.app-shell {
+  display: none;
+  min-height: 100vh;
+}
+
+.app-shell.active {
+  display: grid;
+  grid-template-columns: 262px minmax(0, 1fr);
+}
+
+.sidebar {
+  background-color: var(--surface-elevated);
+  border-right: 1px solid var(--border-card);
+  padding: 18px 14px;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  z-index: 40;
+}
+
+.brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-symbol {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-cards);
+  background-color: var(--color-volt);
+  border: 1px solid #201d1d;
+  color: #151313;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.brand-name {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.sidebar-head {
+  padding: 4px 6px 16px;
+  border-bottom: 1px solid var(--border-card);
+  margin-bottom: 14px;
+}
+
+.nav-group-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  padding: 10px 10px 6px;
+}
+
+.nav-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--radius-buttons);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-bottom: 4px;
+  text-align: left;
+}
+
+.nav-btn:hover {
+  background-color: var(--surface-card);
+  border-color: var(--border-subtle);
+}
+
+.nav-btn.active {
+  background-color: var(--color-volt);
+  border-color: #201d1d;
+  color: #151313;
+  font-weight: 700;
+}
+
+.nav-btn-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.nav-count {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  padding: 2px 8px;
+  border-radius: var(--radius-badges);
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-card);
+  color: var(--text-primary);
+}
+
+.nav-btn.active .nav-count {
+  background-color: #151313;
+  border-color: #151313;
+  color: var(--color-volt);
+}
+
+.sidebar-foot {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-card);
+  display: grid;
+  gap: 8px;
+}
+
+/* AREA KONTEN KANAN */
+.main-stage {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Floating Pill Topbar khusus HP sesuai DESIGN 4.md */
+.mobile-pill-bar {
+  display: none;
+  margin: 10px 12px 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-buttons);
+  background-color: var(--surface-canvas);
+  border: 1px solid var(--border-card);
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  position: sticky;
+  top: 8px;
+  z-index: 35;
+}
+
+.stage-container {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px 30px 92px;
+}
+
+.view-section {
+  display: none;
+}
+
+.view-section.active {
+  display: block;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border-card);
+  margin-bottom: 22px;
+}
+
+/* GRIDS */
+.bento-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stat-num {
+  font-family: var(--font-display);
+  font-size: 38px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  margin: 10px 0 6px;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+/* WIZARD STEPPER */
+.stepper-bar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.step-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  border-radius: var(--radius-buttons);
+  border: 1px solid var(--border-card);
+  background-color: var(--surface-card);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+
+.step-pill.active {
+  background-color: var(--color-volt);
+  border-color: #201d1d;
+  color: #151313;
+}
+
+.step-num-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: var(--surface-elevated);
+  border: 1px solid var(--border-card);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.step-pill.active .step-num-dot {
+  background-color: #151313;
+  border-color: #151313;
+  color: var(--color-volt);
+}
+
+.wiz-pane {
+  display: none;
+}
+
+.wiz-pane.active {
+  display: block;
+}
+
+/* PRESET BIDANG JASA CHIPS */
+.service-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.service-chip {
+  padding: 12px;
+  border-radius: var(--radius-cards);
+  border: 1px solid var(--border-card);
+  background-color: var(--surface-card);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.service-chip.active {
+  background-color: var(--color-obsidian);
+  border-color: var(--color-obsidian);
+  color: var(--color-volt);
+}
+
+/* 3 PAKET HARGA EDITOR (STEP 2) */
+.tiers-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.tier-editor-card {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-cards);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tier-editor-card.selected {
+  border: 2px solid var(--color-ink);
+  background-color: var(--surface-elevated);
+}
+
+[data-theme="dark"] .tier-editor-card.selected {
+  border-color: var(--color-volt);
+}
+
+/* PRATINJAU DOKUMEN RESMI (STEP 3) */
+.preview-split {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 18px;
+  align-items: start;
+}
+
+.paper-preview {
+  background-color: #ffffff;
+  color: #151313;
+  border: 1px solid #201d1d;
+  border-radius: var(--radius-cards);
+  padding: 24px;
+}
+
+.paper-head {
+  background-color: #151313;
+  color: #f4f4f4;
+  border-radius: var(--radius-sharp);
+  padding: 16px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.paper-tier-row {
+  border: 1px solid #312e2e;
+  border-radius: var(--radius-sharp);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  background-color: #f4f4f4;
+}
+
+.paper-tier-row.active {
+  background-color: #151313;
+  color: #f4f4f4;
+}
+
+/* PUSTAKA 120 KOLEKSI */
+.cat-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.cat-chip {
+  padding: 6px 13px;
+  border-radius: var(--radius-buttons);
+  border: 1.5px solid var(--border-card);
+  background-color: var(--surface-card);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.cat-chip.active {
+  background-color: var(--color-volt);
+  border-color: #201d1d;
+  color: #151313;
+  font-weight: 700;
+}
+
+.library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.lib-tile {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-cards);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+/* MODAL DETAIL */
+.modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(21, 19, 19, 0.72);
+  z-index: 80;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal-backdrop.open {
+  display: flex;
+}
+
+.modal-box {
+  width: 100%;
+  max-width: 620px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background-color: var(--surface-canvas);
+  border: 2px solid var(--border-card);
+  border-radius: var(--radius-cards);
+  padding: 26px;
+}
+
+.callout-quote {
+  background-color: var(--surface-card);
+  border-left: 4px solid var(--color-volt);
+  border-top: 1px solid var(--border-card);
+  border-right: 1px solid var(--border-card);
+  border-bottom: 1px solid var(--border-card);
+  border-radius: var(--radius-sharp);
+  padding: 14px;
+  margin: 12px 0;
+  font-size: 14px;
+  white-space: pre-line;
+}
+
+/* TOAST */
+.toast {
+  display: none;
+  position: fixed;
+  bottom: 22px;
+  right: 22px;
+  z-index: 95;
+  background-color: #151313;
+  color: var(--color-volt);
+  border: 1px solid var(--color-volt);
+  border-radius: var(--radius-buttons);
+  padding: 10px 18px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* MOBILE DRAWER & BOTTOM DOCK */
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(21, 19, 19, 0.55);
+  z-index: 38;
+}
+
+.mobile-dock {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 36;
+  background-color: var(--surface-elevated);
+  border-top: 1px solid var(--border-card);
+  padding: 6px 8px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.dock-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 7px 4px;
+  border-radius: var(--radius-buttons);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.dock-btn.active {
+  background-color: var(--color-volt);
+  color: #151313;
+  font-weight: 700;
+}
+
+@media (max-width: 980px) {
+  .login-grid,
+  .bento-4,
+  .grid-2,
+  .grid-3,
+  .service-preset-grid,
+  .tiers-grid,
+  .preview-split,
+  .stepper-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .app-shell.active {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: fixed;
+    left: -280px;
+    width: 268px;
+    transition: left 0.2s ease;
+  }
+
+  .sidebar.open {
+    left: 0;
+  }
+
+  .sidebar-backdrop.open {
+    display: block;
+  }
+
+  .mobile-pill-bar {
+    display: flex;
+  }
+
+  .mobile-dock {
+    display: grid;
+  }
+
+  .stage-container {
+    padding: 18px 14px 92px;
+  }
+
+  .login-fan-row {
+    grid-template-columns: 1fr;
+  }
+
+  .mini-fan-tile:nth-child(1),
+  .mini-fan-tile:nth-child(3) {
+    transform: none;
+  }
+}
