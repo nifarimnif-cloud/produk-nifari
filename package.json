@@ -4,7 +4,8 @@
   "private": true,
   "description": "Workspace Challenge 10 Produk Digital - Nifari",
   "scripts": {
-    "deploy:tes": "wrangler pages deploy halaman-tes --project-name nifari-halaman-tes"
+    "deploy:tes": "wrangler pages deploy halaman-tes --project-name nifari-halaman-tes --branch main",
+    "preview": "wrangler pages dev halaman-tes"
   },
   "devDependencies": {
     "wrangler": "^4.154.0"
