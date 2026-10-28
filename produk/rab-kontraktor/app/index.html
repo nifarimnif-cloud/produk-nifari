@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RancangRAB Studio — Kalkulator RAB, Material & Surat Penawaran Kontraktor</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <!-- LAYAR LOGIN PEMBELI -->
+  <section class="login-screen" id="login-screen">
+    <div class="login-card">
+      <div class="brand-row">
+        <div class="brand-mark" aria-hidden="true">
+          <!-- Simbol Geometris Kuda-Kuda Bangunan & Penggaris Siku Konstruksi -->
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 11L12 3l9 8"/>
+            <path d="M5 10v10h14V10"/>
+            <path d="M9 20v-6h6v6"/>
+            <line x1="12" y1="3" x2="12" y2="9"/>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title">RancangRAB Studio</div>
+          <div class="brand-sub">Kalkulator RAB, Material & Kontrak Borongan</div>
+        </div>
+      </div>
+
+      <p style="font-size:0.87rem;color:var(--muted);margin-bottom:20px;">
+        Masuk menggunakan nama usaha atau pelaksana, email, dan kode akses pembelian untuk mulai menyusun RAB resmi.
+      </p>
+
+      <form id="login-form">
+        <div class="field">
+          <label for="login-name">Nama Kontraktor / Pelaksana</label>
+          <input
+            type="text"
+            id="login-name"
+            placeholder="Contoh: Hendra Pratama — Karya Mandiri Bangunan"
+            required
+          />
+        </div>
+        <div class="field">
+          <label for="login-email">Alamat Email</label>
+          <input
+            type="email"
+            id="login-email"
+            placeholder="Contoh: hendra@karyamandiri.id"
+            required
+          />
+        </div>
+        <div class="field">
+          <label for="login-code">Kode Akses Pembeli</label>
+          <input
+            type="text"
+            id="login-code"
+            placeholder="Contoh: RAB-PRO-2026"
+            required
+          />
+        </div>
+        <p id="login-error" style="color:var(--danger);font-size:0.82rem;font-weight:700;display:none;margin-bottom:10px;"></p>
+
+        <button type="submit" class="btn btn-primary" style="width:100%;margin-bottom:10px;">
+          Masuk ke Studio RAB
+        </button>
+        <button type="button" class="btn btn-secondary" id="btn-demo-fill" style="width:100%;font-size:0.82rem;">
+          Isi Cepat Contoh Akun Pembeli
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <!-- LAYOUT UTAMA WEB APP -->
+  <div class="app-layout" id="app-layout">
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+    <!-- SIDEBAR NAVIGASI -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-mark" style="width:38px;height:38px;border-radius:12px;" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 11L12 3l9 8"/>
+            <path d="M5 10v10h14V10"/>
+            <path d="M9 20v-6h6v6"/>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title" style="font-size:0.98rem;">RancangRAB</div>
+          <div class="brand-sub">Studio Kontraktor</div>
+        </div>
+      </div>
+
+      <div class="nav-group-label">Menu Utama</div>
+      <button type="button" class="nav-btn active" data-view="dashboard">
+        <span class="nav-btn-left">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>
+          <span>Beranda Proyek</span>
+        </span>
+      </button>
+
+      <button type="button" class="nav-btn" data-view="wizard">
+        <span class="nav-btn-left">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>
+          <span>Susun RAB Baru</span>
+        </span>
+        <span class="nav-badge">Utama</span>
+      </button>
+
+      <button type="button" class="nav-btn" data-view="material">
+        <span class="nav-btn-left">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          <span>Hitung Material</span>
+        </span>
+      </button>
+
+      <button type="button" class="nav-btn" data-view="library">
+        <span class="nav-btn-left">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <span>Pustaka AHSP</span>
+        </span>
+        <span class="nav-badge" id="badge-lib-count">120</span>
+      </button>
+
+      <div class="nav-group-label">Tersimpan</div>
+      <button type="button" class="nav-btn" data-view="history">
+        <span class="nav-btn-left">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>
+          <span>Riwayat Penawaran</span>
+        </span>
+        <span class="nav-badge" id="badge-history-count">0</span>
+      </button>
+
+      <button type="button" class="nav-btn" data-view="favorites">
+        <span class="nav-btn-left">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+          <span>Item Favorit</span>
+        </span>
+        <span class="nav-badge" id="badge-fav-count">0</span>
+      </button>
+
+      <button type="button" class="nav-btn" data-view="settings">
+        <span class="nav-btn-left">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.77 1.02 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>Profil & Kop Usaha</span>
+        </span>
+      </button>
+
+      <div class="sidebar-footer">
+        <button type="button" class="btn btn-secondary" id="btn-theme-toggle" style="width:100%;">
+          Mode Terang
+        </button>
+        <button type="button" class="btn btn-danger" id="btn-logout" style="width:100%;">
+          Keluar Akun
+        </button>
+      </div>
+    </aside>
+
+    <!-- AREA KONTEN UTAMA -->
+    <div class="main-area">
+      <!-- HEADER MOBILE -->
+      <header class="mobile-header">
+        <button type="button" class="icon-circle-btn" id="btn-open-sidebar" aria-label="Buka Menu">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="12" cy="5" r="2"/>
+            <circle cx="12" cy="12" r="2"/>
+            <circle cx="12" cy="19" r="2"/>
+          </svg>
+        </button>
+
+        <div class="top-center-emblem" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 11L12 3l9 8"/>
+            <path d="M5 10v10h14V10"/>
+            <path d="M9 20v-6h6v6"/>
+          </svg>
+        </div>
+
+        <div class="top-right-cluster">
+          <span class="accent-pill-count" id="mobile-top-badge">120</span>
+          <button type="button" class="theme-icon-btn" id="btn-theme-mobile" aria-label="Ganti Tema">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <main class="content-wrap">
+        <!-- 1. VIEW DASHBOARD -->
+        <section class="view-section active" id="view-dashboard">
+          <form class="studio-search-bar" id="dash-search-form">
+            <input
+              type="text"
+              id="dash-search-input"
+              placeholder="Cari harga pasang hebel, atap baja ringan, granit, atau klausul SPK..."
+            />
+            <button type="submit" class="studio-search-submit" aria-label="Cari Harga Satuan">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+            </button>
+          </form>
+
+          <div class="page-header">
+            <div>
+              <h1 id="greeting-title">Halo, Pelaksana Proyek</h1>
+              <p id="greeting-usaha">Susun RAB akurat, surat penawaran PDF, dan kontrak SPK dalam hitungan menit.</p>
+            </div>
+            <div class="btn-row">
+              <button type="button" class="btn btn-primary" id="dash-btn-new-rab">
+                Buat Penawaran RAB Baru
+              </button>
+              <button type="button" class="btn btn-secondary" id="dash-btn-open-material">
+                Hitung Belanja Material
+              </button>
+            </div>
+          </div>
+
+          <div class="section-head-row">
+            <div class="section-head-left">
+              <h2>Ringkasan Studio Proyek</h2>
+            </div>
+            <button type="button" class="round-chevron-btn" id="dash-chevron-wizard" aria-label="Buka Wizard">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+
+          <!-- BENTO STATS -->
+          <div class="bento-stats-grid">
+            <div class="bento-card accent" id="bento-go-wizard">
+              <div>
+                <div class="bento-top-title">Dokumen RAB Selesai</div>
+                <div class="bento-top-sub">Siap Kirim PDF, Excel & SPK</div>
+              </div>
+              <div class="bento-bottom-row">
+                <div class="bento-big-num" id="stat-rab-count">0</div>
+                <div class="bento-circle-up" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div class="bento-card matte" id="bento-go-history">
+              <div>
+                <div class="bento-top-title">Total Nilai Proyek</div>
+                <div class="bento-top-sub">Akumulasi Penawaran</div>
+              </div>
+              <div class="bento-bottom-row">
+                <div class="bento-big-num compact-rp" id="stat-total-nilai">Rp0</div>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
+              </div>
+            </div>
+
+            <div class="bento-card matte" id="bento-go-library">
+              <div>
+                <div class="bento-top-title">Pustaka AHSP & SPK</div>
+                <div class="bento-top-sub">Harga Satuan & Klausul</div>
+              </div>
+              <div class="bento-bottom-row">
+                <div class="bento-big-num" id="stat-lib-total">120</div>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
+              </div>
+            </div>
+
+            <div class="bento-card matte" id="bento-go-fav">
+              <div>
+                <div class="bento-top-title">Tersimpan Cepat</div>
+                <div class="bento-top-sub">Item Favorit Anda</div>
+              </div>
+              <div class="bento-bottom-row">
+                <div class="bento-big-num" id="stat-fav-total">0</div>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <!-- KIRI: SIMULASI ESTIMASI HARGA CEPAT REAL-TIME -->
+            <div>
+              <div class="section-head-row">
+                <div class="section-head-left">
+                  <h2>Simulasi Taksiran Cepat di Lokasi</h2>
+                </div>
+              </div>
+
+              <div class="quick-sim-card">
+                <div class="field">
+                  <label for="sim-preset">Pilih Jenis Pekerjaan</label>
+                  <select id="sim-preset"></select>
+                </div>
+
+                <div class="field">
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <label for="sim-luas" style="margin-bottom:0;">Volume / Luas Acuan</label>
+                    <strong id="sim-luas-label" style="color:var(--primary-text);font-size:0.9rem;">36 m²</strong>
+                  </div>
+                  <input type="range" id="sim-luas" min="4" max="150" value="36" />
+                </div>
+
+                <div class="field" style="margin-bottom:8px;">
+                  <label for="sim-zona">Zona Harga Wilayah</label>
+                  <select id="sim-zona"></select>
+                </div>
+
+                <div class="sim-total-banner">
+                  <div>
+                    <span style="font-size:0.76rem;color:var(--muted);display:block;">Estimasi Penawaran (Termasuk Jasa 10%)</span>
+                    <div class="sim-total-price" id="sim-result-total">Rp0</div>
+                  </div>
+                  <span class="count-pill-dark" id="sim-result-perm2">Rp0 / m²</span>
+                </div>
+
+                <button type="button" class="btn btn-primary" id="btn-sim-to-wizard" style="width:100%;">
+                  Buka Rincian Item & Cetak PDF Penawaran
+                </button>
+              </div>
+            </div>
+
+            <!-- KANAN: DOKUMEN PROYEK TERAKHIR (TICKET CARDS) -->
+            <div>
+              <div class="section-head-row">
+                <div class="section-head-left">
+                  <h2>Penawaran & Paket Proyek</h2>
+                  <span class="count-pill-dark" id="dash-doc-pill">00</span>
+                </div>
+                <button type="button" class="round-chevron-btn" id="dash-go-history" aria-label="Semua Riwayat">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              </div>
+
+              <div class="ticket-list" id="dash-recent-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. VIEW WIZARD 3 LANGKAH SUSUN RAB -->
+        <section class="view-section" id="view-wizard">
+          <div class="page-header">
+            <div>
+              <h1>Wizard Penyusun RAB & Surat Penawaran</h1>
+              <p>Pilih paket cepat di Langkah 1, sesuaikan angka di Langkah 2, lalu unduh PDF, Excel, dan Kontrak SPK di Langkah 3.</p>
+            </div>
+            <button type="button" class="btn btn-secondary" id="btn-fill-sample-rab">
+              Muat Contoh Proyek Klien
+            </button>
+          </div>
+
+          <div class="wizard-steps">
+            <button type="button" class="wiz-tab active" data-wstep="1">
+              01 · Paket Proyek & Data Klien
+            </button>
+            <button type="button" class="wiz-tab" data-wstep="2">
+              02 · Rincian Item & Harga Live
+            </button>
+            <button type="button" class="wiz-tab" data-wstep="3">
+              03 · Unduh PDF, Excel & Kontrak
+            </button>
+          </div>
+
+          <!-- LANGKAH 1 -->
+          <div class="wiz-pane active" id="wiz-pane-1">
+            <div class="card">
+              <h2>Pilih Paket Template Pekerjaan (1 Klik Langsung Terisi)</h2>
+              <p class="sub">Klik salah satu jenis proyek di bawah agar daftar item pekerjaan tersusun otomatis sesuai luas.</p>
+
+              <div class="preset-tiles-grid" id="wizard-preset-tiles"></div>
+
+              <div class="grid-2">
+                <div class="field">
+                  <label for="p-judul">Nama / Judul Pekerjaan</label>
+                  <input type="text" id="p-judul" placeholder="Contoh: Renovasi Dapur & Kamar Mandi Rumah Blok C4" />
+                </div>
+                <div class="field">
+                  <label for="p-klien">Nama Klien / Pemberi Tugas</label>
+                  <input type="text" id="p-klien" placeholder="Contoh: Bapak Budi Santoso" />
+                </div>
+              </div>
+
+              <div class="grid-2">
+                <div class="field">
+                  <label for="p-lokasi">Lokasi / Alamat Proyek</label>
+                  <input type="text" id="p-lokasi" placeholder="Contoh: Cluster Harmoni Blok C4, Bekasi" />
+                </div>
+                <div class="field">
+                  <label for="p-zona">Zona Indeks Harga Wilayah</label>
+                  <select id="p-zona"></select>
+                </div>
+              </div>
+
+              <div class="grid-3">
+                <div class="field">
+                  <label for="p-luas">Luas / Volume Acuan (m²)</label>
+                  <input type="number" id="p-luas" min="2" max="2000" value="36" />
+                </div>
+                <div class="field">
+                  <label for="p-fee">Jasa Pengelolaan / Margin (%)</label>
+                  <input type="number" id="p-fee" min="0" max="35" value="10" />
+                </div>
+                <div class="field">
+                  <label for="p-durasi">Estimasi Waktu Kerja (Hari)</label>
+                  <input type="number" id="p-durasi" min="1" max="730" value="60" />
+                </div>
+              </div>
+
+              <div class="grid-3">
+                <div class="field">
+                  <label for="p-nomor">Nomor Surat Penawaran</label>
+                  <input type="text" id="p-nomor" value="RAB/2026/108" />
+                </div>
+                <div class="field">
+                  <label for="p-tanggal">Tanggal Penawaran</label>
+                  <input type="date" id="p-tanggal" />
+                </div>
+                <div class="field">
+                  <label for="p-garansi">Garansi Pemeliharaan (Hari)</label>
+                  <input type="number" id="p-garansi" min="0" max="365" value="60" />
+                </div>
+              </div>
+
+              <div class="btn-row" style="justify-content:space-between;margin-top:6px;">
+                <button type="button" class="btn btn-secondary" id="btn-reapply-preset">
+                  Hitung Ulang Volume Sesuai Luas m²
+                </button>
+                <button type="button" class="btn btn-primary" id="btn-to-wstep-2">
+                  Lanjut Cek Rincian Harga →
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- LANGKAH 2 -->
+          <div class="wiz-pane" id="wiz-pane-2">
+            <!-- BANNER ANGKA LIVE REAL-TIME -->
+            <div class="live-summary-strip">
+              <div class="live-sum-item">
+                <span>Total Material</span>
+                <strong id="live-sum-mat">Rp0</strong>
+              </div>
+              <div class="live-sum-item">
+                <span>Total Upah Tukang</span>
+                <strong id="live-sum-upah">Rp0</strong>
+              </div>
+              <div class="live-sum-item">
+                <span id="live-sum-fee-label">Jasa Pelaksana (10%)</span>
+                <strong id="live-sum-fee">Rp0</strong>
+              </div>
+              <div class="live-sum-item highlight">
+                <span>Total Penawaran Klien</span>
+                <strong id="live-sum-grand">Rp0</strong>
+              </div>
+            </div>
+
+            <div class="card">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+                <div>
+                  <h2>Rincian Item Pekerjaan, Volume, Material & Upah</h2>
+                  <p class="sub" style="margin-bottom:0;">Ubah angka volume atau harga satuan di bawah — total penawaran di atas langsung menyesuaikan otomatis.</p>
+                </div>
+                <div class="btn-row">
+                  <button type="button" class="btn btn-secondary" id="btn-add-custom-row">
+                    + Tambah Baris
+                  </button>
+                  <button type="button" class="btn btn-secondary" id="btn-pick-from-lib">
+                    + Ambil dari 120 AHSP
+                  </button>
+                </div>
+              </div>
+
+              <div class="rab-items-list" id="rab-rows-container"></div>
+
+              <div class="field" style="margin-top:12px;">
+                <label for="p-catatan">Catatan Ketentuan & Lingkup Penawaran (Tercetak di PDF & SPK)</label>
+                <textarea id="p-catatan">Harga penawaran berlaku 14 hari kalender. Pembayaran bertahap 4 termin mengikuti progres fisik di lapangan. Pekerjaan tambah-kurang di luar tabel RAB disepakati tertulis melalui Addendum.</textarea>
+              </div>
+
+              <div class="btn-row" style="justify-content:space-between;">
+                <button type="button" class="btn btn-secondary" id="btn-back-wstep-1">
+                  ← Kembali ke Info Proyek
+                </button>
+                <button type="button" class="btn btn-primary" id="btn-to-wstep-3">
+                  Lihat Surat Penawaran & Unduh File →
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- LANGKAH 3 -->
+          <div class="wiz-pane" id="wiz-pane-3">
+            <div class="card">
+              <h2>Dokumen Penawaran, Excel RAB & Kontrak SPK Siap Diunduh</h2>
+              <p class="sub">
+                Pilih format dokumen jadi yang ingin langsung dikirimkan ke WhatsApp klien atau dibuka di Excel/Word.
+              </p>
+
+              <div class="btn-row">
+                <button type="button" class="btn btn-primary" id="btn-download-pdf">
+                  Unduh PDF Surat Penawaran (.pdf)
+                </button>
+                <button type="button" class="btn btn-accent" id="btn-download-xlsx">
+                  Unduh Excel Rincian RAB (.xlsx)
+                </button>
+                <button type="button" class="btn btn-secondary" id="btn-download-spk">
+                  Unduh Kontrak SPK Word (.docx)
+                </button>
+                <button type="button" class="btn btn-secondary" id="btn-copy-wa-quote">
+                  Salin Ringkasan Chat WA
+                </button>
+                <button type="button" class="btn btn-secondary" id="btn-save-history">
+                  Simpan Proyek
+                </button>
+              </div>
+
+              <div class="paper-preview" id="rab-paper-preview"></div>
+
+              <div class="btn-row" style="justify-content:space-between;margin-top:14px;">
+                <button type="button" class="btn btn-secondary" id="btn-back-wstep-2">
+                  ← Edit Kembali Angka RAB
+                </button>
+                <button type="button" class="btn btn-secondary" id="btn-handoff-ai">
+                  Salin Prompt Konsultasi Spek ke ChatGPT/Gemini
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. VIEW KALKULATOR BELANJA MATERIAL FISIK -->
+        <section class="view-section" id="view-material">
+          <div class="page-header">
+            <div>
+              <h1>Kalkulator Belanja Material Toko Bangunan</h1>
+              <p>Hitung cepat kebutuhan fisik bata/hebel, sak semen, dus granit, pasir, dan galon cat termasuk cadangan susut lapangan.</p>
+            </div>
+            <button type="button" class="btn btn-secondary" id="btn-copy-shopping-wa">
+              Salin Daftar Belanja ke WA Toko
+            </button>
+          </div>
+
+          <div class="grid-2">
+            <div class="card">
+              <h2>Masukkan Ukuran Bidang Kerja</h2>
+              <div class="field" style="margin-top:12px;">
+                <label for="m-dinding">Luas Pasangan Dinding Baru (m²)</label>
+                <input type="number" id="m-dinding" min="0" value="48" />
+              </div>
+              <div class="field">
+                <label for="m-bata">Jenis Material Dinding</label>
+                <select id="m-bata">
+                  <option value="hebel">Bata Ringan (Hebel 10 cm) + Mortar</option>
+                  <option value="bata-merah">Bata Merah Bakar + Semen Pasir</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="m-lantai">Luas Lantai Granit 60×60 cm (m²)</label>
+                <input type="number" id="m-lantai" min="0" value="36" />
+              </div>
+              <div class="field">
+                <label for="m-cat">Luas Bidang Pengecatan Dinding & Plafon (m²)</label>
+                <input type="number" id="m-cat" min="0" value="96" />
+              </div>
+              <div class="field">
+                <label for="m-beton">Volume Cor Beton Struktur Sloof/Kolom/Dak (m³)</label>
+                <input type="number" id="m-beton" min="0" step="0.5" value="2.5" />
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>Estimasi Daftar Pesanan Material</h2>
+              <p class="sub">Otomatis berubah saat ukuran di sebelah kiri disesuaikan.</p>
+              <div class="ticket-list" id="material-shopping-output"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. VIEW PUSTAKA 120 AHSP & KLAUSUL SPK -->
+        <section class="view-section" id="view-library">
+          <div class="page-header">
+            <div>
+              <h1>Pustaka 120 Harga Satuan (AHSP) & Klausul Kontrak</h1>
+              <p>Klik kartu item untuk melihat koefisien bahan, tips lapangan anti-rugi, dan memasukkannya langsung ke RAB aktif.</p>
+            </div>
+          </div>
+
+          <div class="card" style="padding:18px;">
+            <div class="grid-2" style="margin-bottom:12px;">
+              <div class="field" style="margin-bottom:0;">
+                <label for="lib-search">Cari Pekerjaan / Material / Klausul</label>
+                <input type="text" id="lib-search" placeholder="Ketik misal: hebel, waterproofing, baja ringan, termin..." />
+              </div>
+              <div class="field" style="margin-bottom:0;">
+                <label for="lib-type-filter">Filter Jenis Koleksi</label>
+                <select id="lib-type-filter">
+                  <option value="ALL">Semua Item (Harga Pekerjaan + Klausul SPK)</option>
+                  <option value="WORK">Khusus Item Pekerjaan Fisik (m², m³, m', unit)</option>
+                  <option value="CLAUSE">Khusus Klausul Pelindung Kontrak SPK</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-bar" id="lib-category-chips"></div>
+          </div>
+
+          <div class="library-grid" id="library-grid"></div>
+        </section>
+
+        <!-- 5. VIEW RIWAYAT PENAWARAN -->
+        <section class="view-section" id="view-history">
+          <div class="page-header">
+            <div>
+              <h1>Riwayat Penawaran & Proyek Tersimpan</h1>
+              <p>Buka kembali penawaran klien sebelumnya untuk revisi volume atau unduh ulang file PDF, Excel, dan SPK.</p>
+            </div>
+          </div>
+          <div id="history-container"></div>
+        </section>
+
+        <!-- 6. VIEW FAVORIT -->
+        <section class="view-section" id="view-favorites">
+          <div class="page-header">
+            <div>
+              <h1>Item AHSP & Klausul Favorit</h1>
+              <p>Daftar harga satuan langganan dan klausul kontrak yang sering Anda gunakan.</p>
+            </div>
+          </div>
+          <div class="library-grid" id="favorites-grid"></div>
+        </section>
+
+        <!-- 7. VIEW PENGATURAN PROFIL USAHA & KOP SURAT -->
+        <section class="view-section" id="view-settings">
+          <div class="page-header">
+            <div>
+              <h1>Profil Kontraktor & Kop Surat Penawaran</h1>
+              <p>Data di bawah otomatis tercantum pada kop PDF Surat Penawaran dan Surat Perjanjian Kerja (SPK).</p>
+            </div>
+          </div>
+
+          <div class="card">
+            <form id="settings-form">
+              <div class="grid-2">
+                <div class="field">
+                  <label for="s-usaha">Nama CV / Usaha Kontraktor / Tim Borongan</label>
+                  <input type="text" id="s-usaha" placeholder="Contoh: CV Karya Mandiri Bangunan" />
+                </div>
+                <div class="field">
+                  <label for="s-pelaksana">Nama Penanggung Jawab Tanda Tangan</label>
+                  <input type="text" id="s-pelaksana" placeholder="Contoh: Hendra Pratama, S.T." />
+                </div>
+              </div>
+              <div class="grid-2">
+                <div class="field">
+                  <label for="s-telepon">Nomor WhatsApp / Telepon Aktif</label>
+                  <input type="text" id="s-telepon" placeholder="Contoh: 0812-3456-7890" />
+                </div>
+                <div class="field">
+                  <label for="s-kota">Kota / Kabupaten Domisili</label>
+                  <input type="text" id="s-kota" placeholder="Contoh: Bekasi" />
+                </div>
+              </div>
+              <div class="field">
+                <label for="s-rekening">Info Rekening Pencairan Termin (Tercetak di SPK)</label>
+                <input type="text" id="s-rekening" placeholder="Contoh: BCA 5420-1122-33 a.n. Hendra Pratama" />
+              </div>
+
+              <div class="btn-row">
+                <button type="submit" class="btn btn-primary">Simpan Profil Kop Usaha</button>
+                <button type="button" class="btn btn-secondary" id="btn-export-backup">
+                  Unduh Cadangan Data (.json)
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- MOBILE FLOATING '+' & BOTTOM NAVIGATION BAR -->
+    <button type="button" class="mobile-fab" id="mobile-fab-add" aria-label="Buat RAB Baru">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+    </button>
+
+    <nav class="mobile-bottom-nav" id="mobile-bottom-nav" aria-label="Navigasi Bawah">
+      <button type="button" class="m-tab-btn active" data-mview="dashboard">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>
+        <span>Beranda</span>
+      </button>
+      <button type="button" class="m-tab-btn" data-mview="wizard">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span>Susun RAB</span>
+      </button>
+      <button type="button" class="m-tab-btn" data-mview="material">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        <span>Material</span>
+      </button>
+      <button type="button" class="m-tab-btn" data-mview="library">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <span>AHSP</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- MODAL DETAIL ITEM AHSP / KLAUSUL -->
+  <div class="modal-backdrop" id="item-modal">
+    <div class="modal-box">
+      <div class="lib-meta" style="margin-bottom:10px;">
+        <span class="cat-tag" id="m-category">Kategori</span>
+        <span class="unit-tag" id="m-unit">Satuan</span>
+      </div>
+      <h2 id="m-title" style="margin-bottom:8px;">Nama Item Pekerjaan</h2>
+      <p id="m-summary" style="font-size:0.88rem;color:var(--muted);margin-bottom:12px;"></p>
+
+      <div id="m-price-breakdown" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;"></div>
+
+      <strong style="font-size:0.83rem;">Spesifikasi / Koefisien / Bunyi Klausul:</strong>
+      <div class="specs-box" id="m-specs"></div>
+
+      <div style="background:var(--primary-soft);border:1px solid var(--border-hover);padding:12px 14px;border-radius:14px;font-size:0.84rem;margin-bottom:18px;">
+        <strong>Tips Lapangan Anti-Rugi:</strong>
+        <p id="m-tips" style="margin-top:4px;color:var(--muted);"></p>
+      </div>
+
+      <div class="btn-row" style="justify-content:space-between;">
+        <div class="btn-row">
+          <button type="button" class="btn btn-primary" id="m-btn-use">
+            Masukkan ke RAB Aktif
+          </button>
+          <button type="button" class="btn btn-secondary" id="m-btn-fav">
+            Simpan Favorit
+          </button>
+        </div>
+        <button type="button" class="btn btn-secondary" id="m-btn-close">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Berhasil disimpan!</div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
