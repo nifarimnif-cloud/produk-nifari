@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KarirLolos Studio — Pembuat CV Standar ATS, Surat Lamaran & Panduan Nego Gaji</title>
+  <meta name="description" content="Ruang kerja penyusun CV lolos seleksi HRD & mesin ATS (.PDF & .DOCX), Surat Lamaran resmi, Kalkulator Nego Gaji, serta 120 pustaka contekan karir." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Manrope:wght@600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+
+  <!-- ================= LAYAR LOGIN LISENSI PEMBELI ================= -->
+  <section class="login-screen" id="login-screen">
+    <div class="login-split">
+      <!-- Kiri: Blok Midnight (#0a0b0d) -->
+      <div class="login-hero-block">
+        <div>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px;">
+            <span class="brand-mark" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <polyline points="9 15 11 17 15 13"/>
+              </svg>
+            </span>
+            <div>
+              <span style="font-family:var(--font-display);font-size:21px;font-weight:700;color:#ffffff;display:block;line-height:1.1;">KarirLolos</span>
+              <span style="font-size:12px;color:#8a919e;">STUDIO CV ATS & NEGO GAJI</span>
+            </div>
+          </div>
+
+          <span class="status-pill dark-pill" style="margin-bottom:16px;">AKSES PENUH · TANPA BIAYA BULANAN</span>
+          <h1 style="font-family:var(--font-display);font-size:clamp(32px,3.6vw,46px);font-weight:700;line-height:1.06;letter-spacing:-0.025em;color:#ffffff;margin-bottom:16px;">
+            Susun CV lolos saringan HRD dan siapkan angka nego gajimu.
+          </h1>
+          <p style="color:#b1b7c3;font-size:16px;line-height:1.55;">
+            Tidak perlu keluar ratusan ribu ikut kelas teori berjam-jam — pilih jalur posisimu, cek skor keterbacaan ATS otomatis, lalu unduh CV PDF, file Word, dan Surat Lamaran siap kirim.
+          </p>
+        </div>
+
+        <div class="login-feature-pills">
+          <div class="login-mini-stat">
+            <span style="font-size:12px;color:#8a919e;display:block;">BERKAS 01</span>
+            <strong style="font-size:14.5px;color:#ffffff;">CV ATS .PDF A4</strong>
+          </div>
+          <div class="login-mini-stat">
+            <span style="font-size:12px;color:#8a919e;display:block;">BERKAS 02</span>
+            <strong style="font-size:14.5px;color:#ffffff;">CV Edit .DOCX</strong>
+          </div>
+          <div class="login-mini-stat">
+            <span style="font-size:12px;color:#8a919e;display:block;">BERKAS 03</span>
+            <strong style="font-size:14.5px;color:#ffffff;">Surat Lamaran .PDF</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Kanan: Formulir Akses Pembeli (#ffffff) -->
+      <div class="login-form-block">
+        <span class="caption-label" style="margin-bottom:8px;">PORTAL LISENSI PEMBELI</span>
+        <h2 class="section-title" style="margin-bottom:8px;">Masuk ke Ruang Kerja</h2>
+        <p class="slate-copy" style="margin-bottom:24px;">
+          Masukkan nama lengkap, email aktif, dan kode lisensi pembelian untuk membuka seluruh alat.
+        </p>
+
+        <form id="login-form">
+          <div class="field">
+            <label for="login-name">Nama Lengkap Pelamar</label>
+            <input type="text" id="login-name" placeholder="Contoh: Anisa Rahmawati" required />
+          </div>
+
+          <div class="field">
+            <label for="login-email">Alamat Email Profesional</label>
+            <input type="email" id="login-email" placeholder="Contoh: anisa.rahmawati@email.com" required />
+          </div>
+
+          <div class="field">
+            <label for="login-code">Kode Lisensi Pembeli</label>
+            <input type="text" id="login-code" placeholder="Contoh: KARIR-2026-PRO" required />
+          </div>
+
+          <p id="login-error" style="display:none;color:var(--color-negative-red);font-size:13.5px;font-weight:600;margin-bottom:12px;"></p>
+
+          <div style="display:grid;gap:10px;margin-top:8px;">
+            <button type="submit" class="btn btn-primary" style="width:100%;">
+              Masuk ke KarirLolos Studio
+            </button>
+            <button type="button" class="btn btn-secondary" id="btn-demo-login" style="width:100%;">
+              Isi Cepat Akun Contoh Pembeli
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SHELL APLIKASI UTAMA ================= -->
+  <div class="drawer-overlay" id="drawer-overlay"></div>
+
+  <div class="studio-shell" id="studio-shell">
+    <!-- SIDEBAR KIRI -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand-row">
+        <span class="brand-mark" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <polyline points="9 15 11 17 15 13"/>
+          </svg>
+        </span>
+        <div>
+          <span class="brand-title">KarirLolos</span>
+          <span class="brand-sub">CV ATS & Nego Gaji</span>
+        </div>
+      </div>
+
+      <div class="nav-group-label">Alat Utama</div>
+      <button type="button" class="nav-btn active" data-view="dashboard">
+        <span class="nav-btn-left">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          <span>Beranda & Hitung Gaji</span>
+        </span>
+      </button>
+
+      <button type="button" class="nav-btn" data-view="wizard">
+        <span class="nav-btn-left">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span>Wizard CV & Lamaran</span>
+        </span>
+        <span class="nav-count">UTAMA</span>
+      </button>
+
+      <button type="button" class="nav-btn" data-view="negotiation">
+        <span class="nav-btn-left">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>Skrip Nego & Interview</span>
+        </span>
+      </button>
+
+      <button type="button" class="nav-btn" data-view="library">
+        <span class="nav-btn-left">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <span>Pustaka Karir</span>
+        </span>
+        <span class="nav-count">120</span>
+      </button>
+
+      <div class="nav-group-label">Arsip & Profil</div>
+      <button type="button" class="nav-btn" data-view="history">
+        <span class="nav-btn-left">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>Riwayat Berkas</span>
+        </span>
+        <span class="nav-count" id="nav-hist-badge">0</span>
+      </button>
+
+      <button type="button" class="nav-btn" data-view="favorites">
+        <span class="nav-btn-left">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+          <span>Koleksi Favorit</span>
+        </span>
+        <span class="nav-count" id="nav-fav-badge">0</span>
+      </button>
+
+      <button type="button" class="nav-btn" data-view="settings">
+        <span class="nav-btn-left">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>Profil & Cadangan</span>
+        </span>
+      </button>
+
+      <div class="sidebar-footer">
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-theme-toggle" style="width:100%;">
+          Mode Gelap
+        </button>
+        <button type="button" class="btn btn-midnight-pill btn-sm" id="btn-logout" style="width:100%;">
+          Keluar Akun
+        </button>
+      </div>
+    </aside>
+
+    <!-- AREA KONTEN KANAN -->
+    <div class="main-area">
+      <!-- Topbar khusus HP -->
+      <header class="mobile-topbar">
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-open-drawer">Menu</button>
+        <div style="display:inline-flex;align-items:center;gap:8px;">
+          <span class="brand-mark" style="width:28px;height:28px;border-radius:8px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="9 15 11 17 15 13"/></svg>
+          </span>
+          <strong style="font-family:var(--font-display);font-size:17px;">KarirLolos</strong>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" id="btn-theme-mobile">Tema</button>
+      </header>
+
+      <main class="workspace-wrap">
+        <!-- ================= 1. BERANDA & KALKULATOR NEGO GAJI ================= -->
+        <section class="view-pane active" id="view-dashboard">
+          <div class="page-head">
+            <div>
+              <span class="status-pill blue" style="margin-bottom:10px;">RUANG KERJA KARIER & LAMARAN</span>
+              <h1 class="display-title" id="dash-greeting">Halo, Anisa Rahmawati</h1>
+              <p class="slate-copy" style="margin-top:6px;">
+                Susun CV ramah mesin ATS, cetak Surat Lamaran resmi, dan hitung angka negosiasi gajimu sebelum wawancara HRD.
+              </p>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;">
+              <button type="button" class="btn btn-primary" id="dash-btn-open-wizard">
+                Susun CV & Surat Lamaran
+              </button>
+              <button type="button" class="btn btn-secondary" id="dash-btn-open-nego">
+                Latih Skrip Nego Gaji
+              </button>
+            </div>
+          </div>
+
+          <!-- 4 Kartu Metrik 24px -->
+          <div class="metrics-4">
+            <div class="blueprint-card">
+              <span class="caption-label">Berkas Diunduh</span>
+              <div class="metric-val" id="stat-docs-count">0</div>
+              <span class="slate-copy" style="font-size:13.5px;">CV PDF, Word & Lamaran</span>
+            </div>
+
+            <div class="blueprint-card">
+              <span class="caption-label">Skor Kesiapan ATS</span>
+              <div class="metric-val" id="stat-ats-score" style="color:var(--color-positive-green);">94%</div>
+              <span class="slate-copy" style="font-size:13.5px;">1 kolom bersih & terukur</span>
+            </div>
+
+            <div class="blueprint-card">
+              <span class="caption-label">Target Buka Nego</span>
+              <div class="metric-val" id="stat-target-salary">Rp 8,2 Jt</div>
+              <span class="slate-copy" style="font-size:13.5px;">Rentang aman wawancara</span>
+            </div>
+
+            <div class="blueprint-card">
+              <span class="caption-label">Pustaka Contekan</span>
+              <div class="metric-val" id="stat-lib-total">120</div>
+              <span class="slate-copy" style="font-size:13.5px;">Poin CV, jawaban & skrip</span>
+            </div>
+          </div>
+
+          <!-- Blok Kontras Midnight (#0a0b0d sesuai DESIGN (1).md) + Riwayat Terakhir -->
+          <div class="grid-2">
+            <div class="midnight-card">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:14px;">
+                <span class="status-pill blue">KALKULATOR NEGO GAJI HRD</span>
+                <span style="font-size:12px;color:#8a919e;font-weight:600;">SIMULASI REALISTIS</span>
+              </div>
+              <h2 style="font-family:var(--font-display);font-size:26px;font-weight:700;line-height:1.15;color:#ffffff;margin-bottom:8px;">
+                Berapa angka yang pas disebut saat ditanya ekspektasi gaji?
+              </h2>
+              <p style="font-size:14.5px;color:#b1b7c3;margin-bottom:18px;">
+                Masukkan gaji terakhir atau standar dasar posisimu untuk menghitung rentang buka negosiasi yang aman tanpa takut kemahalan.
+              </p>
+
+              <div class="grid-3" style="gap:10px;margin-bottom:16px;align-items:end;">
+                <div>
+                  <label style="font-size:12px;font-weight:600;color:#dedfe2;display:block;margin-bottom:5px;">Gaji Dasar / Lama (Rp)</label>
+                  <input type="number" id="calc-base-salary" value="6500000" step="250000" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #2a2d37;background:#141519;color:#ffffff;font-weight:600;" />
+                </div>
+                <div>
+                  <label style="font-size:12px;font-weight:600;color:#dedfe2;display:block;margin-bottom:5px;">Pengalaman Kerja</label>
+                  <select id="calc-exp-level" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #2a2d37;background:#141519;color:#ffffff;font-weight:600;">
+                    <option value="1.12">Fresh Graduate / &lt; 1 Thn</option>
+                    <option value="1.22" selected>1 – 3 Tahun Kerja</option>
+                    <option value="1.30">3 – 5 Tahun Kerja</option>
+                    <option value="1.38">&gt; 5 Tahun / Senior</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="font-size:12px;font-weight:600;color:#dedfe2;display:block;margin-bottom:5px;">Zona Kota Kerja</label>
+                  <select id="calc-city-zone" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #2a2d37;background:#141519;color:#ffffff;font-weight:600;">
+                    <option value="1.05" selected>Jabodetabek / Surabaya</option>
+                    <option value="1.00">Bandung / Medan / Semarang</option>
+                    <option value="0.95">Kota Lain / Kerja Remote</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style="background:#141519;border-radius:16px;padding:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+                <div>
+                  <span style="font-size:12px;color:#8a919e;display:block;">RENTANG BUKA NEGO IDEAL KE HRD:</span>
+                  <strong style="font-family:var(--font-display);font-size:22px;color:#27ad75;" id="calc-range-output">
+                    Rp 7.800.000 – Rp 8.600.000
+                  </strong>
+                  <span style="font-size:12.5px;color:#b1b7c3;display:block;margin-top:2px;" id="calc-floor-note">
+                    Batas bawah ikhlas: Rp 7.500.000 / bulan
+                  </span>
+                </div>
+                <button type="button" class="btn btn-white-pill btn-sm" id="btn-apply-salary-script">
+                  Buat Skrip Jawabannya
+                </button>
+              </div>
+            </div>
+
+            <div class="white-card" style="display:flex;flex-direction:column;justify-content:space-between;">
+              <div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                  <span class="caption-label">ARSIP TERAKHIR</span>
+                  <button type="button" class="ghost-link" id="dash-link-history">Lihat Semua</button>
+                </div>
+                <h2 class="card-title" style="margin-bottom:12px;">Dokumen Lamaran Terbaru</h2>
+                <div id="dash-recent-docs"></div>
+              </div>
+
+              <div style="background:var(--bg-card);border-radius:16px;padding:16px;margin-top:16px;">
+                <span class="caption-label" style="color:var(--color-positive-green);">TIPS CEPAT LOLOS SELEKSI AWAL</span>
+                <p class="slate-copy" style="font-size:13.5px;margin-top:4px;">
+                  HRD rata-rata membaca 1 CV hanya dalam 7–10 detik. Pastikan 3 kalimat Ringkasan Profesional dan angka hasil kerjamu langsung terlihat di paruh atas halaman pertama.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= 2. WIZARD 3 LANGKAH (CV ATS .PDF, .DOCX & SURAT LAMARAN .PDF) ================= -->
+        <section class="view-pane" id="view-wizard">
+          <div class="page-head">
+            <div>
+              <span class="caption-label">GENERATOR DOKUMEN LAMARAN 3 LANGKAH</span>
+              <h1 class="section-title" style="margin-top:4px;">Penyusun CV Standar ATS & Surat Lamaran</h1>
+            </div>
+            <span class="status-pill blue" id="wiz-active-role-pill">Admin & Operasional</span>
+          </div>
+
+          <nav class="wizard-steps" aria-label="Tahapan Penyusunan CV">
+            <button type="button" class="step-tab active" data-step="1">
+              <span class="step-circle">1</span>
+              <span>Pilih Posisi & Data Diri</span>
+            </button>
+            <button type="button" class="step-tab" data-step="2">
+              <span class="step-circle">2</span>
+              <span>Pengalaman & Audit ATS</span>
+            </button>
+            <button type="button" class="step-tab" data-step="3">
+              <span class="step-circle">3</span>
+              <span>Pratinjau & Unduh 3 File</span>
+            </button>
+          </nav>
+
+          <!-- LANGKAH 1 -->
+          <div class="wiz-step-pane active" id="wiz-step-1">
+            <div class="white-card">
+              <span class="caption-label" style="display:block;margin-bottom:10px;">
+                KLIK JALUR POSISI (OTOMATIS ISI CONTOH RINGKASAN & POIN ANGKA TERUKUR)
+              </span>
+              <div class="preset-grid" id="role-preset-grid"></div>
+
+              <div class="grid-2">
+                <div class="field">
+                  <label for="inp-full-name">Nama Lengkap Sesuai Ijazah/KTP</label>
+                  <input type="text" id="inp-full-name" value="Anisa Rahmawati" />
+                </div>
+                <div class="field">
+                  <label for="inp-target-position">Posisi Pekerjaan yang Dilamar</label>
+                  <input type="text" id="inp-target-position" value="Staf Administrasi & Operasional" />
+                </div>
+              </div>
+
+              <div class="grid-3">
+                <div class="field">
+                  <label for="inp-target-company">Nama Perusahaan Tujuan (Untuk Surat Lamaran)</label>
+                  <input type="text" id="inp-target-company" value="PT Nusantara Logistik Terpadu" />
+                </div>
+                <div class="field">
+                  <label for="inp-city">Kota Domisili Saat Ini</label>
+                  <input type="text" id="inp-city" value="Jakarta Selatan" />
+                </div>
+                <div class="field">
+                  <label for="inp-phone">Nomor WhatsApp Aktif</label>
+                  <input type="text" id="inp-phone" value="0812-8450-9921" />
+                </div>
+              </div>
+
+              <div class="grid-2">
+                <div class="field">
+                  <label for="inp-email">Alamat Email Profesional</label>
+                  <input type="email" id="inp-email" value="anisa.rahmawati@email.com" />
+                </div>
+                <div class="field">
+                  <label for="inp-portfolio">Tautan LinkedIn / Portofolio (Opsional)</label>
+                  <input type="text" id="inp-portfolio" value="linkedin.com/in/anisarahmawati" />
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="inp-summary">Ringkasan Profesional (2–4 Kalimat Fokus Pengalaman & Hasil)</label>
+                <textarea id="inp-summary"></textarea>
+              </div>
+
+              <div style="display:flex;justify-content:flex-end;">
+                <button type="button" class="btn btn-primary" id="btn-to-step-2">
+                  Lanjut Isi Pengalaman & Cek Skor ATS
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- LANGKAH 2 -->
+          <div class="wiz-step-pane" id="wiz-step-2">
+            <!-- Panel Skor Kesiapan ATS Real-time -->
+            <div class="blueprint-card" style="margin-bottom:20px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                <div>
+                  <span class="caption-label">AUDIT KETERBACAAN MESIN ATS & HRD</span>
+                  <h3 class="card-title" style="margin-top:2px;">Skor Kesiapan Berkas: <span id="wiz-ats-pct" style="color:var(--color-positive-green);">94%</span></h3>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-pick-achievement-lib">
+                  Ambil Contoh Kalimat Pencapaian dari Pustaka
+                </button>
+              </div>
+              <div class="ats-bar-track">
+                <div class="ats-bar-fill" id="wiz-ats-bar" style="width:94%;"></div>
+              </div>
+              <div id="wiz-ats-checks" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+            </div>
+
+            <div class="grid-2" style="margin-bottom:18px;">
+              <!-- Pengalaman 1 -->
+              <div class="white-card">
+                <span class="status-pill" style="margin-bottom:12px;">PENGALAMAN UTAMA / TERBARU</span>
+                <div class="field">
+                  <label for="exp1-role">Nama Jabatan / Peran Magang</label>
+                  <input type="text" id="exp1-role" />
+                </div>
+                <div class="grid-2" style="gap:10px;">
+                  <div class="field">
+                    <label for="exp1-company">Nama Perusahaan & Kota</label>
+                    <input type="text" id="exp1-company" />
+                  </div>
+                  <div class="field">
+                    <label for="exp1-period">Periode Kerja</label>
+                    <input type="text" id="exp1-period" placeholder="Jan 2023 – Sekarang" />
+                  </div>
+                </div>
+                <div class="field" style="margin-bottom:0;">
+                  <label for="exp1-bullets">Poin Pencapaian Terukur (1 baris = 1 poin)</label>
+                  <textarea id="exp1-bullets" style="min-height:120px;"></textarea>
+                </div>
+              </div>
+
+              <!-- Pengalaman 2 -->
+              <div class="white-card">
+                <span class="status-pill" style="margin-bottom:12px;">PENGALAMAN SEBELUMNYA / ORGANISASI</span>
+                <div class="field">
+                  <label for="exp2-role">Nama Jabatan / Organisasi</label>
+                  <input type="text" id="exp2-company-role" />
+                </div>
+                <div class="grid-2" style="gap:10px;">
+                  <div class="field">
+                    <label for="exp2-company">Nama Instansi & Kota</label>
+                    <input type="text" id="exp2-company" />
+                  </div>
+                  <div class="field">
+                    <label for="exp2-period">Periode Aktif</label>
+                    <input type="text" id="exp2-period" placeholder="Mar 2021 – Des 2022" />
+                  </div>
+                </div>
+                <div class="field" style="margin-bottom:0;">
+                  <label for="exp2-bullets">Poin Pencapaian Terukur (1 baris = 1 poin)</label>
+                  <textarea id="exp2-bullets" style="min-height:120px;"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div class="white-card" style="margin-bottom:18px;">
+              <div class="grid-2">
+                <div class="field">
+                  <label for="inp-education">Pendidikan Terakhir & IPK</label>
+                  <input type="text" id="inp-education" />
+                </div>
+                <div class="field">
+                  <label for="inp-certifications">Sertifikasi / Pelatihan Pendukung</label>
+                  <input type="text" id="inp-certifications" />
+                </div>
+              </div>
+              <div class="field" style="margin-bottom:0;">
+                <label for="inp-skills">Kata Kunci Keahlian Utama & Aplikasi Kerja (Pisahkan dengan koma)</label>
+                <textarea id="inp-skills" style="min-height:68px;"></textarea>
+              </div>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+              <button type="button" class="btn btn-secondary" id="btn-back-step-1">Kembali ke Data Diri</button>
+              <button type="button" class="btn btn-primary" id="btn-to-step-3">Lanjut ke Pratinjau & Unduh 3 Berkas</button>
+            </div>
+          </div>
+
+          <!-- LANGKAH 3 -->
+          <div class="wiz-step-pane" id="wiz-step-3">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+              <button type="button" class="filter-tag active" id="tab-preview-cv">Pratinjau CV Standar ATS</button>
+              <button type="button" class="filter-tag" id="tab-preview-cl">Pratinjau Surat Lamaran Kerja</button>
+            </div>
+
+            <div class="preview-layout">
+              <!-- Kiri: Kertas A4 Bersih -->
+              <div class="cv-paper" id="live-a4-preview"></div>
+
+              <!-- Kanan: Panel Unduh 3 Berkas Jadi + Hand-off AI -->
+              <div style="display:grid;gap:16px;">
+                <div class="midnight-card">
+                  <span class="status-pill blue" style="margin-bottom:12px;">SIAP KIRIM KE HRD · 3 BERKAS ASLI</span>
+                  <h3 style="font-family:var(--font-display);font-size:22px;font-weight:700;color:#ffffff;margin-bottom:8px;">
+                    Unduh Berkas Lamaranmu
+                  </h3>
+                  <p style="font-size:14px;color:#b1b7c3;margin-bottom:18px;">
+                    Seluruh dokumen disusun 1 kolom bersih tanpa tabel bertumpuk sehingga teksnya 100% terbaca mulus oleh sistem ATS maupun mata rekruter.
+                  </p>
+
+                  <div style="display:grid;gap:10px;">
+                    <button type="button" class="btn btn-primary" id="btn-dl-cv-pdf" style="width:100%;justify-content:space-between;text-align:left;">
+                      <span>1. Unduh CV Standar ATS</span>
+                      <span style="font-size:12px;opacity:0.9;white-space:nowrap;">.PDF A4</span>
+                    </button>
+
+                    <button type="button" class="btn btn-white-pill" id="btn-dl-cv-docx" style="width:100%;justify-content:space-between;text-align:left;">
+                      <span>2. Unduh CV Siap Edit Word</span>
+                      <span style="font-size:12px;color:#5b616e;white-space:nowrap;">.DOCX</span>
+                    </button>
+
+                    <button type="button" class="btn btn-white-pill" id="btn-dl-cl-pdf" style="width:100%;justify-content:space-between;text-align:left;">
+                      <span>3. Unduh Surat Lamaran Resmi</span>
+                      <span style="font-size:12px;color:#5b616e;white-space:nowrap;">.PDF A4</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Hand-off AI Gratis tanpa biaya API -->
+                <div class="white-card">
+                  <span class="caption-label" style="color:var(--color-coinbase-blue);">OPSIONAL · TANPA BIAYA TOKEN AI</span>
+                  <h3 class="card-title" style="margin:6px 0;">Hand-Off Prompt Bedah Info Loker</h3>
+                  <p class="slate-copy" style="font-size:14px;margin-bottom:14px;">
+                    Salin prompt khusus posisimu ini ke ChatGPT atau Gemini gratis untuk mencocokkan kata kunci CV dengan poster lowongan perusahaan tujuan.
+                  </p>
+                  <button type="button" class="btn btn-secondary btn-sm" id="btn-copy-loker-prompt" style="width:100%;">
+                    Salin Prompt Bedah Loker ke Papan Klip
+                  </button>
+                </div>
+
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-back-step-2">
+                  Ubah Pengalaman di Langkah 2
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= 3. SKRIP NEGO GAJI & WAWANCARA HRD ================= -->
+        <section class="view-pane" id="view-negotiation">
+          <div class="page-head">
+            <div>
+              <span class="status-pill blue" style="margin-bottom:10px;">PANDUAN LISAN & CHAT HRD</span>
+              <h1 class="section-title">Generator Skrip Nego Gaji & Wawancara</h1>
+              <p class="slate-copy" style="margin-top:4px;">
+                Otomatis menggabungkan nama posisi, perusahaan tujuan, dan hasil hitungan rentang gajimu ke dalam kalimat elegan siap ucap atau kirim.
+              </p>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="white-card">
+              <div class="field">
+                <label for="nego-scenario-select">Pilih Situasi Wawancara / Offering HRD</label>
+                <select id="nego-scenario-select"></select>
+              </div>
+
+              <div class="blueprint-card" style="padding:18px;">
+                <span class="caption-label">DATA OTOMATIS DARI PROFIL & KALKULATOR:</span>
+                <p id="nego-context-summary" style="font-size:14px;font-weight:600;margin-top:6px;color:var(--text-primary);"></p>
+              </div>
+            </div>
+
+            <div class="white-card">
+              <div class="field">
+                <label for="nego-script-output">Naskah Jawaban Sopan & Tegas (Bebas Diedit)</label>
+                <textarea id="nego-script-output" style="min-height:190px;"></textarea>
+              </div>
+              <button type="button" class="btn btn-primary" id="btn-copy-nego-script" style="width:100%;">
+                Salin Skrip Jawaban Sekarang
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= 4. PUSTAKA 120 CONTEKAN KARIR ================= -->
+        <section class="view-pane" id="view-library">
+          <div class="page-head">
+            <div>
+              <span class="caption-label">BANK KALIMAT LOLOS HRD</span>
+              <h1 class="section-title" style="margin-top:4px;">Pustaka 120 Poin CV, Wawancara & Nego Gaji</h1>
+            </div>
+            <span class="status-pill blue" id="lib-count-badge">120 KOLEKSI</span>
+          </div>
+
+          <div class="blueprint-card">
+            <div class="grid-2">
+              <div class="field" style="margin-bottom:0;">
+                <label for="lib-search-input">Cari Kata Kunci / Pertanyaan HRD</label>
+                <input type="text" id="lib-search-input" placeholder="Ketik misal: gaji, kelemahan, pajak, magang, ATS, resign..." />
+              </div>
+              <div class="field" style="margin-bottom:0;">
+                <label for="lib-role-filter">Filter Bidang Posisi</label>
+                <select id="lib-role-filter">
+                  <option value="ALL">Semua Bidang Posisi</option>
+                  <option value="Semua Posisi">Umum (Semua Posisi)</option>
+                  <option value="Admin & Operasional">Admin & Operasional</option>
+                  <option value="Digital Marketing">Digital Marketing</option>
+                  <option value="CS & Penjualan">CS & Penjualan</option>
+                  <option value="Keuangan & Pajak">Keuangan & Pajak</option>
+                  <option value="HRD & GA">HRD & GA</option>
+                  <option value="IT & Data">IT & Data</option>
+                  <option value="Desain & Kreatif">Desain & Kreatif</option>
+                  <option value="Fresh Graduate">Fresh Graduate / Lulusan Baru</option>
+                </select>
+              </div>
+            </div>
+            <div class="filter-strip" id="lib-category-strip"></div>
+          </div>
+
+          <div class="lib-cards-grid" id="library-grid"></div>
+        </section>
+
+        <!-- ================= 5. RIWAYAT BERKAS ================= -->
+        <section class="view-pane" id="view-history">
+          <div class="page-head">
+            <div>
+              <span class="caption-label">ARSIP LOKAL PERANGKAT</span>
+              <h1 class="section-title" style="margin-top:4px;">Riwayat CV & Surat Lamaran</h1>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-clear-history">Bersihkan Riwayat</button>
+          </div>
+          <div id="history-list-container"></div>
+        </section>
+
+        <!-- ================= 6. KOLEKSI FAVORIT ================= -->
+        <section class="view-pane" id="view-favorites">
+          <div class="page-head">
+            <div>
+              <span class="caption-label">SIMPANAN CEPAT</span>
+              <h1 class="section-title" style="margin-top:4px;">Koleksi Contekan Favorit</h1>
+            </div>
+          </div>
+          <div class="lib-cards-grid" id="favorites-grid"></div>
+        </section>
+
+        <!-- ================= 7. PROFIL & CADANGAN DATA ================= -->
+        <section class="view-pane" id="view-settings">
+          <div class="page-head">
+            <div>
+              <span class="caption-label">IDENTITAS PELAMAR</span>
+              <h1 class="section-title" style="margin-top:4px;">Pengaturan Kontak & Cadangan Data</h1>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="white-card">
+              <h3 class="card-title" style="margin-bottom:14px;">Kontak Utama di Kop CV & Surat Lamaran</h3>
+              <div class="field">
+                <label for="set-name">Nama Lengkap</label>
+                <input type="text" id="set-name" />
+              </div>
+              <div class="field">
+                <label for="set-city">Kota Domisili</label>
+                <input type="text" id="set-city" />
+              </div>
+              <div class="field">
+                <label for="set-phone">Nomor WhatsApp</label>
+                <input type="text" id="set-phone" />
+              </div>
+              <div class="field">
+                <label for="set-portfolio">Tautan LinkedIn / Portofolio</label>
+                <input type="text" id="set-portfolio" />
+              </div>
+              <button type="button" class="btn btn-primary" id="btn-save-settings">Simpan Profil Pelamar</button>
+            </div>
+
+            <div class="blueprint-card">
+              <h3 class="card-title" style="margin-bottom:8px;">Pindahkan Data Antar Perangkat</h3>
+              <p class="slate-copy" style="font-size:14.5px;margin-bottom:18px;">
+                Seluruh draf CV, riwayat lamaran, dan koleksi favorit tersimpan aman di browser perangkatmu. Unduh cadangan JSON bila ingin memindahkannya ke laptop atau HP lain.
+              </p>
+              <div style="display:flex;flex-wrap:wrap;gap:10px;">
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-export-json">Unduh Cadangan (.JSON)</button>
+                <label class="btn btn-secondary btn-sm" style="cursor:pointer;">
+                  <span>Pulihkan Data (.JSON)</span>
+                  <input type="file" id="inp-import-json" accept="application/json" style="display:none;" />
+                </label>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV KHUSUS HP -->
+  <nav class="mobile-bottom-nav" id="mobile-bottom-nav" aria-label="Navigasi Bawah HP">
+    <button type="button" class="mob-nav-item active" data-mview="dashboard">Beranda</button>
+    <button type="button" class="mob-nav-item" data-mview="wizard">Buat CV</button>
+    <button type="button" class="mob-nav-item" data-mview="negotiation">Nego Gaji</button>
+    <button type="button" class="mob-nav-item" data-mview="library">120 Pustaka</button>
+  </nav>
+
+  <!-- MODAL DETAIL PUSTAKA 120 ITEM -->
+  <div class="modal-backdrop" id="lib-modal">
+    <div class="modal-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+        <span class="status-pill blue" id="modal-cat-pill">KATEGORI</span>
+        <span class="caption-label" id="modal-niche-label">SEMUA POSISI</span>
+      </div>
+      <h2 class="section-title" id="modal-title" style="font-size:24px;margin-bottom:10px;">Judul Detail</h2>
+      <p class="slate-copy" id="modal-explanation" style="font-size:14.5px;"></p>
+
+      <div class="example-box" id="modal-example"></div>
+
+      <div style="background:var(--bg-card);border-radius:14px;padding:14px;margin-bottom:20px;">
+        <span class="caption-label" style="color:var(--color-positive-green);">TIPS PRAKTIS HRD:</span>
+        <p id="modal-tips" style="font-size:14px;margin-top:4px;color:var(--text-primary);"></p>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          <button type="button" class="btn btn-primary btn-sm" id="modal-btn-apply">Salin Kalimat Siap Pakai</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="modal-btn-fav">Simpan Favorit</button>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" id="modal-btn-close">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-banner" id="toast">Tersimpan</div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
