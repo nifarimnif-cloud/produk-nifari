@@ -5,9 +5,14 @@
   "description": "Workspace Challenge 10 Produk Digital - Nifari",
   "scripts": {
     "deploy:tes": "wrangler pages deploy halaman-tes --project-name nifari-halaman-tes --branch main",
+    "deploy:klip-app": "wrangler pages deploy produk/klip-auto/app --project-name nifari-klip-auto-app --branch main",
     "preview": "wrangler pages dev halaman-tes"
   },
   "devDependencies": {
+    "esbuild": "^0.28.2",
+    "mediabunny": "^1.62.1",
+    "mp4-muxer": "^5.2.2",
+    "mp4box": "^2.5.0",
     "wrangler": "^4.154.0"
   }
 }
