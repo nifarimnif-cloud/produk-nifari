@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KomisiKlip Studio — Skrip Keranjang Kuning & Jadwal Konten Affiliate</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@112.5,500;112.5,600&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <!-- LAYAR LOGIN LISENSI PEMBELI -->
+  <section id="loginScreen" class="login-screen">
+    <div class="login-brand-side">
+      <div>
+        <div class="brand-mark" style="color: #ffffff;">
+          <svg viewBox="0 0 36 36" fill="none" aria-hidden="true">
+            <rect x="6" y="3" width="20" height="30" rx="4" stroke="#ffffff" stroke-width="2.2"/>
+            <path d="M13 13.5L20 17.5L13 21.5V13.5Z" fill="#ffffff"/>
+            <circle cx="26" cy="25" r="7" fill="#d8edeb" stroke="#088177" stroke-width="1.8"/>
+            <path d="M23.5 25H28.5M26 22.5V27.5" stroke="#1b1b1b" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <span>KomisiKlip Studio</span>
+        </div>
+        <div style="margin-top: 44px; max-width: 520px;">
+          <span class="badge" style="background: #d8edeb; color: #1b1b1b; margin-bottom: 18px;">STUDIO KREATOR TIKTOK &amp; SHOPEE</span>
+          <h1 class="display-xl" style="color: #ffffff;">Bikin skrip video keranjang kuning &amp; jadwal 30 hari dalam 3 menit.</h1>
+          <p style="margin-top: 18px; font-size: 17px; color: #d8edeb; line-height: 1.55;">
+            Tidak perlu beli kelas affiliate ratusan ribu yang cuma teori. Masukkan nama barang, harga, dan masalah pembeli, lalu unduh lembar syuting, contekan HP 9:16, serta jadwal posting sebulan penuh.
+          </p>
+        </div>
+        <div class="login-points">
+          <div class="login-point-item">
+            <strong>01</strong>
+            <span>Racik otomatis 3 variasi skrip detik-demi-detik lengkap arahan kamera tanpa harus tampil wajah.</span>
+          </div>
+          <div class="login-point-item">
+            <strong>02</strong>
+            <span>Ekspor 4 dokumen siap rekam: Lembar Syuting PDF, Kartu Contekan HP 9:16 PNG, Kalender 30 Hari PDF &amp; Tabel Pelacak Komisi Excel/CSV.</span>
+          </div>
+          <div class="login-point-item">
+            <strong>03</strong>
+            <span>Dilengkapi Pemindai Kata Rawan Pelanggaran, Layar Teleprompter Kamera, dan 120 Pustaka Hook 3 Detik.</span>
+          </div>
+        </div>
+      </div>
+      <p class="text-sm" style="color: #d8edeb;">Akses mandiri seumur hidup di browser — data proyek tersimpan aman di perangkatmu.</p>
+    </div>
+
+    <div class="login-form-side">
+      <div class="card login-card">
+        <span class="badge">AKSES LISENSI PEMBELI</span>
+        <h2 class="display-lg" style="margin-top: 14px;">Masuk ke Studio</h2>
+        <p class="text-sm text-muted" style="margin-top: 8px;">Masukkan profil kreator dan kode akses pembelianmu untuk membuka seluruh fitur.</p>
+
+        <form id="loginForm" style="display: grid; gap: 16px; margin-top: 24px;">
+          <div class="field-group">
+            <label class="field-label" for="loginName">Nama Panggilan Kreator</label>
+            <input id="loginName" class="input" type="text" placeholder="Contoh: Rina Sari" required />
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="loginHandle">Username Akun TikTok / Shopee</label>
+            <input id="loginHandle" class="input" type="text" placeholder="Contoh: @rina.racunhemat" required />
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="loginEmail">Email Pembeli</label>
+            <input id="loginEmail" class="input" type="email" placeholder="rina.kreator@email.com" required />
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="loginCode">Kode Lisensi Akses</label>
+            <input id="loginCode" class="input" type="text" placeholder="Masukkan kode lisensi (contoh: KOMISI-2026-PRO)" required />
+          </div>
+          <p id="loginError" class="text-sm hidden" style="padding: 10px 12px; background: var(--color-blush-neutral); border-radius: 4px;"></p>
+
+          <button type="submit" class="btn btn-primary btn-block" style="padding: 13px 20px;">
+            Masuk ke KomisiKlip Studio
+          </button>
+          <button type="button" id="fillDemoLoginBtn" class="btn btn-secondary btn-block">
+            Isi Cepat Akun Contoh Pembeli
+          </button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- SHELL UTAMA APLIKASI -->
+  <div id="appShell" class="app-shell hidden">
+    <!-- Sidebar Desktop -->
+    <aside class="sidebar">
+      <div>
+        <div class="brand-mark">
+          <svg viewBox="0 0 36 36" fill="none" aria-hidden="true">
+            <rect x="6" y="3" width="20" height="30" rx="4" stroke="#088177" stroke-width="2.3"/>
+            <path d="M13 13.5L20 17.5L13 21.5V13.5Z" fill="#088177"/>
+            <circle cx="26" cy="25" r="7" fill="#d8edeb" stroke="#088177" stroke-width="1.8"/>
+            <path d="M23.5 25H28.5M26 22.5V27.5" stroke="#1b1b1b" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <div>
+            <div style="font-size: 18px; line-height: 1.15;">KomisiKlip</div>
+            <div class="text-caption text-muted" style="font-size: 10px;">STUDIO AFFILIATE</div>
+          </div>
+        </div>
+
+        <nav class="nav-list" aria-label="Menu Utama">
+          <button class="nav-btn active" data-view="dashboard">
+            <span class="nav-btn-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+              <span>Beranda &amp; Target</span>
+            </span>
+          </button>
+          <button class="nav-btn" data-view="wizard">
+            <span class="nav-btn-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>
+              <span>Wizard Skrip &amp; 30 Hari</span>
+            </span>
+          </button>
+          <button class="nav-btn" data-view="teleprompter">
+            <span class="nav-btn-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="18" x2="12" y2="21"/></svg>
+              <span>Teleprompter &amp; Cek Kata</span>
+            </span>
+          </button>
+          <button class="nav-btn" data-view="library">
+            <span class="nav-btn-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              <span>Pustaka 120 Hook</span>
+            </span>
+            <span class="nav-count">120</span>
+          </button>
+          <button class="nav-btn" data-view="history">
+            <span class="nav-btn-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+              <span>Riwayat Proyek</span>
+            </span>
+            <span id="historyBadge" class="nav-count">0</span>
+          </button>
+          <button class="nav-btn" data-view="favorites">
+            <span class="nav-btn-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+              <span>Koleksi Favorit</span>
+            </span>
+            <span id="favBadge" class="nav-count">0</span>
+          </button>
+          <button class="nav-btn" data-view="settings">
+            <span class="nav-btn-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.09a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              <span>Pengaturan</span>
+            </span>
+          </button>
+        </nav>
+      </div>
+
+      <div style="display: grid; gap: 10px; border-top: 1px solid var(--color-hairline); padding-top: 16px;">
+        <div class="text-sm">
+          <strong id="sidebarUserName">Kreator</strong>
+          <div id="sidebarUserHandle" class="text-muted" style="font-size: 13px;">@kreator</div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button id="themeToggleBtn" type="button" class="btn btn-secondary" style="flex: 1; padding: 8px 10px; font-size: 13px;">Tema Gelap</button>
+          <button id="logoutBtn" type="button" class="btn btn-ghost" style="padding: 8px 12px; font-size: 13px;">Keluar</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Konten Utama -->
+    <div>
+      <!-- Topbar Mobile -->
+      <header class="topbar-mobile">
+        <div class="brand-mark" style="font-size: 16px; gap: 8px;">
+          <svg viewBox="0 0 36 36" fill="none" style="width: 26px; height: 26px;" aria-hidden="true">
+            <rect x="6" y="3" width="20" height="30" rx="4" stroke="#088177" stroke-width="2.4"/>
+            <path d="M13 13.5L20 17.5L13 21.5V13.5Z" fill="#088177"/>
+            <circle cx="26" cy="25" r="7" fill="#d8edeb" stroke="#088177" stroke-width="1.8"/>
+          </svg>
+          <span>KomisiKlip Studio</span>
+        </div>
+        <div style="display: flex; gap: 6px;">
+          <button id="mobileThemeBtn" type="button" class="btn btn-secondary" style="padding: 6px 10px; font-size: 12px;">Tema</button>
+          <button id="mobileSettingsBtn" type="button" class="btn btn-ghost" style="padding: 6px 10px; font-size: 12px;">Profil</button>
+        </div>
+      </header>
+
+      <main class="main-area">
+        <!-- VIEW 1: BERANDA & KALKULATOR KOMISI -->
+        <section id="view-dashboard" class="view-panel active">
+          <div class="card-teal-band" style="margin-bottom: 24px;">
+            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 20px; align-items: center;">
+              <div style="max-width: 640px;">
+                <span class="badge" style="background: #d8edeb; color: #1b1b1b;">BERANDA PRODUKSI AFFILIATE</span>
+                <h1 class="display-lg" style="color: #ffffff; margin-top: 12px;">Halo, <span id="greetName">Rina</span> — siap pecah keranjang hari ini?</h1>
+                <p style="margin-top: 10px; color: #d8edeb; font-size: 15px;">
+                  Susun naskah video 15–30 detik yang menahan jempol di 3 detik pertama, lengkap arahan ambil gambar dan jadwal rotasi konten 30 hari.
+                </p>
+              </div>
+              <button type="button" id="heroStartWizardBtn" class="btn btn-inverse">
+                Buat Paket Skrip Baru
+              </button>
+            </div>
+          </div>
+
+          <div class="grid-4" style="margin-bottom: 24px;">
+            <div class="stat-card">
+              <div class="text-caption text-muted">Proyek Tersimpan</div>
+              <div id="statProjects" class="stat-value">0</div>
+              <div class="text-sm text-muted" style="margin-top: 4px;">Paket skrip &amp; jadwal 30 hari</div>
+            </div>
+            <div class="stat-card">
+              <div class="text-caption text-muted">Dokumen Diunduh</div>
+              <div id="statExports" class="stat-value">0</div>
+              <div class="text-sm text-muted" style="margin-top: 4px;">PDF syuting, PNG 9:16 &amp; CSV</div>
+            </div>
+            <div class="stat-card">
+              <div class="text-caption text-muted">Hook Favorit</div>
+              <div id="statFavs" class="stat-value">0</div>
+              <div class="text-sm text-muted" style="margin-top: 4px;">Dari 120 koleksi pustaka</div>
+            </div>
+            <div class="stat-card">
+              <div class="text-caption text-muted">Target Komisi / Bln</div>
+              <div id="statTargetRp" class="stat-value">Rp 6 Jt</div>
+              <div class="text-sm text-muted" style="margin-top: 4px;">Dihitung di kalkulator bawah</div>
+            </div>
+          </div>
+
+          <!-- Kalkulator Target Komisi Bulanan -->
+          <div class="card" style="margin-bottom: 24px;">
+            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 20px;">
+              <div>
+                <span class="badge">ALAT HITUNG REALISTIS</span>
+                <h2 class="heading-card" style="margin-top: 10px;">Kalkulator Target Komisi Affiliate Bulanan</h2>
+                <p class="text-sm text-muted" style="margin-top: 4px;">Hitung berapa pcs barang yang perlu terjual per hari agar target penghasilanmu tercapai secara terukur.</p>
+              </div>
+            </div>
+
+            <div class="grid-4" style="align-items: end;">
+              <div class="field-group">
+                <label class="field-label" for="calcTargetIncome">Target Komisi / Bln (Rp)</label>
+                <input id="calcTargetIncome" class="input" type="number" min="500000" step="250000" value="6000000" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="calcAvgPrice">Harga Barang Rata-rata (Rp)</label>
+                <input id="calcAvgPrice" class="input" type="number" min="10000" step="5000" value="75000" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="calcCommPct">Rata-rata Komisi (%)</label>
+                <input id="calcCommPct" class="input" type="number" min="1" max="50" step="1" value="11" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="calcVideosDay">Sanggup Upload / Hari</label>
+                <select id="calcVideosDay" class="select">
+                  <option value="1">1 Video Pendek / Hari</option>
+                  <option value="2" selected>2 Video Pendek / Hari</option>
+                  <option value="3">3 Video Pendek / Hari</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid-3" style="margin-top: 20px;">
+              <div class="card-mist">
+                <div class="text-caption">KOMISI BERSIH PER PCS</div>
+                <div id="calcResPerItem" class="stat-value" style="margin-top: 6px;">Rp 8.250</div>
+                <p class="text-sm" style="margin-top: 6px;">Masuk setiap 1 pesanan selesai diterima pembeli.</p>
+              </div>
+              <div class="card-mist">
+                <div class="text-caption">TARGET TERJUAL HARIAN</div>
+                <div id="calcResDailySales" class="stat-value" style="margin-top: 6px;">25 pcs / hari</div>
+                <p id="calcResMonthlySales" class="text-sm" style="margin-top: 6px;">Total 728 pcs selama 30 hari penuh.</p>
+              </div>
+              <div class="card-blush">
+                <div class="text-caption">PORSI KONTEN DISARANKAN</div>
+                <div id="calcResRhythm" class="stat-value" style="font-size: 22px; margin-top: 6px;">60 Video / Bulan</div>
+                <p class="text-sm" style="margin-top: 6px;">Rotasi 50% Masalah-Solusi, 30% Bukti Uji, 20% Voucher.</p>
+              </div>
+            </div>
+
+            <div style="margin-top: 18px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px;">
+              <p id="calcAdviceText" class="text-sm text-muted">Dengan 2 video/hari, cukup rata-rata 12–13 pesanan per gelombang konten harian untuk menembus targetmu.</p>
+              <button type="button" id="applyCalcToWizardBtn" class="btn btn-primary">
+                Terapkan Angka Ini ke Wizard Skrip
+              </button>
+            </div>
+          </div>
+
+          <!-- Akses Cepat 3 Alat Inti -->
+          <div class="grid-3">
+            <div class="card">
+              <span class="badge">LANGKAH UTAMA</span>
+              <h3 class="heading-card" style="margin-top: 12px;">Wizard Skrip &amp; Jadwal 30 Hari</h3>
+              <p class="text-sm text-muted" style="margin-top: 8px; margin-bottom: 18px;">Pilih dari 8 preset kategori laris, racik 3 variasi skrip berdetik, lalu ekspor PDF, PNG 9:16, &amp; CSV Excel.</p>
+              <button type="button" class="btn btn-secondary btn-block jump-view-btn" data-target="wizard">Buka Wizard Skrip</button>
+            </div>
+            <div class="card">
+              <span class="badge">AMAN DARI PELANGGARAN</span>
+              <h3 class="heading-card" style="margin-top: 12px;">Cek Kata Aman &amp; Teleprompter</h3>
+              <p class="text-sm text-muted" style="margin-top: 8px; margin-bottom: 18px;">Deteksi klaim berlebihan yang rawan kena pembatasan trafik, lalu baca naskah mulus di depan kamera.</p>
+              <button type="button" class="btn btn-secondary btn-block jump-view-btn" data-target="teleprompter">Buka Cek Kata &amp; Layar Baca</button>
+            </div>
+            <div class="card">
+              <span class="badge">120 CONTEKAN SIAP PAKAI</span>
+              <h3 class="heading-card" style="margin-top: 12px;">Pustaka 120 Hook &amp; Ide</h3>
+              <p class="text-sm text-muted" style="margin-top: 8px; margin-bottom: 18px;">Kumpulan kalimat pembuka 3 detik, rumus video tanpa wajah, komentar sematan, &amp; prompt riset ulasan.</p>
+              <button type="button" class="btn btn-secondary btn-block jump-view-btn" data-target="library">Jelajahi 120 Koleksi</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 2: WIZARD 3 LANGKAH SKRIP & JADWAL 30 HARI -->
+        <section id="view-wizard" class="view-panel">
+          <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px;">
+            <div>
+              <span class="badge">WIZARD PRODUKSI 3 LANGKAH</span>
+              <h1 class="display-lg" style="margin-top: 8px;">Pembuat Skrip Keranjang Kuning &amp; Kalender 30 Hari</h1>
+            </div>
+            <button type="button" id="saveProjectBtn" class="btn btn-secondary">Simpan ke Riwayat Proyek</button>
+          </div>
+
+          <div class="stepper">
+            <button type="button" class="step-tab active" data-step="1">
+              <span class="step-num">1</span>
+              <div>
+                <div style="font-weight: 700; font-size: 14px;">Data Produk &amp; Sudut Jual</div>
+                <div class="text-muted" style="font-size: 12px;">8 preset cepat atau isi mandiri</div>
+              </div>
+            </button>
+            <button type="button" class="step-tab" data-step="2">
+              <span class="step-num">2</span>
+              <div>
+                <div style="font-weight: 700; font-size: 14px;">3 Variasi Skrip &amp; Kalender</div>
+                <div class="text-muted" style="font-size: 12px;">Naskah detik-demi-detik &amp; 30 hari</div>
+              </div>
+            </button>
+            <button type="button" class="step-tab" data-step="3">
+              <span class="step-num">3</span>
+              <div>
+                <div style="font-weight: 700; font-size: 14px;">Audit Skor &amp; Unduh 4 File</div>
+                <div class="text-muted" style="font-size: 12px;">PDF Syuting, PNG 9:16, Kalender &amp; CSV</div>
+              </div>
+            </button>
+          </div>
+
+          <!-- LANGKAH 1 -->
+          <div id="wizStep1" class="wizard-step-pane">
+            <div class="card" style="margin-bottom: 20px;">
+              <div class="field-label" style="margin-bottom: 10px;">Isi Cepat dari 8 Kategori Produk Laris TikTok &amp; Shopee:</div>
+              <div id="presetGrid" class="preset-grid"></div>
+            </div>
+
+            <div class="card">
+              <h2 class="heading-card" style="margin-bottom: 18px;">Detail Produk Keranjang Kuning / Oranye</h2>
+              <div class="grid-2" style="margin-bottom: 16px;">
+                <div class="field-group">
+                  <label class="field-label" for="prodName">Nama Produk yang Dipromosikan</label>
+                  <input id="prodName" class="input" type="text" />
+                </div>
+                <div class="field-group">
+                  <label class="field-label" for="prodPlatform">Platform Tujuan</label>
+                  <select id="prodPlatform" class="select">
+                    <option value="TikTok Keranjang Kuning & Shopee Video">TikTok Keranjang Kuning &amp; Shopee Video</option>
+                    <option value="TikTok Affiliate (Keranjang Kuning)">TikTok Affiliate (Keranjang Kuning)</option>
+                    <option value="Shopee Video (Keranjang Oranye)">Shopee Video (Keranjang Oranye)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="grid-3" style="margin-bottom: 16px;">
+                <div class="field-group">
+                  <label class="field-label" for="prodPrice">Harga Jual Produk (Rp)</label>
+                  <input id="prodPrice" class="input" type="number" min="1000" step="1000" />
+                </div>
+                <div class="field-group">
+                  <label class="field-label" for="prodComm">Komisi Kreator (%)</label>
+                  <input id="prodComm" class="input" type="number" min="1" max="60" step="1" />
+                </div>
+                <div class="field-group">
+                  <label class="field-label" for="prodVisualStyle">Gaya Pengambilan Video</label>
+                  <select id="prodVisualStyle" class="select">
+                    <option value="Tanpa Tampil Wajah (Fokus Tangan & Tekstur)">Tanpa Tampil Wajah (Fokus Tangan &amp; Tekstur)</option>
+                    <option value="Tanpa Tampil Wajah (Demo Meja Dapur)">Tanpa Tampil Wajah (Demo Meja / Ruangan)</option>
+                    <option value="Cermin Setengah Badan / Tanpa Bicara Cepat">Cermin Setengah Badan (Fashion / Harian)</option>
+                    <option value="Uji Suara Langsung Depan Kipas Angin">Uji Bukti Langsung Sebelum vs Sesudah</option>
+                    <option value="Ngobrol Santai Depan Kamera">Ngobrol Santai Depan Kamera</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="grid-2" style="margin-bottom: 16px;">
+                <div class="field-group">
+                  <label class="field-label" for="prodAudience">Siapa Pembeli Paling Butuh Barang Ini?</label>
+                  <input id="prodAudience" class="input" type="text" />
+                </div>
+                <div class="field-group">
+                  <label class="field-label" for="prodPromo">Alasan Checkout Hari Ini (Voucher / Bundel / Ongkir)</label>
+                  <input id="prodPromo" class="input" type="text" />
+                </div>
+              </div>
+
+              <div class="field-group" style="margin-bottom: 16px;">
+                <label class="field-label" for="prodPain">Keluhan / Masalah Sehari-hari Sebelum Pakai Produk Ini</label>
+                <textarea id="prodPain" class="textarea" style="min-height: 68px;"></textarea>
+              </div>
+
+              <div class="grid-3" style="margin-bottom: 20px;">
+                <div class="field-group">
+                  <label class="field-label" for="prodBen1">Keunggulan Utama #1</label>
+                  <textarea id="prodBen1" class="textarea" style="min-height: 76px;"></textarea>
+                </div>
+                <div class="field-group">
+                  <label class="field-label" for="prodBen2">Keunggulan Utama #2</label>
+                  <textarea id="prodBen2" class="textarea" style="min-height: 76px;"></textarea>
+                </div>
+                <div class="field-group">
+                  <label class="field-label" for="prodBen3">Keunggulan Utama #3</label>
+                  <textarea id="prodBen3" class="textarea" style="min-height: 76px;"></textarea>
+                </div>
+              </div>
+
+              <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                <button type="button" id="toStep2Btn" class="btn btn-primary">
+                  Susun 3 Variasi Skrip &amp; Jadwal 30 Hari
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- LANGKAH 2 -->
+          <div id="wizStep2" class="wizard-step-pane hidden">
+            <div class="wizard-split">
+              <div class="card">
+                <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 14px;">
+                  <h2 class="heading-card">3 Variasi Skrip Detik-demi-Detik</h2>
+                  <button type="button" id="sendToTeleprompterBtn" class="btn btn-secondary" style="padding: 7px 14px; font-size: 13px;">Buka di Layar Teleprompter</button>
+                </div>
+
+                <div id="variationTabs" class="var-tabs"></div>
+                <div id="scriptBlocksEditor"></div>
+
+                <hr class="divider" />
+                <div class="field-group" style="margin-bottom: 12px;">
+                  <label class="field-label" for="editCaption">Caption Video Siap Tempel</label>
+                  <textarea id="editCaption" class="textarea" style="min-height: 66px;"></textarea>
+                </div>
+                <div class="grid-2">
+                  <div class="field-group">
+                    <label class="field-label" for="editHashtags">Tagar Pencarian Kategori</label>
+                    <input id="editHashtags" class="input" type="text" />
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="editPinned">Komentar Sematan (Pinned Comment)</label>
+                    <input id="editPinned" class="input" type="text" />
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 14px;">
+                  <div>
+                    <h2 class="heading-card">Rencana Rotasi Konten 30 Hari</h2>
+                    <p class="text-sm text-muted">1 barang diputar dari beragam sudut agar tidak dianggap spam.</p>
+                  </div>
+                  <select id="scheduleFreqSelect" class="select" style="width: auto; padding: 7px 12px; font-size: 13px;">
+                    <option value="1">1 Video / Hari</option>
+                    <option value="2" selected>2 Video / Hari</option>
+                    <option value="3">3 Video / Hari</option>
+                  </select>
+                </div>
+
+                <div id="calendarPreviewList" class="calendar-list"></div>
+              </div>
+            </div>
+
+            <div style="margin-top: 20px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+              <button type="button" id="backToStep1Btn" class="btn btn-secondary">Kembali ke Data Produk</button>
+              <button type="button" id="toStep3Btn" class="btn btn-primary">Lanjut ke Audit Skor &amp; Ekspor 4 File</button>
+            </div>
+          </div>
+
+          <!-- LANGKAH 3 -->
+          <div id="wizStep3" class="wizard-step-pane hidden">
+            <div class="wizard-split">
+              <!-- Kiri: Pratinjau Kartu Contekan Syuting 9:16 -->
+              <div>
+                <div class="phone-cue-preview">
+                  <div class="phone-cue-head">
+                    <span class="badge" style="background: #d8edeb; color: #1b1b1b;">PRATINJAU KARTU CONTEKAN 9:16</span>
+                    <h3 id="prevProdTitle" class="heading-card" style="color: #ffffff; margin-top: 10px;">Nama Produk</h3>
+                    <p id="prevProdMeta" class="text-sm" style="color: #d8edeb; margin-top: 4px;">Rp 59.000 • Komisi Rp 7.080/pcs</p>
+                  </div>
+                  <div id="prevCueBlocks" class="phone-cue-body"></div>
+                </div>
+              </div>
+
+              <!-- Kanan: Skor Kesiapan Konten + Panel Unduh 4 File + AI Hand-Off -->
+              <div style="display: grid; gap: 20px;">
+                <div class="card">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                      <span class="badge">AUDIT SKRIP AFFILIATE</span>
+                      <h3 class="heading-card" style="margin-top: 8px;">Skor Daya Pikat &amp; Keamanan Akun</h3>
+                    </div>
+                    <div id="hookScorePct" class="display-lg" style="color: var(--color-deep-teal);">100%</div>
+                  </div>
+                  <div class="score-meter">
+                    <div id="hookScoreFill" class="score-meter-fill" style="width: 100%;"></div>
+                  </div>
+                  <div id="hookChecklist" class="check-list"></div>
+                </div>
+
+                <div class="card">
+                  <span class="badge">UNDUH 4 DOKUMEN SIAP PAKAI</span>
+                  <h3 class="heading-card" style="margin-top: 10px;">Ekspor Paket Produksi Konten</h3>
+                  <p class="text-sm text-muted" style="margin-top: 4px; margin-bottom: 16px;">Seluruh file dibuat langsung di browser tanpa watermark dan siap dibuka di HP maupun laptop.</p>
+
+                  <div style="display: grid; gap: 10px;">
+                    <button type="button" id="dlScriptPdfBtn" class="btn btn-primary btn-block" style="justify-content: space-between; padding: 13px 18px;">
+                      <span>1. Unduh Lembar Syuting 3 Variasi Skrip (.PDF)</span>
+                      <span>A4 Resmi</span>
+                    </button>
+                    <button type="button" id="dlCuePngBtn" class="btn btn-secondary btn-block" style="justify-content: space-between; padding: 12px 18px;">
+                      <span>2. Unduh Kartu Contekan HP 9:16 (.PNG)</span>
+                      <span>1080x1920</span>
+                    </button>
+                    <button type="button" id="dlCalendarPdfBtn" class="btn btn-secondary btn-block" style="justify-content: space-between; padding: 12px 18px;">
+                      <span>3. Unduh Kalender Konten 30 Hari (.PDF)</span>
+                      <span>30 Hari</span>
+                    </button>
+                    <button type="button" id="dlScheduleCsvBtn" class="btn btn-secondary btn-block" style="justify-content: space-between; padding: 12px 18px;">
+                      <span>4. Unduh Tabel Jadwal &amp; Pelacak Komisi (.CSV Excel)</span>
+                      <span>Spreadsheet</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="card-mist">
+                  <div class="text-caption">OPSIONAL — RISET ULASAN PEMBELI TANPA BIAYA API</div>
+                  <h4 style="font-size: 16px; font-weight: 700; margin-top: 6px;">Prompt Gali Sudut Baru di ChatGPT / Gemini Gratis</h4>
+                  <p class="text-sm" style="margin-top: 4px; margin-bottom: 12px;">Salin prompt lengkap berisi detail produkmu ini untuk menggali bahasa ulasan bintang 5 dari pembeli toko.</p>
+                  <button type="button" id="copyAiPromptBtn" class="btn btn-secondary btn-block">Salin Prompt Riset Produk</button>
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-top: 20px;">
+              <button type="button" id="backToStep2Btn" class="btn btn-secondary">Kembali Edit Skrip &amp; Kalender</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 3: TELEPROMPTER & PEMINDAI KATA AMAN -->
+        <section id="view-teleprompter" class="view-panel">
+          <div style="margin-bottom: 20px;">
+            <span class="badge">ALAT BANTU REKAM &amp; KEPATUHAN PLATFORM</span>
+            <h1 class="display-lg" style="margin-top: 8px;">Pemindai Kata Rawan Pelanggaran &amp; Layar Teleprompter</h1>
+          </div>
+
+          <div class="grid-2">
+            <!-- Pemindai Kata Rawan -->
+            <div class="card">
+              <h2 class="heading-card">1. Cek Kata Rawan Pembatasan Trafik</h2>
+              <p class="text-sm text-muted" style="margin-top: 4px; margin-bottom: 14px;">Pastikan naskah suaramu bebas klaim medis berlebihan, janji hasil instan semalam, atau ajakan transaksi luar aplikasi.</p>
+
+              <div class="field-group" style="margin-bottom: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <label class="field-label" for="safeCheckInput">Teks Naskah / Caption yang Mau Dicek</label>
+                  <button type="button" id="fillRiskySampleBtn" class="btn btn-ghost" style="padding: 4px 10px; font-size: 12px;">Muat Contoh Rawan</button>
+                </div>
+                <textarea id="safeCheckInput" class="textarea" style="min-height: 128px;"></textarea>
+              </div>
+
+              <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;">
+                <button type="button" id="runSafeScanBtn" class="btn btn-primary">Pindai Keamanan Kata</button>
+                <button type="button" id="autoFixSafeBtn" class="btn btn-secondary">Ganti Otomatis ke Kalimat Aman</button>
+              </div>
+
+              <div id="safeScanResult" class="card-mist">
+                <strong style="font-size: 14px;">Siap Memindai Naskah</strong>
+                <p class="text-sm" style="margin-top: 4px;">Klik tombol Pindai untuk mengecek apakah ada frasa yang berisiko menurunkan jangkauan video keranjangmu.</p>
+              </div>
+            </div>
+
+            <!-- Layar Baca Teleprompter -->
+            <div class="card">
+              <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px;">
+                <div>
+                  <h2 class="heading-card">2. Layar Baca Kamera (Teleprompter)</h2>
+                  <p class="text-sm text-muted">Taruh layar HP dekat kamera agar mata tetap fokus ke depan.</p>
+                </div>
+              </div>
+
+              <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; align-items: center;">
+                <button type="button" id="tpPlayPauseBtn" class="btn btn-primary" style="padding: 8px 16px;">Mulai Gulir</button>
+                <button type="button" id="tpResetBtn" class="btn btn-secondary" style="padding: 8px 14px;">Ulangi Atas</button>
+                <button type="button" id="tpMirrorBtn" class="btn btn-ghost" style="padding: 8px 14px;">Cermin</button>
+                <select id="tpFontSize" class="select" style="width: auto; padding: 7px 10px; font-size: 13px;">
+                  <option value="22">Huruf Sedang</option>
+                  <option value="28" selected>Huruf Besar</option>
+                  <option value="34">Huruf Ekstra</option>
+                </select>
+                <select id="tpSpeed" class="select" style="width: auto; padding: 7px 10px; font-size: 13px;">
+                  <option value="1">Santai</option>
+                  <option value="2" selected>Normal</option>
+                  <option value="3">Cepat</option>
+                </select>
+              </div>
+
+              <div id="teleprompterStage" class="teleprompter-stage" style="font-size: 28px;"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- VIEW 4: PUSTAKA 120 KOLEKSI HOOK & IDE -->
+        <section id="view-library" class="view-panel">
+          <div style="margin-bottom: 20px;">
+            <span class="badge">PUSTAKA SIAP REKAM</span>
+            <h1 class="display-lg" style="margin-top: 8px;">120 Koleksi Hook 3 Detik, Skrip Tanpa Wajah &amp; Ide Harian</h1>
+            <p class="text-sm text-muted" style="margin-top: 6px;">Klik kartu mana saja untuk membaca panduan pengambilan gambar, menyalin kalimatnya, atau menempelkannya ke proyek aktif.</p>
+          </div>
+
+          <div class="card" style="margin-bottom: 20px; padding: 20px;">
+            <div class="grid-2" style="margin-bottom: 14px;">
+              <div class="field-group">
+                <label class="field-label" for="libSearchInput">Cari Kata Kunci Produk / Situasi</label>
+                <input id="libSearchInput" class="input" type="search" placeholder="Ketik misal: tanpa wajah, ongkir, dapur, ukuran, komentar..." />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="libNicheSelect">Filter Kategori Barang</label>
+                <select id="libNicheSelect" class="select">
+                  <option value="ALL">Semua Kategori Barang (120 Koleksi)</option>
+                  <option value="Semua Kategori">Umum Lintas Produk</option>
+                  <option value="Skincare & Kecantikan">Skincare &amp; Kecantikan</option>
+                  <option value="Rumah & Dapur">Rumah &amp; Dapur</option>
+                  <option value="Fashion">Fashion &amp; Pakaian</option>
+                  <option value="Gadget & Aksesoris">Gadget &amp; Aksesoris</option>
+                  <option value="Ibu & Anak">Ibu &amp; Anak</option>
+                  <option value="Kesehatan & Makanan">Kesehatan &amp; Makanan</option>
+                </select>
+              </div>
+            </div>
+            <div id="libCategoryPills" class="filter-bar" style="margin-bottom: 0;"></div>
+          </div>
+
+          <div id="libCountInfo" class="text-sm text-muted" style="margin-bottom: 12px;">Menampilkan 120 dari 120 koleksi siap pakai</div>
+          <div id="libCardsGrid" class="lib-grid"></div>
+        </section>
+
+        <!-- VIEW 5: RIWAYAT PROYEK -->
+        <section id="view-history" class="view-panel">
+          <div style="margin-bottom: 20px;">
+            <span class="badge">ARSIP PRODUKSI</span>
+            <h1 class="display-lg" style="margin-top: 8px;">Riwayat Proyek Skrip &amp; Jadwal</h1>
+            <p class="text-sm text-muted" style="margin-top: 6px;">Buka kembali atau unduh ulang paket skrip produk yang pernah kamu racik sebelumnya.</p>
+          </div>
+          <div id="historyListContainer" style="display: grid; gap: 14px;"></div>
+        </section>
+
+        <!-- VIEW 6: KOLEKSI FAVORIT -->
+        <section id="view-favorites" class="view-panel">
+          <div style="margin-bottom: 20px;">
+            <span class="badge">SIMPANAN PILIHANMU</span>
+            <h1 class="display-lg" style="margin-top: 8px;">Koleksi Hook &amp; Rumus Favorit</h1>
+            <p class="text-sm text-muted" style="margin-top: 6px;">Kumpulan ide pembuka dan kalimat keranjang andalan yang kamu tandai dari Pustaka.</p>
+          </div>
+          <div id="favoritesGrid" class="lib-grid"></div>
+        </section>
+
+        <!-- VIEW 7: PENGATURAN PROFIL KREATOR -->
+        <section id="view-settings" class="view-panel">
+          <div style="margin-bottom: 20px;">
+            <span class="badge">PREFERENSI STUDIO</span>
+            <h1 class="display-lg" style="margin-top: 8px;">Pengaturan Profil Kreator &amp; Cadangan Data</h1>
+          </div>
+
+          <div class="grid-2">
+            <div class="card">
+              <h2 class="heading-card" style="margin-bottom: 16px;">Identitas Akun Kreator</h2>
+              <form id="profileForm" style="display: grid; gap: 14px;">
+                <div class="field-group">
+                  <label class="field-label" for="setCreatorName">Nama Panggilan Kreator</label>
+                  <input id="setCreatorName" class="input" type="text" required />
+                </div>
+                <div class="field-group">
+                  <label class="field-label" for="setCreatorHandle">Username Akun (@handle)</label>
+                  <input id="setCreatorHandle" class="input" type="text" required />
+                </div>
+                <div class="field-group">
+                  <label class="field-label" for="setCreatorEmail">Email Pembeli</label>
+                  <input id="setCreatorEmail" class="input" type="email" required />
+                </div>
+                <div class="field-group">
+                  <label class="field-label" for="setDefaultHours">Jam Upload Andalan Harian</label>
+                  <input id="setDefaultHours" class="input" type="text" placeholder="11:30 WIB & 19:30 WIB" />
+                </div>
+                <button type="submit" class="btn btn-primary">Simpan Perubahan Profil</button>
+              </form>
+            </div>
+
+            <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; gap: 20px;">
+              <div>
+                <h2 class="heading-card" style="margin-bottom: 10px;">Cadangkan &amp; Pulihkan Data Proyek</h2>
+                <p class="text-sm text-muted" style="margin-bottom: 18px;">Seluruh riwayat skrip, favorit, dan profil tersimpan di browser perangkat ini. Kamu bisa mengunduh file cadangan JSON kapan saja untuk dipindahkan ke HP atau laptop lain.</p>
+                <div style="display: grid; gap: 10px;">
+                  <button type="button" id="exportBackupBtn" class="btn btn-secondary btn-block">Unduh File Cadangan Data (.JSON)</button>
+                  <label class="btn btn-ghost btn-block" style="cursor: pointer;">
+                    <span>Pulihkan dari File Cadangan (.JSON)</span>
+                    <input id="importBackupInput" type="file" accept="application/json" style="display: none;" />
+                  </label>
+                </div>
+              </div>
+              <div class="info-strip">
+                <div class="text-caption">TEMA TAMPILAN STUDIO</div>
+                <p class="text-sm text-muted" style="margin-top: 4px; margin-bottom: 10px;">Pilih suasana ruang kerja terang hangat ala kertas editorial atau mode gelap yang teduh untuk malam hari.</p>
+                <button type="button" id="settingsThemeBtn" class="btn btn-secondary">Ganti Tema Terang / Gelap</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- Bottom Nav Mobile (390px) -->
+      <nav class="bottom-nav-mobile" aria-label="Navigasi Bawah">
+        <button type="button" class="mob-nav-item active" data-view="dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          <span>Beranda</span>
+        </button>
+        <button type="button" class="mob-nav-item" data-view="wizard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span>Wizard</span>
+        </button>
+        <button type="button" class="mob-nav-item" data-view="teleprompter">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="4" width="18" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/></svg>
+          <span>Cek Kata</span>
+        </button>
+        <button type="button" class="mob-nav-item" data-view="library">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <span>120 Hook</span>
+        </button>
+        <button type="button" class="mob-nav-item" data-view="history">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+          <span>Riwayat</span>
+        </button>
+      </nav>
+    </div>
+  </div>
+
+  <!-- MODAL DETAIL PUSTAKA -->
+  <div id="libModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-panel">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+        <div>
+          <span id="modalCategoryBadge" class="badge">Kategori</span>
+          <span id="modalNicheBadge" class="badge badge-outline" style="margin-left: 6px;">Niche</span>
+          <h2 id="modalTitle" class="heading-card" style="margin-top: 12px;">Judul Koleksi</h2>
+        </div>
+        <button type="button" id="closeModalBtn" class="btn btn-ghost" style="padding: 6px 12px;">Tutup</button>
+      </div>
+
+      <div class="card-mist" style="margin-top: 18px;">
+        <div class="text-caption">KALIMAT / KERANGKA SIAP PAKAI</div>
+        <p id="modalScriptText" style="margin-top: 8px; font-size: 16px; font-weight: 500; line-height: 1.55;"></p>
+      </div>
+
+      <div style="display: grid; gap: 12px; margin-top: 16px;">
+        <div class="cue-row">
+          <div class="text-caption text-muted">ARAHAN AMBIL GAMBAR / CARA PAKAI</div>
+          <p id="modalVisualCue" class="text-sm" style="margin-top: 4px;"></p>
+        </div>
+        <div class="cue-row">
+          <div class="text-caption text-muted">TIPS BIAR PENONTON NGGAK GESER LAYAR</div>
+          <p id="modalProTip" class="text-sm" style="margin-top: 4px;"></p>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px;">
+        <button type="button" id="modalCopyBtn" class="btn btn-primary">Salin Teks Ini</button>
+        <button type="button" id="modalApplyWizardBtn" class="btn btn-secondary">Tempel ke Skrip Aktif</button>
+        <button type="button" id="modalToggleFavBtn" class="btn btn-ghost">Simpan ke Favorit</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="./data/affiliate-library.js"></script>
+  <script src="./exporter.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
