@@ -1,5 +1,5 @@
 /* Klip Auto Studio — Editorial Design System (Perk Reference: Electric Lime on Warm Parchment) */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap');
 
 :root,
 [data-theme="light"] {
@@ -1239,7 +1239,7 @@ input[type="range"] {
   margin-top: 10px;
 }
 
-/* ================= LIBRARY 120 ITEMS & MODAL ================= */
+/* ================= LIBRARY 140 ITEMS & MODAL ================= */
 .library-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1477,5 +1477,12 @@ input[type="range"] {
   .agent-stage-chip {
     font-size: 10.5px;
     padding: 7px 6px;
+  }
+
+  .pill-tag {
+    white-space: normal;
+    max-width: 100%;
+    flex-shrink: 1;
+    line-height: 1.35;
   }
 }

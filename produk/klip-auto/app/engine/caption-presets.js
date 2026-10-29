@@ -386,9 +386,9 @@ export function drawClipFrame(ctx, opts) {
     ctx.lineJoin = 'round';
     ctx.miterLimit = 2;
 
-    const maxCaptionWidth = W * 0.84;
-    const spaceMultiplier = preset.activePillColor ? 1.62 : 1.18;
-    const spaceWidth = ctx.measureText(' ').width * spaceMultiplier;
+    const maxCaptionWidth = W * 0.86;
+    const baseSpace = Math.max(ctx.measureText(' ').width, fontSize * 0.28);
+    const spaceWidth = Math.round(baseSpace * (preset.activePillColor ? 1.78 : 1.46));
 
     // Susun kata dalam grup menjadi 1–2 baris terpusat
     const tokens = activeGroup.words.map((w, idx) => {

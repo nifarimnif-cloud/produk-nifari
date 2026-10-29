@@ -8,6 +8,7 @@
 import { encodeMonoWavBlob, extractMonoAudio } from './audio-processor.js';
 
 let whisperPipelinePromise = null;
+const whisperProgressListeners = new Set();
 
 /**
  * Mengubah teks biasa menjadi urutan kata ber-timestamp proporsional dengan panjang suku kata
@@ -275,40 +276,276 @@ Kembalikan HANYA JSON murni sesuai skema berikut:
 }
 
 /**
- * Memuat pipeline Whisper Web (@huggingface/transformers) langsung di browser (WebGPU otomatis bila ada).
+ * Memuat pipeline pembaca suara vokal Whisper (Xenova/whisper-base q8 WASM) langsung di browser.
+ * Model ini memiliki bobot cross-attention penuh untuk penandaan waktu per kata (word-level timestamps)
+ * dalam Bahasa Indonesia, dan disimpan otomatis di Cache browser setelah unduhan pertama.
  */
 async function getWhisperPipeline(onProgress = null) {
-  if (whisperPipelinePromise) return whisperPipelinePromise;
-  whisperPipelinePromise = (async () => {
-    const transformers = await import(
-      'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.3.3/dist/transformers.min.js'
-    );
-    transformers.env.allowLocalModels = false;
-    const hasWebGPU = typeof navigator !== 'undefined' && Boolean(navigator.gpu);
+  if (onProgress) whisperProgressListeners.add(onProgress);
 
-    try {
-      return await transformers.pipeline(
-        'automatic-speech-recognition',
-        'onnx-community/whisper-tiny',
-        {
-          device: hasWebGPU ? 'webgpu' : 'wasm',
-          dtype: hasWebGPU ? 'fp32' : 'q8',
-          progress_callback: (info) => {
-            if (onProgress && info && typeof info.progress === 'number') {
-              onProgress(Math.round(info.progress));
+  if (!whisperPipelinePromise) {
+    const fileProgress = new Map();
+    whisperPipelinePromise = (async () => {
+      try {
+        const transformers = await import(
+          'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.3.3/dist/transformers.min.js'
+        );
+        transformers.env.allowLocalModels = false;
+
+        return await transformers.pipeline(
+          'automatic-speech-recognition',
+          'Xenova/whisper-base',
+          {
+            device: 'wasm',
+            dtype: 'q8',
+            progress_callback: (info) => {
+              if (!info) return;
+              if (info.file && typeof info.progress === 'number') {
+                fileProgress.set(info.file, info.progress);
+                let sum = 0;
+                for (const v of fileProgress.values()) sum += v;
+                const avg = Math.round(sum / Math.max(1, fileProgress.size));
+                for (const cb of whisperProgressListeners) {
+                  try {
+                    cb(avg);
+                  } catch {}
+                }
+              }
             }
           }
-        }
-      );
+        );
+      } catch (err) {
+        whisperPipelinePromise = null;
+        throw err;
+      }
+    })();
+  }
+
+  try {
+    return await whisperPipelinePromise;
+  } finally {
+    if (onProgress) whisperProgressListeners.delete(onProgress);
+  }
+}
+
+/**
+ * Penjernih jalur suara khusus pengenalan ucapan vokal (16 kHz):
+ * - Memotong dentuman bass / ledakan / musik rendah (< 95 Hz) tanpa memotong konsonan Bahasa Indonesia (95–8000 Hz)
+ * - Meratakan suara pembicara pelan vs keras memakai kompresor lembut agar setiap kata terbaca jelas oleh Whisper
+ */
+export async function prepareCleanSpeech16k(rawSamples) {
+  if (!rawSamples || rawSamples.length === 0) return new Float32Array(0);
+
+  let working = null;
+  const OfflineCtx =
+    typeof OfflineAudioContext !== 'undefined'
+      ? OfflineAudioContext
+      : typeof webkitOfflineAudioContext !== 'undefined'
+      ? webkitOfflineAudioContext
+      : null;
+
+  if (OfflineCtx && rawSamples.length >= 800) {
+    try {
+      const ctx = new OfflineCtx(1, rawSamples.length, 16000);
+      const buf = ctx.createBuffer(1, rawSamples.length, 16000);
+      buf.getChannelData(0).set(rawSamples);
+
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+
+      const hpf = ctx.createBiquadFilter();
+      hpf.type = 'highpass';
+      hpf.frequency.value = 95;
+      hpf.Q.value = 0.707;
+
+      const comp = ctx.createDynamicsCompressor();
+      comp.threshold.value = -24;
+      comp.knee.value = 18;
+      comp.ratio.value = 3.2;
+      comp.attack.value = 0.004;
+      comp.release.value = 0.14;
+
+      src.connect(hpf);
+      hpf.connect(comp);
+      comp.connect(ctx.destination);
+      src.start(0);
+
+      const rendered = await ctx.startRendering();
+      working = new Float32Array(rendered.getChannelData(0));
     } catch {
-      return await transformers.pipeline(
-        'automatic-speech-recognition',
-        'onnx-community/whisper-tiny',
-        { device: 'wasm', dtype: 'q8' }
-      );
+      working = null;
     }
-  })();
-  return whisperPipelinePromise;
+  }
+
+  if (!working) {
+    // Cadangan filter diferensial 1st-order high-pass 95 Hz bila OfflineAudioContext tidak tersedia
+    working = new Float32Array(rawSamples.length);
+    let prevIn = 0;
+    let prevOut = 0;
+    const alpha = 0.964;
+    for (let i = 0; i < rawSamples.length; i++) {
+      const x = rawSamples[i];
+      const y = alpha * (prevOut + x - prevIn);
+      prevIn = x;
+      prevOut = y;
+      working[i] = y;
+    }
+  }
+
+  let peak = 0;
+  for (let i = 0; i < working.length; i++) {
+    const a = Math.abs(working[i]);
+    if (a > peak) peak = a;
+  }
+  if (peak > 0.003) {
+    const scale = 0.88 / peak;
+    for (let i = 0; i < working.length; i++) {
+      working[i] = Math.max(-1, Math.min(1, working[i] * scale));
+    }
+  }
+
+  return working;
+}
+
+const HALLUCINATION_PATTERNS = [
+  /^\[.*\]$/,
+  /^\(.*\)$/,
+  /^\*.*\*$/,
+  /^musik$/i,
+  /^subtitle\s+oleh/i,
+  /^terima\s+kasih\s+telah\s+menonton/i
+];
+
+const PHONETIC_FIX_ID = {
+  gambal: 'kembali',
+  gambali: 'kembali',
+  melidugi: 'melindungi',
+  peningbak: 'penembak',
+  jidu: 'jitu',
+  jombi: 'zombie',
+  alian: 'alien'
+};
+
+function normalizeIndonesianToken(token) {
+  const raw = String(token || '').trim();
+  if (!raw) return '';
+  const m = raw.match(/^([^\p{L}\p{N}]*)([\p{L}\p{N}]+)([^\p{L}\p{N}]*)$/u);
+  if (!m) return raw;
+  const [, pre, core, post] = m;
+  const fixed = PHONETIC_FIX_ID[core.toLowerCase()];
+  if (!fixed) return raw;
+  const cased =
+    core[0] === core[0].toUpperCase() ? fixed.charAt(0).toUpperCase() + fixed.slice(1) : fixed;
+  return `${pre}${cased}${post}`;
+}
+
+function isValidSpokenWord(token) {
+  const clean = String(token || '').trim();
+  if (!clean) return false;
+  if (!/[\p{L}\p{N}]/u.test(clean)) return false;
+  for (const pat of HALLUCINATION_PATTERNS) {
+    if (pat.test(clean)) return false;
+  }
+  return true;
+}
+
+/**
+ * Menggabungkan potongan sub-kata BPE dari Whisper menjadi kata utuh ber-timestamp rapi dan monotonik.
+ */
+function parseWhisperOutputToWords(out, offsetSec, maxEndSec, cleanSamples) {
+  const merged = [];
+
+  if (out && Array.isArray(out.chunks) && out.chunks.length > 0) {
+    for (const ch of out.chunks) {
+      const rawText = String(ch.text || '');
+      const trimmed = rawText.trim();
+      if (!trimmed) continue;
+
+      // Jika chunk adalah kalimat panjang (fallback return_timestamps: true), pecah proporsional mengikuti energi suara
+      const spaceTokens = trimmed.split(/\s+/).filter(Boolean);
+      const rawT0 = Number(ch.timestamp?.[0] ?? 0);
+      const rawT1 = Number(
+        ch.timestamp?.[1] ?? Math.min(maxEndSec - offsetSec, rawT0 + Math.max(0.35, spaceTokens.length * 0.32))
+      );
+      const segStart = Math.max(offsetSec, Math.min(maxEndSec - 0.08, offsetSec + Math.max(0, rawT0)));
+      const segEnd = Math.max(segStart + 0.12, Math.min(maxEndSec, offsetSec + Math.max(rawT0 + 0.14, rawT1)));
+
+      if (spaceTokens.length > 1) {
+        const sIdx = Math.max(0, Math.floor((segStart - offsetSec) * 16000));
+        const eIdx = Math.min(cleanSamples.length, Math.ceil((segEnd - offsetSec) * 16000));
+        const subMono = eIdx > sIdx ? cleanSamples.subarray(sIdx, eIdx) : null;
+        const expanded = buildWordsFromTextAndWindow(trimmed, segStart, segEnd, subMono, 16000).filter((w) =>
+          isValidSpokenWord(w.word)
+        );
+        merged.push(...expanded);
+        continue;
+      }
+
+      const isContinuation = !/^\s/.test(rawText) && merged.length > 0;
+      if (isContinuation) {
+        merged[merged.length - 1].word += trimmed;
+        merged[merged.length - 1].end = Number(Math.max(merged[merged.length - 1].end, segEnd).toFixed(3));
+      } else {
+        const prevEnd = merged.length > 0 ? merged[merged.length - 1].end : offsetSec;
+        const monotonicStart = Math.max(segStart, Math.min(segEnd - 0.08, prevEnd - 0.02));
+        merged.push({
+          word: trimmed,
+          start: Number(Math.max(offsetSec, monotonicStart).toFixed(3)),
+          end: Number(Math.max(monotonicStart + 0.1, segEnd).toFixed(3))
+        });
+      }
+    }
+  }
+
+  const filtered = merged
+    .map((w) => ({ ...w, word: normalizeIndonesianToken(w.word) }))
+    .filter((w) => isValidSpokenWord(w.word));
+  if (filtered.length > 0) {
+    return filtered;
+  }
+
+  if (out && typeof out.text === 'string' && out.text.trim()) {
+    return buildWordsFromTextAndWindow(out.text.trim(), offsetSec, maxEndSec, cleanSamples, 16000).filter((w) =>
+      isValidSpokenWord(w.word)
+    );
+  }
+
+  return [];
+}
+
+async function transcribeCleanAudioToWords(transcriber, rawSamples, offsetSec, maxEndSec) {
+  const cleanSamples = await prepareCleanSpeech16k(rawSamples);
+  if (cleanSamples.length < 1600) return [];
+
+  let peak = 0;
+  for (let i = 0; i < cleanSamples.length; i += 4) {
+    const a = Math.abs(cleanSamples[i]);
+    if (a > peak) peak = a;
+  }
+  if (peak < 0.015) return [];
+
+  try {
+    const outWord = await transcriber(cleanSamples, {
+      language: 'indonesian',
+      task: 'transcribe',
+      return_timestamps: 'word',
+      chunk_length_s: 22,
+      stride_length_s: 3
+    });
+    const words = parseWhisperOutputToWords(outWord, offsetSec, maxEndSec, cleanSamples);
+    if (words.length > 0) return words;
+  } catch {
+    // Lanjut ke mode timestamp segmen bila diperlukan
+  }
+
+  const outSeg = await transcriber(cleanSamples, {
+    language: 'indonesian',
+    task: 'transcribe',
+    return_timestamps: true,
+    chunk_length_s: 22,
+    stride_length_s: 3
+  });
+  return parseWhisperOutputToWords(outSeg, offsetSec, maxEndSec, cleanSamples);
 }
 
 const HOOK_KEYWORDS_ID = [
@@ -384,7 +621,7 @@ export function pickMomentsFromWordsLocally(allWords, totalDurationSec) {
 }
 
 /**
- * Mode 2 (100% Tanpa API Key): Transkrip suara langsung di browser memakai Whisper Web
+ * Mode 2 (100% Tanpa API Key): Transkrip suara vokal langsung di browser memakai Whisper Web
  * lalu pilih momen terbaik secara otomatis.
  */
 export async function transcribeAndPickWithWhisperWeb({
@@ -392,20 +629,20 @@ export async function transcribeAndPickWithWhisperWeb({
   totalDurationSec,
   onStatus = null
 }) {
-  if (onStatus) onStatus('Menyiapkan model suara Whisper di browser (pertama kali unduh ~40 MB)...', 8);
+  if (onStatus) onStatus('Menyiapkan mesin pembaca vokal Bahasa Indonesia (pertama kali unduh ~75 MB)...', 8);
   const transcriber = await getWhisperPipeline((dlPct) => {
-    if (onStatus) onStatus(`Mengunduh model Whisper ke browser (${dlPct}%)...`, 8 + Math.round(dlPct * 0.2));
+    if (onStatus) onStatus(`Mengunduh model pembaca vokal Bahasa Indonesia (${dlPct}%)...`, 8 + Math.round(dlPct * 0.2));
   });
 
-  if (onStatus) onStatus('Mengekstrak gelombang suara 16 kHz...', 30);
+  if (onStatus) onStatus('Mengekstrak jalur vokal 16 kHz...', 30);
   const { samples } = await extractMonoAudio(file, {
     startSec: 0,
     endSec: totalDurationSec,
     targetSampleRate: 16000
   });
 
-  // Proses per potongan 30 detik agar browser tetap responsif di video 10–30 menit
-  const chunkSeconds = 30;
+  // Proses per potongan 28 detik agar browser tetap responsif di video 10–30 menit
+  const chunkSeconds = 28;
   const chunkSize = chunkSeconds * 16000;
   const totalChunks = Math.max(1, Math.ceil(samples.length / chunkSize));
   const allWords = [];
@@ -413,86 +650,50 @@ export async function transcribeAndPickWithWhisperWeb({
   for (let c = 0; c < totalChunks; c++) {
     const offsetSec = c * chunkSeconds;
     const slice = samples.subarray(c * chunkSize, Math.min(samples.length, (c + 1) * chunkSize));
+    const sliceEndSec = Math.min(totalDurationSec, offsetSec + slice.length / 16000);
     if (onStatus) {
       const pct = 35 + Math.round(((c + 0.5) / totalChunks) * 55);
-      onStatus(`Mentranskrip suara bagian ${c + 1} dari ${totalChunks}...`, pct);
+      onStatus(`Membaca ucapan vokal bagian ${c + 1} dari ${totalChunks}...`, pct);
     }
 
-    const out = await transcriber(slice, {
-      language: 'indonesian',
-      task: 'transcribe',
-      return_timestamps: 'word'
-    });
-
-    if (out && Array.isArray(out.chunks) && out.chunks.length > 0) {
-      for (const ch of out.chunks) {
-        const wText = String(ch.text || '').trim();
-        if (!wText) continue;
-        const ts0 = (ch.timestamp?.[0] ?? 0) + offsetSec;
-        const ts1 = (ch.timestamp?.[1] ?? ts0 + 0.32) + offsetSec;
-        allWords.push({
-          word: wText,
-          start: Number(ts0.toFixed(3)),
-          end: Number(Math.max(ts0 + 0.08, ts1).toFixed(3))
-        });
-      }
-    } else if (out && out.text && out.text.trim()) {
-      const fallbackWords = buildWordsFromTextAndWindow(
-        out.text,
-        offsetSec,
-        Math.min(totalDurationSec, offsetSec + slice.length / 16000),
-        slice,
-        16000
-      );
-      allWords.push(...fallbackWords);
-    }
+    const chunkWords = await transcribeCleanAudioToWords(transcriber, slice, offsetSec, sliceEndSec);
+    allWords.push(...chunkWords);
   }
 
   if (allWords.length === 0) {
-    throw new Error('Tidak terdengar ucapan yang jelas pada video ini. Kamu juga bisa mengetik/menempel teks caption manual.');
+    throw new Error('Tidak terdengar ucapan vokal yang jelas pada video ini. Kamu juga bisa mengetik/menempel teks caption manual.');
   }
 
-  if (onStatus) onStatus('Memilih momen paling menarik...', 95);
+  if (onStatus) onStatus('Memilih momen paling menarik dari transkrip vokal...', 95);
   const moments = pickMomentsFromWordsLocally(allWords, totalDurationSec);
-  if (onStatus) onStatus('Transkrip & pemilihan momen selesai!', 100);
+  if (onStatus) onStatus('Pembacaan vokal & pemilihan momen selesai!', 100);
   return moments;
 }
 
 /**
- * Sinkronisasi ulang per kata dengan Whisper khusus untuk 1 klip pendek [startSec, endSec] (sangat cepat: 3–6 detik).
+ * Membaca vokal pembicara per kata dengan Whisper khusus untuk 1 klip pendek [startSec, endSec].
  */
 export async function syncClipWordsWithWhisper(file, startSec, endSec, onStatus = null) {
-  if (onStatus) onStatus('Memuat penyelarasan kata Whisper...', 15);
-  const transcriber = await getWhisperPipeline();
-  if (onStatus) onStatus('Membaca suara klip yang dipilih...', 45);
+  if (onStatus) onStatus('Menyiapkan model pembaca vokal Bahasa Indonesia...', 10);
+  const transcriber = await getWhisperPipeline((dlPct) => {
+    if (onStatus) {
+      onStatus(
+        `Mengunduh model pembaca vokal Bahasa Indonesia (sekali saja, ${dlPct}%)...`,
+        10 + Math.round(dlPct * 0.35)
+      );
+    }
+  });
+
+  if (onStatus) onStatus('Mengekstrak & menjernihkan vokal pembicara pada klip...', 50);
   const { samples } = await extractMonoAudio(file, {
     startSec,
     endSec,
     targetSampleRate: 16000
   });
 
-  if (onStatus) onStatus('Menyelaraskan waktu tiap kata...', 70);
-  const out = await transcriber(samples, {
-    language: 'indonesian',
-    task: 'transcribe',
-    return_timestamps: 'word'
-  });
+  if (onStatus) onStatus('Membaca ucapan pembicara menjadi subtitle per kata...', 72);
+  const words = await transcribeCleanAudioToWords(transcriber, samples, startSec, endSec);
 
-  const words = [];
-  if (out && Array.isArray(out.chunks)) {
-    for (const ch of out.chunks) {
-      const wText = String(ch.text || '').trim();
-      if (!wText) continue;
-      const s = startSec + (ch.timestamp?.[0] ?? 0);
-      const e = startSec + (ch.timestamp?.[1] ?? (ch.timestamp?.[0] ?? 0) + 0.3);
-      words.push({
-        word: wText,
-        start: Number(s.toFixed(3)),
-        end: Number(Math.max(s + 0.08, e).toFixed(3))
-      });
-    }
-  }
-
-  if (onStatus) onStatus('Sinkronisasi kata selesai!', 100);
+  if (onStatus) onStatus(`Selesai membaca ${words.length} kata dari vokal pembicara!`, 100);
   return words;
 }

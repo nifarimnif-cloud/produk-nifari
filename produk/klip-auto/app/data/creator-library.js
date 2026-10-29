@@ -1,6 +1,6 @@
 /**
- * Pustaka 120 Koleksi Kreator Klip Pendek (9:16 Reels, TikTok & YouTube Shorts)
- * Terbagi ke dalam 6 kategori (masing-masing 20 item = 120 item siap pakai)
+ * Pustaka 140 Koleksi Kreator Klip Pendek (9:16 Reels, TikTok & YouTube Shorts)
+ * Terbagi ke dalam 7 kategori lengkap (masing-masing 20 item = 140 item siap pakai)
  * lengkap dengan penjelasan, contoh kalimat nyata, tips retensi, dan saran judul atas.
  */
 

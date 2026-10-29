@@ -2,7 +2,7 @@
  * Klip Auto Studio — Pengendali Utama Aplikasi Pembeli & Mesin Pemotong 9:16
  * Menggabungkan: Login Pembeli, Beranda Editorial, Wizard Pemotong 3 Langkah
  * (WebCodecs + MediaBunny + FaceTracker + Whisper/Gemini/SRT),
- * Pustaka 120 Koleksi Kreator, Riwayat Render, Favorit, Pengaturan & Tema Terang/Gelap.
+ * Pustaka 140 Koleksi Kreator, Riwayat Render, Favorit, Pengaturan & Tema Terang/Gelap.
  */
 
 import { ALL_FORMATS, BlobSource, CanvasSink, Input } from './vendor/mediabunny.min.mjs';
@@ -34,6 +34,98 @@ const KEYS = {
   GEMINI: 'klip_auto_gemini_key',
   THEME: 'klip_auto_theme_v2'
 };
+
+const LICENSE_SALT = 'nifari-lic-2026::';
+const CREATOR_MASTER_HASH = '1934419b428fd7cc0efb2496131e297396dc4050b597d024fe94091652033488';
+const OFFICIAL_BUYER_HASH = '4a7bbc7ef6f92c8973ccfb2cdf5adc141b494a9a48cb3622d5511b04e8bc1e7b';
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const DEFAULT_CAPTION_PLACEHOLDER =
+  'Ketik kalimat pembicara di sini atau gunakan fitur transkrip otomatis di Langkah 1.';
+
+/**
+ * Verifikasi SHA-256 sinkron murni JS (UTF-8 -> hex 64 karakter) tanpa menyimpan kode asli di source.
+ */
+function sha256Hex(inputStr) {
+  const bytes = new TextEncoder().encode(String(inputStr ?? ''));
+  const K = [
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+  ];
+  let h0 = 0x6a09e667, h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a;
+  let h4 = 0x510e527f, h5 = 0x9b05688c, h6 = 0x1f83d9ab, h7 = 0x5be0cd19;
+
+  const bitLen = bytes.length * 8;
+  const totalLen = Math.ceil((bytes.length + 9) / 64) * 64;
+  const buf = new Uint8Array(totalLen);
+  buf.set(bytes);
+  buf[bytes.length] = 0x80;
+  const view = new DataView(buf.buffer);
+  view.setUint32(totalLen - 8, Math.floor(bitLen / 0x100000000), false);
+  view.setUint32(totalLen - 4, bitLen >>> 0, false);
+
+  const w = new Uint32Array(64);
+  const rotr = (x, n) => (x >>> n) | (x << (32 - n));
+
+  for (let offset = 0; offset < totalLen; offset += 64) {
+    for (let i = 0; i < 16; i++) {
+      w[i] = view.getUint32(offset + i * 4, false);
+    }
+    for (let i = 16; i < 64; i++) {
+      const s0 = rotr(w[i - 15], 7) ^ rotr(w[i - 15], 18) ^ (w[i - 15] >>> 3);
+      const s1 = rotr(w[i - 2], 17) ^ rotr(w[i - 2], 19) ^ (w[i - 2] >>> 10);
+      w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
+    }
+
+    let a = h0, b = h1, c = h2, d = h3, e = h4, f = h5, g = h6, h = h7;
+    for (let i = 0; i < 64; i++) {
+      const S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
+      const ch = (e & f) ^ (~e & g);
+      const temp1 = (h + S1 + ch + K[i] + w[i]) >>> 0;
+      const S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
+      const maj = (a & b) ^ (a & c) ^ (b & c);
+      const temp2 = (S0 + maj) >>> 0;
+
+      h = g; g = f; f = e;
+      e = (d + temp1) >>> 0;
+      d = c; c = b; b = a;
+      a = (temp1 + temp2) >>> 0;
+    }
+
+    h0 = (h0 + a) >>> 0; h1 = (h1 + b) >>> 0; h2 = (h2 + c) >>> 0; h3 = (h3 + d) >>> 0;
+    h4 = (h4 + e) >>> 0; h5 = (h5 + f) >>> 0; h6 = (h6 + g) >>> 0; h7 = (h7 + h) >>> 0;
+  }
+
+  return [h0, h1, h2, h3, h4, h5, h6, h7]
+    .map((v) => v.toString(16).padStart(8, '0'))
+    .join('');
+}
+
+function hashLicenseCode(rawCode) {
+  const normalized = String(rawCode ?? '').trim().toUpperCase();
+  if (!normalized) return '';
+  return sha256Hex(LICENSE_SALT + normalized);
+}
+
+function loadValidatedSession() {
+  const saved = loadJson(KEYS.USER, null);
+  if (
+    saved &&
+    typeof saved === 'object' &&
+    (saved.codeHash === CREATOR_MASTER_HASH || saved.codeHash === OFFICIAL_BUYER_HASH)
+  ) {
+    return saved;
+  }
+  try {
+    localStorage.removeItem(KEYS.USER);
+  } catch {}
+  return null;
+}
 
 function loadJson(key, fallback) {
   try {
@@ -110,10 +202,10 @@ function parseSubtitleToWords(rawText, maxDurationSec = 3600) {
 }
 
 const state = {
-  user: loadJson(KEYS.USER, null),
+  user: loadValidatedSession(),
   settings: loadJson(KEYS.SETTINGS, {
-    creatorName: 'Raka Pratama',
-    defaultWatermark: '@obrolanbisnis',
+    creatorName: '',
+    defaultWatermark: '',
     defaultPreset: 'kreator-kuning'
   }),
   history: loadJson(KEYS.HISTORY, []),
@@ -136,6 +228,7 @@ const state = {
   endSec: 15,
   words: [],
   phraseGroups: [],
+  transcriptManuallyEdited: false,
   presetId: 'kreator-kuning',
   frameMode: 'crop-fill',
   autoFaceCenter: true,
@@ -269,6 +362,8 @@ const el = {
   btnAnalyzeWhisper: document.getElementById('btn-analyze-whisper'),
   srtFileInput: document.getElementById('srt-file-input'),
   btnPickSrt: document.getElementById('btn-pick-srt'),
+  btnCopyAiPrompt: document.getElementById('btn-copy-ai-prompt'),
+  btnCopyAiPromptStep2: document.getElementById('btn-copy-ai-prompt-step2'),
 
   btnOpenHookPicker: document.getElementById('btn-open-hook-picker'),
   momentsContainer: document.getElementById('moments-container'),
@@ -391,7 +486,7 @@ function switchView(viewName) {
   }
   if (viewName === 'library') renderLibraryGrid();
   if (viewName === 'favorites') renderFavoritesGrid();
-  if (viewName === 'history') renderHistoryPage();
+  if (viewName === 'history') renderHistory();
   if (viewName === 'settings') populateSettingsForm();
   if (viewName === 'dashboard') refreshDashboardAndBadges();
 
@@ -490,7 +585,7 @@ function populateSettingsForm() {
   el.setGeminiKey.value = localStorage.getItem(KEYS.GEMINI) || '';
 }
 
-/* ================= PUSTAKA 120 KOLEKSI KREATOR ================= */
+/* ================= PUSTAKA 140 KOLEKSI KREATOR ================= */
 function initLibraryControls() {
   const niches = ['Semua', ...new Set(CREATOR_LIBRARY_ITEMS.map((i) => i.niche))];
   el.libNicheSelect.innerHTML = niches
@@ -583,7 +678,7 @@ function renderFavoritesGrid() {
     el.favoritesGrid.innerHTML = `
       <div class="parchment-card" style="grid-column:1 / -1;">
         <p class="muted-copy" style="margin-bottom:12px;">Belum ada item yang disimpan ke Favorit.</p>
-        <button type="button" class="btn btn-primary btn-sm" id="fav-go-lib-btn">Jelajahi 120 Pustaka Kreator</button>
+        <button type="button" class="btn btn-primary btn-sm" id="fav-go-lib-btn">Jelajahi 140 Pustaka Kreator</button>
       </div>
     `;
     document.getElementById('fav-go-lib-btn')?.addEventListener('click', () => switchView('library'));
@@ -648,7 +743,7 @@ function recordRenderedHistory(meta) {
   refreshDashboardAndBadges();
 }
 
-function renderHistoryPage() {
+function renderHistory() {
   if (state.history.length === 0) {
     el.historyListContainer.innerHTML = `
       <div class="parchment-card">
@@ -676,6 +771,9 @@ function renderHistoryPage() {
           <button type="button" class="btn btn-secondary btn-sm btn-apply-hist" data-id="${escHtml(h.id)}">
             Pakai Setelan Ini
           </button>
+          <button type="button" class="btn btn-ghost btn-sm btn-del-hist" data-id="${escHtml(h.id)}">
+            Hapus
+          </button>
         </div>
       </div>
     `
@@ -691,7 +789,27 @@ function renderHistoryPage() {
       el.hookTitleInput.value = h.hookTitle;
       renderPresetButtons();
       switchView('wizard');
+      if (!state.file) {
+        switchStep(1);
+        const guideMsg = `Setelan judul & gaya caption "${h.presetName}" sudah disiapkan! Sekarang pilih atau muat videomu dulu di Langkah 1 ya.`;
+        showError(guideMsg);
+        showToast(guideMsg);
+        return;
+      }
+      switchStep(3);
+      renderPreviewOnce();
       showToast('Judul hook & preset caption diterapkan ke Studio!');
+    });
+  }
+
+  for (const btn of el.historyListContainer.querySelectorAll('.btn-del-hist')) {
+    btn.addEventListener('click', () => {
+      const targetId = btn.dataset.id;
+      state.history = state.history.filter((x) => x.id !== targetId);
+      saveJson(KEYS.HISTORY, state.history);
+      renderHistory();
+      refreshDashboardAndBadges();
+      showToast('Item riwayat berhasil dihapus.');
     });
   }
 }
@@ -730,7 +848,8 @@ function updateClipDurationBadge() {
 function switchStep(stepNum) {
   showError('');
   if (stepNum > 1 && !state.file) {
-    showError('Pilih file video, tempel link YouTube, atau klik tombol "Coba Video Contoh 2 Pembicara" di Langkah 1.');
+    showError('Pilih atau muat video dulu di Langkah 1 ya.');
+    showToast('Pilih atau muat video dulu di Langkah 1 ya.');
     return;
   }
   state.activeStep = stepNum;
@@ -808,6 +927,11 @@ function applyMomentSelection(moment) {
   state.startSec = moment.startSec;
   state.endSec = moment.endSec;
   state.hookTitle = moment.title || '';
+  state.transcriptManuallyEdited = false;
+  state.previewCameraTrack = [{ time: moment.startSec, centerX: 0.5 }];
+  if (el.btnScanFacePreview) {
+    el.btnScanFacePreview.textContent = 'Pindai Posisi Wajah untuk Preview';
+  }
   state.words = Array.isArray(moment.words) && moment.words.length > 0
     ? moment.words.map((w) => ({ ...w }))
     : buildWordsFromTextAndWindow(moment.transcript || '', moment.startSec, moment.endSec);
@@ -950,8 +1074,6 @@ async function startAiClipAgent(prebuiltMoments = null) {
       prebuiltMoments:
         Array.isArray(prebuiltMoments) && prebuiltMoments.length > 0
           ? prebuiltMoments
-          : state.moments.length > 0
-          ? state.moments
           : null,
       geminiApiKey: el.geminiKeyInput?.value || '',
       clipCount,
@@ -1040,6 +1162,9 @@ async function handleSelectedVideoFile(file, prebuiltMoments = null, options = {
   if (state.agentAbortController) {
     state.agentAbortController.abort();
   }
+  if (state.renderAbortController) {
+    state.renderAbortController.abort();
+  }
   setStatusBar(el.step1Status, el.step1StatusText, el.step1ProgressFill, true, 'Membaca informasi video...', 35);
 
   try {
@@ -1051,6 +1176,27 @@ async function handleSelectedVideoFile(file, prebuiltMoments = null, options = {
     state.videoObjectUrl = URL.createObjectURL(file);
     el.hiddenVideo.src = state.videoObjectUrl;
     el.hiddenVideo.load();
+
+    // Bersihkan hasil render & jejak kamera dari video sebelumnya agar tidak membingungkan
+    if (state.resultObjectUrl) {
+      try {
+        URL.revokeObjectURL(state.resultObjectUrl);
+      } catch {}
+      state.resultObjectUrl = null;
+    }
+    if (el.resultVideo) {
+      el.resultVideo.pause?.();
+      el.resultVideo.removeAttribute('src');
+      el.resultVideo.load?.();
+    }
+    if (el.resultBox) el.resultBox.style.display = 'none';
+    if (el.renderStatus) el.renderStatus.style.display = 'none';
+    state.transcriptManuallyEdited = false;
+    state.previewCameraTrack = [{ time: 0, centerX: 0.5 }];
+    if (el.btnScanFacePreview) {
+      el.btnScanFacePreview.textContent = 'Pindai Posisi Wajah untuk Preview';
+    }
+    revokeAgentRenderedClips();
 
     const defaultEnd = Number(Math.min(info.duration, Math.max(1, Math.min(45, info.duration))).toFixed(1));
     state.startSec = 0;
@@ -1079,9 +1225,10 @@ async function handleSelectedVideoFile(file, prebuiltMoments = null, options = {
     } else {
       state.moments = [];
       state.selectedMomentId = null;
-      const defaultCaption = 'Ketik kalimat pembicara di sini atau gunakan fitur transkrip otomatis di Langkah 1.';
-      el.clipTranscriptInput.value = defaultCaption;
-      state.words = buildWordsFromTextAndWindow(defaultCaption, state.startSec, state.endSec);
+      state.hookTitle = '';
+      if (el.hookTitleInput) el.hookTitleInput.value = '';
+      el.clipTranscriptInput.value = DEFAULT_CAPTION_PLACEHOLDER;
+      state.words = buildWordsFromTextAndWindow(DEFAULT_CAPTION_PLACEHOLDER, state.startSec, state.endSec);
       rebuildPhrases();
       renderMomentsCards();
     }
@@ -1103,6 +1250,78 @@ async function handleSelectedVideoFile(file, prebuiltMoments = null, options = {
     setStatusBar(el.step1Status, el.step1StatusText, el.step1ProgressFill, false);
     showError(err.message || 'Gagal membuka file video tersebut.');
   }
+}
+
+async function copyAiHandoffPrompt() {
+  const videoTitle =
+    state.ytInfo?.title ||
+    state.file?.name ||
+    '(Tulis judul video podcast / live / webinar kamu di sini)';
+  const durationLabel = state.mediaInfo?.duration
+    ? `${formatDuration(state.mediaInfo.duration)} (${state.mediaInfo.duration.toFixed(1)} detik)`
+    : state.ytInfo?.durationSec
+    ? `${formatDuration(state.ytInfo.durationSec)} (${state.ytInfo.durationSec} detik)`
+    : '(Tulis durasi total video)';
+
+  let transcriptBody = '';
+  if (Array.isArray(state.moments) && state.moments.length > 0) {
+    transcriptBody = state.moments
+      .map(
+        (m, idx) =>
+          `${idx + 1}. [${formatDuration(m.startSec)} - ${formatDuration(m.endSec)}] (${m.startSec.toFixed(1)}s - ${m.endSec.toFixed(1)}s): ${m.transcript || (Array.isArray(m.words) ? m.words.map((w) => w.word).join(' ') : '')}`
+      )
+      .join('\n');
+  } else {
+    const manualTxt = (el.clipTranscriptInput?.value || '').trim();
+    if (manualTxt && manualTxt !== DEFAULT_CAPTION_PLACEHOLDER) {
+      transcriptBody = manualTxt;
+    } else {
+      transcriptBody = '[Tempelkan transkrip YouTube, teks subtitle .SRT, atau ringkasan obrolan videomu di sini]';
+    }
+  }
+
+  const promptText = [
+    'Kamu adalah editor konten video pendek (Reels, TikTok, YouTube Shorts) berbahasa Indonesia yang tajam memilih bagian obrolan paling menarik.',
+    '',
+    `Judul / File Video: ${videoTitle}`,
+    `Durasi Total: ${durationLabel}`,
+    '',
+    'Tugasmu: Pilih 5 sampai 10 momen terbaik berdurasi 15–45 detik dari transkrip di bawah yang langsung memancing rasa penasaran penonton di 3 detik pertama.',
+    '',
+    'Untuk setiap momen, tuliskan dengan urutan rapi:',
+    '1. Rentang Waktu: MM:SS - MM:SS (sertakan juga angka detik awal dan detik akhir untuk dimasukkan ke Klip Auto Studio)',
+    '2. Skor Daya Tarik: 1–100 beserta alasan singkat 1 kalimat kenapa bagian ini kuat',
+    '3. Judul Hook Atas: Maksimal 7 kata, bahasa Indonesia ngobrol yang natural, jelas, tanpa clickbait berlebihan',
+    '4. Teks Caption Bersih: Kalimat pembicara yang sudah dirapikan tanda bacanya dan siap ditempel ke kolom Teks Caption di Langkah 2 Klip Auto Studio',
+    '',
+    '--- TRANSKRIP / CATATAN VIDEO ---',
+    transcriptBody
+  ].join('\n');
+
+  let copied = false;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(promptText);
+      copied = true;
+    }
+  } catch {}
+
+  if (!copied) {
+    const ta = document.createElement('textarea');
+    ta.value = promptText;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy');
+      copied = true;
+    } catch {}
+    ta.remove();
+  }
+
+  showToast('Prompt kurasi momen disalin! Tempel langsung di ChatGPT atau Gemini.');
 }
 
 let previewAudioGraph = null;
@@ -1415,30 +1634,66 @@ function previewAnimationLoop() {
 
 /* ================= BINDING SELURUH INTERAKSI ================= */
 function bindEvents() {
-  // Login
-  el.btnDemoLogin.addEventListener('click', () => {
-    el.loginName.value = 'Raka Pratama (@obrolanbisnis)';
-    el.loginEmail.value = 'raka@studio-kreatif.id';
-    el.loginCode.value = 'KLIP-AUTO-2026';
-    el.loginError.style.display = 'none';
-  });
+  // Login Pembeli & Akses Cepat Kreator Utama (Salted SHA-256)
+  const hideLoginError = () => {
+    if (el.loginError) {
+      el.loginError.style.display = 'none';
+      el.loginError.textContent = '';
+    }
+  };
+  el.loginName?.addEventListener('input', hideLoginError);
+  el.loginEmail?.addEventListener('input', hideLoginError);
+  el.loginCode?.addEventListener('input', hideLoginError);
 
   el.loginForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    const name = el.loginName.value.trim();
-    const email = el.loginEmail.value.trim();
-    const code = el.loginCode.value.trim().toUpperCase();
+    const rawName = el.loginName.value.trim();
+    const rawEmail = el.loginEmail.value.trim();
+    const codeHash = hashLicenseCode(el.loginCode.value);
 
-    if (!name || !email || code.length < 6) {
-      el.loginError.textContent = 'Mohon isi nama, email, dan kode lisensi yang valid (misal: KLIP-AUTO-2026).';
+    const showLoginErr = (msg, inputEl) => {
+      el.loginError.textContent = msg;
       el.loginError.style.display = 'block';
-      return;
+      inputEl?.focus();
+    };
+
+    if (codeHash === CREATOR_MASTER_HASH) {
+      const creatorName = rawName || 'Nifari (Kreator Utama)';
+      const creatorEmail = rawEmail || 'creator@nifari.id';
+      state.user = {
+        name: creatorName,
+        email: creatorEmail,
+        role: 'creator',
+        codeHash
+      };
+    } else {
+      if (!rawName) {
+        showLoginErr('Isi nama panggilan atau nama channel-mu dulu ya.', el.loginName);
+        return;
+      }
+      if (!EMAIL_REGEX.test(rawEmail)) {
+        showLoginErr('Masukkan alamat email yang valid (contoh: nama@email.com).', el.loginEmail);
+        return;
+      }
+      if (codeHash !== OFFICIAL_BUYER_HASH) {
+        showLoginErr(
+          'Kode akses belum sesuai. Cek lagi kode dari bukti pembelianmu, atau ambil akses resmi di halaman produk.',
+          el.loginCode
+        );
+        return;
+      }
+      state.user = {
+        name: rawName,
+        email: rawEmail,
+        role: 'buyer',
+        codeHash
+      };
     }
 
-    state.user = { name, email, license: code };
+    hideLoginError();
     saveJson(KEYS.USER, state.user);
     if (!localStorage.getItem(KEYS.SETTINGS)) {
-      state.settings.creatorName = name.split('(')[0].trim();
+      state.settings.creatorName = state.user.name.split('(')[0].trim();
       saveJson(KEYS.SETTINGS, state.settings);
     }
     syncAuthView();
@@ -1448,6 +1703,8 @@ function bindEvents() {
   el.btnLogout.addEventListener('click', () => {
     localStorage.removeItem(KEYS.USER);
     state.user = null;
+    if (el.loginCode) el.loginCode.value = '';
+    hideLoginError();
     el.hiddenVideo.pause();
     syncAuthView();
   });
@@ -1485,9 +1742,13 @@ function bindEvents() {
     jumpBtn.addEventListener('click', () => {
       const targetStep = Number(jumpBtn.dataset.jumpStep) || 1;
       switchView('wizard');
-      if (targetStep === 1 || state.file) {
-        switchStep(targetStep);
+      if (targetStep > 1 && !state.file) {
+        switchStep(1);
+        showError('Pilih atau muat video dulu di Langkah 1 ya.');
+        showToast('Pilih atau muat video dulu di Langkah 1 ya.');
+        return;
       }
+      switchStep(targetStep);
     });
   }
 
@@ -1503,6 +1764,16 @@ function bindEvents() {
   el.modalBtnClose.addEventListener('click', closeLibraryModal);
   el.libModal.addEventListener('click', (e) => {
     if (e.target === el.libModal) closeLibraryModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (el.libModal?.classList.contains('open')) {
+        closeLibraryModal();
+      }
+      if (el.sidebar?.classList.contains('open')) {
+        closeMobileSidebar();
+      }
+    }
   });
 
   el.modalBtnCopy.addEventListener('click', async () => {
@@ -1554,9 +1825,16 @@ function bindEvents() {
 
   // History & Settings
   el.btnClearHistory.addEventListener('click', () => {
+    if (state.history.length === 0) {
+      showToast('Riwayat render sudah kosong.');
+      return;
+    }
+    if (!window.confirm('Yakin mau menghapus semua riwayat render?')) {
+      return;
+    }
     state.history = [];
     saveJson(KEYS.HISTORY, state.history);
-    renderHistoryPage();
+    renderHistory();
     refreshDashboardAndBadges();
     showToast('Riwayat render dibersihkan.');
   });
@@ -1680,7 +1958,14 @@ function bindEvents() {
   });
 
   el.btnRunAiAgent?.addEventListener('click', () => {
-    startAiClipAgent();
+    startAiClipAgent(null);
+  });
+
+  el.btnCopyAiPrompt?.addEventListener('click', () => {
+    copyAiHandoffPrompt();
+  });
+  el.btnCopyAiPromptStep2?.addEventListener('click', () => {
+    copyAiHandoffPrompt();
   });
 
   el.btnStopAiAgent?.addEventListener('click', () => {
@@ -1724,6 +2009,7 @@ function bindEvents() {
         state.moments = moments;
         applyMomentSelection(moments[0]);
       } else {
+        state.transcriptManuallyEdited = false;
         state.words = words;
         el.clipTranscriptInput.value = words.map((w) => w.word).join(' ');
         rebuildPhrases();
@@ -1797,7 +2083,12 @@ function bindEvents() {
     syncStartEndInputsAndSliders();
 
     const selectedMoment = state.moments.find((m) => m.id === state.selectedMomentId);
-    if (selectedMoment && Array.isArray(selectedMoment.words) && selectedMoment.words.length > 0) {
+    if (state.transcriptManuallyEdited) {
+      const editedText =
+        el.clipTranscriptInput.value ||
+        (Array.isArray(state.words) ? state.words.map((w) => w.word).join(' ') : '');
+      state.words = buildWordsFromTextAndWindow(editedText, state.startSec, state.endSec);
+    } else if (selectedMoment && Array.isArray(selectedMoment.words) && selectedMoment.words.length > 0) {
       state.words = selectedMoment.words.map((w) => ({ ...w }));
       const visibleWords = state.words.filter((w) => w.end >= state.startSec && w.start <= state.endSec);
       if (visibleWords.length > 0) {
@@ -1823,6 +2114,7 @@ function bindEvents() {
   );
 
   el.clipTranscriptInput.addEventListener('input', () => {
+    state.transcriptManuallyEdited = true;
     state.words = buildWordsFromTextAndWindow(el.clipTranscriptInput.value, state.startSec, state.endSec);
     rebuildPhrases();
   });
@@ -1839,6 +2131,7 @@ function bindEvents() {
         (txt, pct) => setStatusBar(el.step2Status, el.step2StatusText, el.step2ProgressFill, true, txt, pct)
       );
       if (words.length > 0) {
+        state.transcriptManuallyEdited = false;
         state.words = words;
         el.clipTranscriptInput.value = words.map((w) => w.word).join(' ');
         rebuildPhrases();

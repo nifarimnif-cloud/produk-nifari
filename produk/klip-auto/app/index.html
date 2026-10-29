@@ -43,28 +43,28 @@
           Masukkan nama kreator/channel, email, dan kode akses pembelian untuk mulai memotong video.
         </p>
 
-        <form id="login-form">
+        <form id="login-form" novalidate>
           <div class="field">
             <label for="login-name">Nama Kreator / Channel</label>
-            <input type="text" id="login-name" placeholder="Contoh: Raka Pratama (@obrolanbisnis)" required />
+            <input type="text" id="login-name" placeholder="Contoh: Raka Pratama (@obrolanbisnis)" />
           </div>
           <div class="field">
             <label for="login-email">Alamat Email</label>
-            <input type="email" id="login-email" placeholder="Contoh: raka@studio.id" required />
+            <input type="email" id="login-email" placeholder="Contoh: raka@studio.id" />
           </div>
           <div class="field">
             <label for="login-code">Kode Lisensi Pembeli</label>
-            <input type="text" id="login-code" placeholder="Contoh: KLIP-AUTO-2026" required />
+            <input type="text" id="login-code" placeholder="Masukkan kode akses pembelian resmi" autocomplete="off" />
           </div>
 
-          <p id="login-error" style="display:none;font-size:13.5px;margin-bottom:12px;padding:10px 12px;border-radius:8px;background:var(--surface-parchment);border:1px solid var(--color-off-black-ink);"></p>
+          <p id="login-error" role="alert" style="display:none;font-size:13.5px;margin-bottom:12px;padding:10px 12px;border-radius:8px;background:var(--surface-parchment);border:1px solid var(--color-off-black-ink);"></p>
 
           <button type="submit" class="btn btn-primary" style="width:100%;margin-bottom:10px;">
             Masuk ke Klip Auto Studio
           </button>
-          <button type="button" class="btn btn-secondary" id="btn-demo-login" style="width:100%;">
-            Isi Cepat Akun Contoh Pembeli
-          </button>
+          <a href="https://nifari-klip-auto-lp.pages.dev#demo" class="btn btn-secondary" style="width:100%;text-align:center;">
+            Belum Punya Kode? Coba Demo &amp; Beli Akses Resmi →
+          </a>
         </form>
       </div>
     </div>
@@ -154,7 +154,12 @@
       <!-- TOPBAR KHUSUS HP -->
       <header class="mobile-topbar">
         <button type="button" class="btn btn-secondary btn-sm" id="btn-open-sidebar" aria-label="Buka Menu">
-          Menu
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+          <span>Menu</span>
         </button>
         <div class="brand-lockup">
           <span class="brand-symbol" style="width:30px;height:30px;border-radius:9px;background:var(--color-electric-lime);color:#14140f;">
@@ -210,7 +215,7 @@
 
             <div class="stat-card dark-island" id="stat-go-library">
               <span class="eyebrow">Pustaka Kreator</span>
-              <div class="stat-big-number" id="stat-library-total">120</div>
+              <div class="stat-big-number" id="stat-library-total">140</div>
               <span style="font-size:13px;color:#d2d2c8;">Hook, pembuka, caption & prompt</span>
             </div>
 
@@ -533,6 +538,20 @@
                 </button>
               </div>
             </div>
+
+            <!-- JALUR HAND-OFF GRATIS 1-KLIK KE CHATGPT / GEMINI WEB -->
+            <div class="parchment-card" style="margin-top:16px;margin-bottom:0;padding:20px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;">
+              <div style="max-width:620px;">
+                <span class="eyebrow">Opsi Hand-off Gratis · Tanpa API Key</span>
+                <h3 class="card-subheading" style="margin:4px 0 4px;">Mau Kurasi Momen Lewat ChatGPT atau Gemini Web Biasa?</h3>
+                <p class="muted-copy" style="font-size:13.5px;">
+                  Salin prompt kurasi siap tempel beserta info durasi dan transkrip videomu untuk dibedah gratis di ChatGPT atau Gemini.
+                </p>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-copy-ai-prompt">
+                Salin Prompt Cari Momen ke ChatGPT/Gemini
+              </button>
+            </div>
           </div>
 
           <!-- LANGKAH 2: PILIH MOMEN & GESER TITIK AWAL/AKHIR -->
@@ -546,9 +565,14 @@
                     Klik salah satu kartu momen ber-skor di bawah, atau geser titik mulai dan selesai sesuai kalimat pembicara.
                   </p>
                 </div>
-                <button type="button" class="btn btn-secondary btn-sm" id="btn-open-hook-picker">
-                  Ambil Ide Judul dari 140 Pustaka
-                </button>
+                <div class="btn-row">
+                  <button type="button" class="btn btn-secondary btn-sm" id="btn-copy-ai-prompt-step2">
+                    Salin Prompt Cari Momen ke ChatGPT/Gemini
+                  </button>
+                  <button type="button" class="btn btn-secondary btn-sm" id="btn-open-hook-picker">
+                    Ambil Ide Judul dari 140 Pustaka
+                  </button>
+                </div>
               </div>
 
               <div class="moments-list" id="moments-container"></div>

@@ -14,7 +14,7 @@
 ## 2. Link Live (Cloudflare Pages)
 - **Link Landing Page (LP Jualan):** [https://nifari-klip-auto-lp.pages.dev](https://nifari-klip-auto-lp.pages.dev)
 - **Link Web App (Aplikasi Pembeli):** [https://nifari-klip-auto-app.pages.dev](https://nifari-klip-auto-app.pages.dev)
-  - *Cara masuk cepat untuk penguji:* Klik tombol **Isi Cepat Akun Contoh Pembeli** di layar masuk (atau gunakan kode lisensi `KLIP-AUTO-2026`), lalu klik **Masuk ke Klip Auto Studio**.
+  - *Keamanan akses:* Dilindungi validasi kode akses resmi ber-hash **Salted SHA-256** (mendukung Kode Akses Pembeli resmi setelah konfirmasi pesanan serta Kode Akses Utama Kreator tanpa membocorkan kode teks biasa di source code).
 
 ---
 
@@ -47,5 +47,6 @@ Seluruh pengujian dijalankan di **Google Chrome asli** pada ukuran Desktop (`136
 | **AI Agent Pemotong Klip 9:16 Otomatis (`ai-clip-agent.js`)** | Masukkan file `.MP4` hasil unduhan YouTube ke kotak unggah video tanpa klik tombol tambahan | **Lulus** — AI Agent otomatis aktif, mencocokkan cache transkrip `2.554` kata dalam `< 0,1 dtk`, memilih momen terbaik, melacak wajah ke tengah `9:16`, dan merender klip-klip `.MP4` `720×1280` siap tonton & unduh. |
 | **Kualitas Suara Contoh & Penjernih Vokal 48 kHz** | Muat Video Contoh 2 Pembicara (`20 dtk`), putar suara di Langkah 2 & Langkah 3, atur Volume (`0%–200%`), aktifkan Penjernih Vokal (High-pass `85 Hz` + Presence `3.1 kHz` + Kompresor) & penyeimbang mic sebelah | **Lulus** — Suara percakapan Bahasa Indonesia asli 2 pembicara terdengar jernih (`48.000 Hz` Stereo, RMS vokal sehat, tanpa dengung/bunyi robotik). |
 | **Render & Ekspor Klip `.MP4` 9:16** | Render potongan video YouTube menjadi `.MP4` vertikal `720×1280` dengan caption per kata, judul atas, watermark, & volume `125%` | **Lulus** — File `.MP4` (`H.264` + `AAC 48 kHz Stereo`, `audioPeak 0.898`) berhasil dibuat dalam ~4 detik dan siap diputar/diunduh. |
-| **Pustaka 140 Koleksi Kreator** | Cari topik, filter ceruk kreator, buka detail contoh, salin teks, & pasang ke Judul Atas Klip | **Lulus** — 140 koleksi hook, pembuka, caption, & prompt berjalan responsif lengkap fitur favorit & riwayat. |
-| **Responsif HP (`390px`) & Desain *Perk Electric Lime*** | Cek `scrollWidth` pada ukuran `390×844` (Mode Terang & Mode Gelap), audit warna (`#beff50`, `#f5f5eb`, `#14140f`), sudut `28px`, 0 bayangan, & 0 emoji | **Lulus** — `scrollWidth = 390px` presisi tanpa geser samping, `0` emoji, dan `0` error runtime. |
+| **Pustaka 140 Koleksi Kreator (7 Kategori)** | Cari topik, filter ceruk kreator, buka detail contoh, tekan `Escape` untuk tutup modal, salin teks, & pasang ke Judul Atas Klip | **Lulus** — 140 koleksi dalam 7 kategori lengkap berjalan responsif beserta fitur favorit, hapus riwayat satuan, & konfirmasi hapus semua. |
+| **Keamanan Kode Akses & Alur Checkout LP** | Uji masuk dengan kode salah, sesi palsu `localStorage`, Kode Akses Pembeli resmi, Kode Utama Kreator, serta form pesan di LP (`~395 KB < 1 MB`) | **Lulus** — Validasi Salted SHA-256 berjalan akurat tanpa bocoran kode di source; form checkout LP mengarahkan ke ringkasan pesanan & konfirmasi WhatsApp resmi. |
+| **Responsif HP (`390px`) & Desain *Perk Electric Lime*** | Cek `scrollWidth` pada ukuran `390×844` (Mode Terang & Mode Gelap), ikon SVG Menu, `.pill-tag` wrap, sudut `28px`, 0 bayangan, & 0 emoji | **Lulus** — `scrollWidth = 390px` presisi tanpa geser samping, `0` emoji, dan `0` error runtime. Lihat rincian lengkap di [`HASIL-TES.md`](./HASIL-TES.md). |

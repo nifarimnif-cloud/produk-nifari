@@ -11,7 +11,6 @@ import { extractMonoAudio } from './audio-processor.js';
 import { renderClipToMp4 } from './mp4-exporter.js';
 import {
   analyzePodcastWithGemini,
-  buildWordsFromTextAndWindow,
   syncClipWordsWithWhisper
 } from './transcriber-moments.js';
 import { findMatchingYoutubeCache, normalizeTitleSlug } from './youtube-downloader.js';
@@ -108,12 +107,17 @@ export function pickMomentsFromAudioWaveform(samples, sampleRate, totalDurationS
   const numFrames = Math.max(1, Math.floor(samples.length / frameLen));
   const rmsArr = new Float32Array(numFrames);
 
+  // Gunakan pre-emphasis pita vokal manusia (~150 Hz+) agar dentuman bass musik/efek film tidak dianggap ucapan
   for (let f = 0; f < numFrames; f++) {
     const start = f * frameLen;
     const end = Math.min(samples.length, start + frameLen);
     let sumSq = 0;
+    let prev = start > 0 ? samples[start - 1] : 0;
     for (let i = start; i < end; i++) {
-      sumSq += samples[i] * samples[i];
+      const cur = samples[i];
+      const vocalBand = cur - 0.88 * prev;
+      prev = cur;
+      sumSq += vocalBand * vocalBand;
     }
     rmsArr[f] = Math.sqrt(sumSq / Math.max(1, end - start));
   }
@@ -220,7 +224,7 @@ export function pickMomentsFromAudioWaveform(samples, sampleRate, totalDurationS
         words: []
       });
     }
-    if (selected.length >= Math.max(desiredCount, 5)) break;
+    if (selected.length >= Math.max(desiredCount + 5, 8)) break;
   }
 
   if (selected.length === 0) {
@@ -238,22 +242,6 @@ export function pickMomentsFromAudioWaveform(samples, sampleRate, totalDurationS
   }
 
   return selected;
-}
-
-async function withTimeoutOrNull(promise, timeoutMs) {
-  let timer = null;
-  try {
-    return await Promise.race([
-      promise,
-      new Promise((resolve) => {
-        timer = setTimeout(() => resolve(null), timeoutMs);
-      })
-    ]);
-  } catch {
-    return null;
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
 }
 
 /**
@@ -308,7 +296,6 @@ export async function runAutonomousClipAgent({
 
   let discoveredMoments = [];
   let sourceModeLabel = 'lokal';
-  let cachedMono8k = null;
 
   // 1A. Cek apakah momen sudah tersedia langsung (dari tombol Muat YouTube atau Video Contoh)
   if (Array.isArray(prebuiltMoments) && prebuiltMoments.length > 0) {
@@ -321,23 +308,7 @@ export async function runAutonomousClipAgent({
     emitLog(`Transkrip bawaan terdeteksi langsung (${discoveredMoments.length} kandidat momen siap).`);
   }
 
-  // 1B. Cek pencocokan pintar dengan riwayat video YouTube yang baru dicek/diunduh pembeli!
-  if (discoveredMoments.length === 0) {
-    const ytMatch = findMatchingYoutubeCache(file, mediaInfo);
-    if (ytMatch && Array.isArray(ytMatch.moments) && ytMatch.moments.length > 0) {
-      discoveredMoments = ytMatch.moments.map((m, idx) => ({
-        ...m,
-        id: `yt-agen-${idx + 1}`,
-        title: craftCleanHookTitle(m.title || m.transcript, idx + 1)
-      }));
-      sourceModeLabel = 'cache-youtube';
-      emitLog(
-        `Video dikenali dari unduhan YouTube: ${ytMatch.wordCount} kata transkrip Bahasa Indonesia terpasang instan.`
-      );
-    }
-  }
-
-  // 1C. Jika belum ada transkrip dan pembeli mengisi Gemini API Key, gunakan kurasi Gemini
+  // 1B. Jika belum ada transkrip siap pakai dan pembeli mengisi Gemini API Key, gunakan kurasi Gemini
   if (discoveredMoments.length === 0 && String(geminiApiKey || '').trim().length > 10) {
     try {
       emitLog('Menghubungi Gemini AI untuk menyaring momen paling kuat dari rekaman...');
@@ -360,7 +331,23 @@ export async function runAutonomousClipAgent({
       }
     } catch (gemErr) {
       checkAbort();
-      emitLog(`Kunci Gemini dilewati (${gemErr.message.slice(0, 60)}), beralih ke Mesin Vokal Lokal...`);
+      emitLog(`Kunci Gemini dilewati (${gemErr.message.slice(0, 60)}), beralih ke pencocokan lokal...`);
+    }
+  }
+
+  // 1C. Cek pencocokan pintar dengan riwayat video YouTube yang baru dicek/diunduh pembeli!
+  if (discoveredMoments.length === 0) {
+    const ytMatch = findMatchingYoutubeCache(file, mediaInfo);
+    if (ytMatch && Array.isArray(ytMatch.moments) && ytMatch.moments.length > 0) {
+      discoveredMoments = ytMatch.moments.map((m, idx) => ({
+        ...m,
+        id: `yt-agen-${idx + 1}`,
+        title: craftCleanHookTitle(m.title || m.transcript, idx + 1)
+      }));
+      sourceModeLabel = 'cache-youtube';
+      emitLog(
+        `Video dikenali dari unduhan YouTube: ${ytMatch.wordCount} kata transkrip Bahasa Indonesia terpasang instan.`
+      );
     }
   }
 
@@ -382,78 +369,128 @@ export async function runAutonomousClipAgent({
         );
       }
     });
-    cachedMono8k = audio8k;
     checkAbort();
 
     discoveredMoments = pickMomentsFromAudioWaveform(
       audio8k.samples,
       audio8k.sampleRate,
       scanEndSec,
-      Math.max(requestedCount + 2, 5)
+      Math.max(requestedCount + 5, 8)
     );
     sourceModeLabel = 'akustik-whisper';
-    emitLog(`Ditemukan ${discoveredMoments.length} segmen bicara berenergi tinggi pada rekaman.`);
+    emitLog(`Ditemukan ${discoveredMoments.length} kandidat segmen vokal pembicara pada rekaman.`);
   }
 
   checkAbort();
 
-  // TAHAP 2: KURASI MOMEN TERBAIK & TRANSKRIPSI SPESIFIK POTONGAN BILA PERLU
+  // TAHAP 2: BACA VOKAL PEMBICARA JADI SUBTITLE PER KATA & KURASI MOMEN TERBAIK
   emitStage(
     2,
-    'Mengkurasi Momen Skor Tertinggi & Hook',
-    `Memilih ${Math.min(requestedCount, discoveredMoments.length)} klip paling potensial...`,
+    'Membaca Vokal Pembicara & Mengkurasi Subtitle',
+    `Menyiapkan pembacaan suara pembicara untuk ${requestedCount} klip terbaik...`,
     26
   );
 
   discoveredMoments.sort((a, b) => (b.score || 0) - (a.score || 0));
-  const chosenMoments = discoveredMoments.slice(0, requestedCount);
 
-  // Bila kata-kata momen belum terisi (mode lokal tanpa cache YouTube), transkrip hanya potongan terpilih dengan Whisper!
-  for (let i = 0; i < chosenMoments.length; i++) {
+  const chosenMoments = [];
+  const skippedSilentMoments = [];
+
+  for (let idx = 0; idx < discoveredMoments.length && chosenMoments.length < requestedCount; idx++) {
     checkAbort();
-    const m = chosenMoments[i];
-    if (!Array.isArray(m.words) || m.words.length === 0) {
-      emitStage(
-        2,
-        'Menyalin Kalimat Pembicara (Whisper Lokal)',
-        `Mentranskrip suara Klip #${i + 1}/${chosenMoments.length} (${formatClock(m.startSec)} – ${formatClock(m.endSec)})...`,
-        28 + Math.round(((i + 0.5) / chosenMoments.length) * 14)
-      );
+    const cand = discoveredMoments[idx];
 
-      const whisperWords = await withTimeoutOrNull(
-        syncClipWordsWithWhisper(file, m.startSec, m.endSec),
-        32000
+    if (Array.isArray(cand.words) && cand.words.length >= 3) {
+      if (!cand.transcript) {
+        cand.transcript = cand.words.map((w) => w.word).join(' ');
+      }
+      cand.title = craftCleanHookTitle(cand.title || cand.transcript, chosenMoments.length + 1);
+      chosenMoments.push(cand);
+      continue;
+    }
+
+    const slotNum = chosenMoments.length + 1;
+    emitStage(
+      2,
+      `Membaca Suara Vokal Pembicara · Klip #${slotNum}/${requestedCount}`,
+      `Mengekstrak ucapan pembicara pada ${formatClock(cand.startSec)} – ${formatClock(cand.endSec)}...`,
+      26 + Math.round(((slotNum - 0.8) / requestedCount) * 16)
+    );
+
+    try {
+      const whisperWords = await syncClipWordsWithWhisper(
+        file,
+        cand.startSec,
+        cand.endSec,
+        (statusText, subPct) => {
+          checkAbort();
+          const stagePct =
+            26 +
+            Math.round((((slotNum - 1 + Math.max(0, Math.min(100, subPct || 0)) / 100) / requestedCount) * 16));
+          emitStage(
+            2,
+            `Membaca Suara Vokal Pembicara · Klip #${slotNum}/${requestedCount}`,
+            `${statusText} (${formatClock(cand.startSec)} – ${formatClock(cand.endSec)})`,
+            stagePct
+          );
+        }
       );
 
       checkAbort();
-      if (Array.isArray(whisperWords) && whisperWords.length > 0) {
-        m.words = whisperWords;
-        m.transcript = whisperWords.map((w) => w.word).join(' ');
-        m.title = craftCleanHookTitle(m.transcript, i + 1);
-        emitLog(`Klip #${i + 1}: ${whisperWords.length} kata berhasil disalin otomatis dari suara pembicara.`);
+      if (Array.isArray(whisperWords) && whisperWords.length >= 3) {
+        cand.words = whisperWords;
+        cand.transcript = whisperWords.map((w) => w.word).join(' ');
+        cand.title = craftCleanHookTitle(cand.transcript, slotNum);
+        const previewQuote = whisperWords
+          .slice(0, 8)
+          .map((w) => w.word)
+          .join(' ');
+        emitLog(
+          `Klip #${slotNum} (${formatClock(cand.startSec)}–${formatClock(cand.endSec)}): ${
+            whisperWords.length
+          } kata vokal terbaca jadi subtitle ("${previewQuote}...").`
+        );
+        chosenMoments.push(cand);
+      } else if (Array.isArray(whisperWords) && whisperWords.length > 0) {
+        cand.words = whisperWords;
+        cand.transcript = whisperWords.map((w) => w.word).join(' ');
+        cand.title = craftCleanHookTitle(cand.transcript, slotNum);
+        skippedSilentMoments.push(cand);
+        emitLog(
+          `Segmen ${formatClock(cand.startSec)}–${formatClock(
+            cand.endSec
+          )} hanya memiliki sedikit ucapan (${whisperWords.length} kata), memeriksa segmen vokal berikutnya...`
+        );
       } else {
-        // Cadangan bersih bila browser offline dan model Whisper belum terunduh
-        const fallbackLine = m.title || `Sorotan Penting Pembicara Bagian ${i + 1}`;
-        const sliceMono = cachedMono8k
-          ? cachedMono8k.samples.subarray(
-              Math.floor(m.startSec * cachedMono8k.sampleRate),
-              Math.ceil(m.endSec * cachedMono8k.sampleRate)
-            )
-          : null;
-        m.transcript = fallbackLine;
-        m.words = buildWordsFromTextAndWindow(
-          fallbackLine,
-          m.startSec,
-          m.endSec,
-          sliceMono,
-          cachedMono8k ? cachedMono8k.sampleRate : 8000
+        cand.words = [];
+        cand.transcript = '';
+        skippedSilentMoments.push(cand);
+        emitLog(
+          `Segmen ${formatClock(cand.startSec)}–${formatClock(
+            cand.endSec
+          )} didominasi musik/efek tanpa vokal, beralih ke segmen bicara berikutnya...`
         );
       }
+    } catch (wErr) {
+      checkAbort();
+      cand.words = [];
+      cand.transcript = '';
+      skippedSilentMoments.push(cand);
+      emitLog(`Gagal membaca vokal pada ${formatClock(cand.startSec)}: ${String(wErr?.message || wErr).slice(0, 70)}`);
     }
   }
 
+  // Jika video memang sangat minim bicara, lengkapi slot dari segmen yang tersisa TANPA pernah menyuntikkan teks judul palsu ke subtitle!
+  while (chosenMoments.length < requestedCount && skippedSilentMoments.length > 0) {
+    chosenMoments.push(skippedSilentMoments.shift());
+  }
+
+  const orderedMomentsForStudio = [
+    ...chosenMoments,
+    ...discoveredMoments.filter((m) => !chosenMoments.includes(m))
+  ];
   if (onMomentsReady) {
-    onMomentsReady(discoveredMoments);
+    onMomentsReady(orderedMomentsForStudio);
   }
 
   emitLog(

@@ -6,7 +6,7 @@
   <title>Klip Auto — Ubah Podcast Panjang Jadi Klip 9:16 Siap Upload Langsung di Browser</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap" rel="stylesheet" />
   <style>
     /* ==========================================================================
        PERK EDITORIAL DESIGN SYSTEM — ELECTRIC LIME ON WARM PARCHMENT
@@ -1021,7 +1021,7 @@
       </nav>
 
       <div class="topbar-actions">
-        <a href="https://nifari-klip-auto-app.pages.dev" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Buka Studio</a>
+        <a href="https://nifari-klip-auto-app.pages.dev" target="_blank" rel="noopener" class="btn btn-outline btn-sm" title="Masuk dengan Kode Akses Pembeli">Login Pembeli</a>
         <a href="#harga" class="btn btn-primary btn-sm">Beli Akses</a>
       </div>
     </div>
@@ -1271,8 +1271,8 @@
 
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding-top:12px;border-top:1px solid var(--color-ash);">
             <span class="muted" style="font-size:14px;">Mau potong file videomu sendiri & ekspor jadi <strong>.MP4</strong>?</span>
-            <a href="https://nifari-klip-auto-app.pages.dev" target="_blank" rel="noopener" class="underline-link">
-              Buka Aplikasi Penuh Klip Auto Studio
+            <a href="#harga" class="underline-link">
+              Ambil Kode Akses Studio Penuh →
             </a>
           </div>
         </div>
@@ -1419,10 +1419,10 @@
             <span class="pill-tag lime" style="margin-bottom:14px;">Fitur 04 · Bank Referensi</span>
             <h3 class="heading-md">Pustaka 140 Hook Judul Atas, Pembuka 3 Detik, & Prompt Transkrip</h3>
             <p class="muted" style="margin-top:10px;">
-              Supaya potongan videomu menghentikan jempol penonton sejak detik pertama, di dalam studio sudah tersedia 140 contekan bahasa Indonesia yang terbagi rapi menurut kategori dan topik bahasan.
+              Supaya potongan videomu menghentikan jempol penonton sejak detik pertama, di dalam studio sudah tersedia 140 koleksi panduan praktis dalam 7 kategori lengkap yang terbagi rapi menurut topik bahasan.
             </p>
             <ul class="feature-points">
-              <li>6 kategori lengkap mulai dari Hook Judul Atas sampai Penutup Pemancing Komentar</li>
+              <li>7 kategori lengkap mulai dari Hook Judul Atas, Prompt AI Bedah Transkrip, sampai Checklist Produksi Cepat</li>
               <li>Setiap item punya penjelasan kapan dipakai, contoh kalimat jadi, dan tips praktis</li>
               <li>Klik satu tombol untuk langsung memasang teks hook ke atas video yang sedang diedit</li>
             </ul>
@@ -1595,32 +1595,43 @@
             Bayar satu kali, kode lisensi dan link studio langsung dikirim untuk dipakai kapan saja tanpa biaya per menit.
           </p>
 
-          <form id="checkout-form">
+          <form id="checkout-form" novalidate>
             <div class="field">
               <label for="buyer-name">Nama Lengkap / Nama Channel</label>
-              <input type="text" id="buyer-name" placeholder="Contoh: Raka Pratama" required />
+              <input type="text" id="buyer-name" placeholder="Contoh: Raka Pratama" />
             </div>
             <div class="field">
-              <label for="buyer-email">Email Pengiriman Kode Lisensi</label>
-              <input type="text" id="buyer-email" placeholder="Contoh: nama@email.com" required />
+              <label for="buyer-email">Email Pengiriman Kode Akses</label>
+              <input type="email" id="buyer-email" placeholder="Contoh: nama@email.com" />
             </div>
+            <div id="checkout-error" style="display:none;padding:10px 12px;border-radius:12px;border:1px solid var(--color-off-black-ink);background:var(--color-off-white-canvas);font-size:13px;margin-bottom:12px;"></div>
 
             <button type="submit" class="btn btn-primary" style="width:100%;margin-top:4px;">
-              Pesan & Ambil Kode Lisensi Sekarang
+              Pesan &amp; Ambil Kode Akses Sekarang
             </button>
           </form>
 
           <div class="order-confirm-box" id="order-confirm-box">
-            <strong>Ringkasan pesanan siap dilanjutkan!</strong>
-            <p class="muted" style="margin:6px 0 10px;font-size:13.5px;" id="order-confirm-text"></p>
-            <a href="https://nifari-klip-auto-app.pages.dev" target="_blank" rel="noopener" class="btn btn-ink btn-sm" style="width:100%;">
-              Buka & Uji Klip Auto Studio Sekarang
-            </a>
+            <strong>Ringkasan Pesanan Klip Auto Studio</strong>
+            <p class="muted" style="margin:8px 0 12px;font-size:13.5px;line-height:1.55;" id="order-confirm-text"></p>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <a href="mailto:nifarimnif@gmail.com" id="btn-email-confirm" class="btn btn-ink btn-sm" style="width:100%;text-align:center;">
+                Kirim Pesanan via Email Resmi &amp; Terima Kode Akses →
+              </a>
+              <button type="button" id="btn-copy-order" class="btn btn-secondary btn-sm" style="width:100%;text-align:center;">
+                Salin Format Pesanan
+              </button>
+            </div>
+            <div style="margin-top:10px;text-align:center;">
+              <a href="https://nifari-klip-auto-app.pages.dev" target="_blank" rel="noopener" class="underline-link" style="font-size:13px;">
+                Sudah punya Kode Akses? Masuk ke Studio →
+              </a>
+            </div>
           </div>
 
-          <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--color-ash);display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13.5px;">
-            <span class="muted">Ingin tes langsung tampilan studionya?</span>
-            <a href="https://nifari-klip-auto-app.pages.dev" target="_blank" rel="noopener" class="underline-link">Coba Studio Live</a>
+          <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--color-ash);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;font-size:13.5px;">
+            <span class="muted">Sudah punya Kode Akses resmi?</span>
+            <a href="https://nifari-klip-auto-app.pages.dev" target="_blank" rel="noopener" class="underline-link">Masuk ke Studio →</a>
           </div>
         </div>
       </div>
@@ -1737,8 +1748,8 @@
         </p>
         <div style="display:flex;flex-wrap:wrap;gap:12px;">
           <a href="#harga" class="btn btn-ink">Ambil Akses Klip Auto — Rp 149.000</a>
-          <a href="https://nifari-klip-auto-app.pages.dev" target="_blank" rel="noopener" class="btn btn-outline" style="border-color:#14140f;">
-            Lihat Ruang Studio Live
+          <a href="#demo" class="btn btn-outline" style="border-color:#14140f;">
+            Coba Demo Interaktif Dulu
           </a>
         </div>
       </div>
@@ -1751,7 +1762,7 @@
       <div style="display:flex;gap:20px;">
         <a href="#demo" class="underline-link" style="font-size:13.5px;">Demo Mesin</a>
         <a href="#harga" class="underline-link" style="font-size:13.5px;">Harga Paket</a>
-        <a href="https://nifari-klip-auto-app.pages.dev" target="_blank" rel="noopener" class="underline-link" style="font-size:13.5px;">Masuk Studio</a>
+        <a href="https://nifari-klip-auto-app.pages.dev" target="_blank" rel="noopener" class="underline-link" style="font-size:13.5px;">Login Pembeli (Kode Akses)</a>
       </div>
     </div>
   </footer>
@@ -2509,18 +2520,76 @@
       });
 
       const checkoutForm = document.getElementById('checkout-form');
+      const buyerNameInput = document.getElementById('buyer-name');
+      const buyerEmailInput = document.getElementById('buyer-email');
+      const checkoutErr = document.getElementById('checkout-error');
       const confirmBox = document.getElementById('order-confirm-box');
       const confirmText = document.getElementById('order-confirm-text');
+      const emailConfirmBtn = document.getElementById('btn-email-confirm');
+      const copyOrderBtn = document.getElementById('btn-copy-order');
+      const emailCheck = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      let latestOrderBody = '';
+
+      if (copyOrderBtn) {
+        copyOrderBtn.addEventListener('click', () => {
+          if (!latestOrderBody) return;
+          navigator.clipboard.writeText(latestOrderBody).then(() => {
+            copyOrderBtn.textContent = 'Format Pesanan Tersalin!';
+            setTimeout(() => {
+              copyOrderBtn.textContent = 'Salin Format Pesanan';
+            }, 2200);
+          });
+        });
+      }
+
+      const hideCheckoutErr = () => {
+        if (checkoutErr) {
+          checkoutErr.style.display = 'none';
+          checkoutErr.textContent = '';
+        }
+      };
+      buyerNameInput.addEventListener('input', hideCheckoutErr);
+      buyerEmailInput.addEventListener('input', hideCheckoutErr);
+
       checkoutForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        const name = document.getElementById('buyer-name').value.trim();
-        const email = document.getElementById('buyer-email').value.trim();
+        const name = buyerNameInput.value.trim();
+        const email = buyerEmailInput.value.trim();
+
+        if (!name) {
+          checkoutErr.textContent = 'Isi nama lengkap atau nama channel-mu dulu ya.';
+          checkoutErr.style.display = 'block';
+          buyerNameInput.focus();
+          return;
+        }
+        if (!emailCheck.test(email)) {
+          checkoutErr.textContent = 'Masukkan alamat email yang valid untuk pengiriman Kode Akses.';
+          checkoutErr.style.display = 'block';
+          buyerEmailInput.focus();
+          return;
+        }
+
+        hideCheckoutErr();
         confirmText.textContent =
-          'Halo ' +
+          'Nama: ' +
           name +
-          ', detail pemesanan untuk ' +
+          ' · Email: ' +
           email +
-          ' telah tercatat. Kamu juga bisa langsung menguji ruang kerja Klip Auto Studio melalui tombol di bawah.';
+          ' · Paket Lisensi Klip Auto Studio (Rp 149.000 sekali bayar). Kirim ringkasan pesanan di bawah ke nifarimnif@gmail.com agar info pembayaran & Kode Akses Pembeli resmi langsung dikirimkan ke emailmu.';
+
+        latestOrderBody = [
+          'Halo Admin Nifari, saya mau pesan akses resmi Klip Auto Studio (Rp 149.000):',
+          '- Nama: ' + name,
+          '- Email Kode Akses: ' + email,
+          '',
+          'Mohon info rekening / QRIS pembayarannya ya. Terima kasih!'
+        ].join('\n');
+        const subject = 'Pesanan Akses Resmi Klip Auto Studio - ' + name;
+        emailConfirmBtn.href =
+          'mailto:nifarimnif@gmail.com?subject=' +
+          encodeURIComponent(subject) +
+          '&body=' +
+          encodeURIComponent(latestOrderBody);
         confirmBox.style.display = 'block';
       });
     })();

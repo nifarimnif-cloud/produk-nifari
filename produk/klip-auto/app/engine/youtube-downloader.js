@@ -59,12 +59,17 @@ export function saveYoutubeTranscriptCache(info) {
   try {
     const raw = localStorage.getItem(YT_TRANSCRIPT_CACHE_KEY);
     const list = raw ? JSON.parse(raw) : [];
+    const prev = Array.isArray(list) ? list.find((x) => x && x.videoId === info.videoId) : null;
+    const incomingWords = Array.isArray(info.words) ? info.words : [];
+    const bestWords = incomingWords.length > 0 ? incomingWords : Array.isArray(prev?.words) ? prev.words : [];
+    const bestDur = Number(info.durationSec || 0) || Number(prev?.durationSec || 0);
+
     const entry = {
       videoId: info.videoId,
-      title: String(info.title || ''),
-      slug: normalizeTitleSlug(info.title),
-      durationSec: Number(info.durationSec || 0),
-      words: Array.isArray(info.words) ? info.words : [],
+      title: String(info.title || prev?.title || ''),
+      slug: normalizeTitleSlug(info.title || prev?.title || ''),
+      durationSec: bestDur,
+      words: bestWords,
       savedAt: Date.now()
     };
 
