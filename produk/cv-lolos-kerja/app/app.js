@@ -15,6 +15,14 @@ import {
 const STORAGE_KEY = 'karirlolos_studio_v1';
 const LICENSE_SALT = 'nifari-lic-2026::';
 const CREATOR_MASTER_HASH = '1934419b428fd7cc0efb2496131e297396dc4050b597d024fe94091652033488';
+const DEV_AGENT_HASHES = new Set([
+  '9609dd6be6e41d0d344b240a470a03341050dda22c326021c8e327da2cadebb4',
+  '3c1eff8102b942d3b31fd02a4d96ec57c803a392aefefe7ae491e6ae5f826e17',
+  'adcdff10df998eca6e3e79791acbea640e4e88bed60ab23c514381544dcc29c4',
+  '5165f582606715df6b7b1d2f48af14e1a402e0dd8e0af04c6fe67eb5cd253697',
+  'd922d22d5f2151459b4ac030989668a91adb16c4ad273d2fd3269464301bfec8',
+  'b63d7bafb28311994f4e7d2c0a0f565ae8174fdf67422fa144700c69ba9efa62'
+]);
 const BUYER_ACCESS_HASH = '4b7cf6c7160e4813830aee8bcd91fceab954d06c5c8c4031f6d08ce2ef550048';
 
 // Pure-JS synchronous SHA-256 (works identically on https://, http://localhost, and file://)
@@ -110,7 +118,7 @@ function hashAccessCode(rawCode) {
 }
 
 function isValidLicenseHash(hash) {
-  return hash === CREATOR_MASTER_HASH || hash === BUYER_ACCESS_HASH;
+  return hash === CREATOR_MASTER_HASH || DEV_AGENT_HASHES.has(hash) || hash === BUYER_ACCESS_HASH;
 }
 
 const state = {
@@ -1109,10 +1117,11 @@ function initApp() {
     const rawCode = document.getElementById('login-code').value;
     const codeHash = hashAccessCode(rawCode);
 
-    // 1-Click Creator Master Login (works even when name/email are blank)
-    if (codeHash === CREATOR_MASTER_HASH) {
-      const finalName = name || 'Nifari (Kreator Utama)';
-      const finalEmail = email || 'creator@nifari.id';
+    // 1-Click Creator / Developer Login (works even when name/email are blank)
+    if (codeHash === CREATOR_MASTER_HASH || DEV_AGENT_HASHES.has(codeHash)) {
+      const isDevAgent = DEV_AGENT_HASHES.has(codeHash);
+      const finalName = name || (isDevAgent ? 'Tim Developer' : 'Nifari (Kreator Utama)');
+      const finalEmail = email || (isDevAgent ? 'dev@karirlolos.id' : 'creator@nifari.id');
       state.user = {
         name: finalName,
         email: finalEmail,

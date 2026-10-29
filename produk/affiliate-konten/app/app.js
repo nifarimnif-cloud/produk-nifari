@@ -5,6 +5,14 @@
 
   const LICENSE_SALT = 'nifari-lic-2026::';
   const CREATOR_MASTER_HASH = '1934419b428fd7cc0efb2496131e297396dc4050b597d024fe94091652033488';
+  const DEV_AGENT_HASHES = new Set([
+    'e011906c1c3655bc2656f9e6fbc69573ea4de2e73ed1e5d281311709d1032a7e',
+    '7d9be756557a5eb42834bb3a3ceff782befd14a6711f81866797bc4feb938d04',
+    'f7dde8fa7044dd2ee3dcbce6ae5bb77e32c61e07189fdd39e64b5cd71a130bde',
+    '2db7af2e07375dcdcc68d241c99665a492dba2ff2bbad0536724012eb2ded319',
+    '68e25197e2b4b2b405530c3de2c309b0d84fb0bb30a3203d6774b3d47ac91241',
+    'a6bf15d90cb90bd793dc9577bfc4b60c8773321ef14c76fa5475ccb102aeb243'
+  ]);
   const OFFICIAL_BUYER_HASH = '5cff13023c29dff707e896c1df7248df6c129ea93219b5b90105bd852cee42c9';
 
   function sha256Hex(input) {
@@ -92,7 +100,7 @@
     return Boolean(
       creator &&
         creator.loggedIn === true &&
-        (creator.validHash === CREATOR_MASTER_HASH || creator.validHash === OFFICIAL_BUYER_HASH)
+        (creator.validHash === CREATOR_MASTER_HASH || DEV_AGENT_HASHES.has(creator.validHash) || creator.validHash === OFFICIAL_BUYER_HASH)
     );
   }
 
@@ -1210,7 +1218,8 @@
       const errEl = document.getElementById('loginError');
 
       const digest = rawCode ? hashAccessCode(rawCode) : '';
-      const isCreator = digest === CREATOR_MASTER_HASH;
+      const isDevAgent = DEV_AGENT_HASHES.has(digest);
+      const isCreator = digest === CREATOR_MASTER_HASH || isDevAgent;
 
       if (!isCreator) {
         if (!rawName) {
@@ -1240,10 +1249,10 @@
         }
       }
 
-      const finalName = rawName || 'Nifari';
-      const baseHandle = rawHandle || '@nifari.official';
+      const finalName = rawName || (isDevAgent ? 'Tim Developer' : 'Nifari');
+      const baseHandle = rawHandle || (isDevAgent ? '@dev.komisiklip' : '@nifari.official');
       const finalHandle = baseHandle.startsWith('@') ? baseHandle : '@' + baseHandle;
-      const finalEmail = rawEmail || 'creator@nifari.id';
+      const finalEmail = rawEmail || (isDevAgent ? 'dev@komisiklip.id' : 'creator@nifari.id');
 
       errEl.classList.add('hidden');
       document.getElementById('loginCode').value = '';

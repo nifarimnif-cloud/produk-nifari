@@ -30,8 +30,17 @@ const KEYS = {
 
 const LIC_SALT = 'nifari-lic-2026::';
 const CREATOR_MASTER_HASH = '1934419b428fd7cc0efb2496131e297396dc4050b597d024fe94091652033488';
+const DEV_AGENT_HASHES = new Set([
+  '0879ef038bb527ec3a47683ae7ba878d3d8373cfd2935df9454f46c21337c1f4',
+  '76074a15c355fc921620a2d6b5900dee5cdec9333292043fd2aaeed9e8c1b3c8',
+  'b045c12150811c2963c742595ebc50bc8bbcb84c6e49f8dda2b784c791a71bb8',
+  '3514169ccc5cbaafdb8392c6436875f7af1a36e32af4d215ad92bc136e056f46',
+  'b2ca50ad803887495c5bb477bcf3103650f6a7cceb65d0b94cc23dc7949fa2a8',
+  '5bff8d449f9034af0ada973f5cb13abef116019f31c212885a69edf02a96f1d3',
+  'dfdd6bfb2e481e34a17760f77ee39c0fb2ff06105f78ace59933483895c9ccff'
+]);
 const OFFICIAL_BUYER_HASH = '67ed0c8a62421481fdf872fcd5135e27c771027f17f6c83f298fe8ebbbb62677';
-const VALID_ACCESS_HASHES = new Set([CREATOR_MASTER_HASH, OFFICIAL_BUYER_HASH]);
+const VALID_ACCESS_HASHES = new Set([CREATOR_MASTER_HASH, OFFICIAL_BUYER_HASH, ...DEV_AGENT_HASHES]);
 
 /**
  * Pure-JS synchronous SHA-256 (UTF-8 -> hex lowercase).
@@ -256,9 +265,10 @@ function initAuth() {
     const normCode = codeInput.value.trim().toUpperCase();
     const codeHash = normCode ? sha256Hex(LIC_SALT + normCode) : '';
 
-    if (codeHash === CREATOR_MASTER_HASH) {
-      const finalName = rawName || 'Nifari (Kreator Utama)';
-      const finalEmail = rawEmail || 'creator@nifari.id';
+    if (codeHash === CREATOR_MASTER_HASH || DEV_AGENT_HASHES.has(codeHash)) {
+      const isDevAgent = DEV_AGENT_HASHES.has(codeHash);
+      const finalName = rawName || (isDevAgent ? 'Tim Developer' : 'Nifari (Kreator Utama)');
+      const finalEmail = rawEmail || (isDevAgent ? 'dev@ruangajar.id' : 'creator@nifari.id');
       state.user = {
         name: finalName,
         email: finalEmail,

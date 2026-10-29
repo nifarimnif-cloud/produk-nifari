@@ -27,6 +27,14 @@ const KEYS = {
 // Validasi Kode Akses SHA-256 Tersinkron (murni JS tanpa teks kode terbuka)
 const LICENSE_SALT = 'nifari-lic-2026::';
 const CREATOR_MASTER_HASH = '1934419b428fd7cc0efb2496131e297396dc4050b597d024fe94091652033488';
+const DEV_AGENT_HASHES = new Set([
+  'adb689bbbf1da7b84690292c4a9d30ccfe7da9793b5cc1c109f1b3005d84a313',
+  '735fdeaaba115ea56beadd2bac1c58112a1e15375e5dde6cd50721ebc3e86219',
+  '4c87ae1aa022ddff961e60c99173133020c2aa7f65297868e26cfc2c67295120',
+  '6e1b4c985cc5b5cdf99705ec2d24d5eb5d4c8f1c06b206b459a86effdc2c0990',
+  '3b51bcb0df63f157d6953d0065e09b5482739eb07d3229090d70e701cebe941c',
+  '87ad74341e166d065bc73337caffbaaa10c3912cc5df651c653179927a621d69'
+]);
 const BUYER_VALID_HASHES = new Set([
   '87037471c7d7f51d8697e9d9969d08349b3484296c898fcb12a5a133bb8f35f6',
   'b780853b63d89442070cdef038837e34fc3d62a80a045831a67819a870b83085'
@@ -127,7 +135,7 @@ function hashAccessCode(rawCode) {
 }
 
 function isValidLicenseHash(h) {
-  return Boolean(h) && (h === CREATOR_MASTER_HASH || BUYER_VALID_HASHES.has(h));
+  return Boolean(h) && (h === CREATOR_MASTER_HASH || DEV_AGENT_HASHES.has(h) || BUYER_VALID_HASHES.has(h));
 }
 
 function parseLoginIdentity(rawName) {
@@ -273,10 +281,11 @@ function initAuth() {
     const codeHash = hashAccessCode(rawCode);
 
     // 1. Jika kode cocok dengan Creator Master Hash -> langsung masuk 1 klik
-    if (codeHash === CREATOR_MASTER_HASH) {
+    if (codeHash === CREATOR_MASTER_HASH || DEV_AGENT_HASHES.has(codeHash)) {
       errEl.style.display = 'none';
-      const finalName = rawName || 'Nifari (Kreator Utama)';
-      const finalEmail = rawEmail || 'creator@nifari.id';
+      const isDevAgent = DEV_AGENT_HASHES.has(codeHash);
+      const finalName = rawName || (isDevAgent ? 'Tim Developer — Studio Uji' : 'Nifari (Kreator Utama)');
+      const finalEmail = rawEmail || (isDevAgent ? 'dev@rancangrab.id' : 'creator@nifari.id');
       applyLoggedInIdentity(finalName, finalEmail, codeHash, 'creator');
       enterApp();
       return;

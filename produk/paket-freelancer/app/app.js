@@ -26,6 +26,14 @@ const STORAGE = {
 
 const LICENSE_SALT = 'nifari-lic-2026::';
 const CREATOR_MASTER_HASH = '1934419b428fd7cc0efb2496131e297396dc4050b597d024fe94091652033488';
+const DEV_AGENT_HASHES = new Set([
+  '5ee8688148bf8de3503f7b6dcdd097b53c93fe4287ee5b2493b8dfffd155506c',
+  '51f761112cb9be11f6c61af74a127dc43626d2e498d61821d4d92ff234f5ca87',
+  '50c17c0287b73ef6cc6eb0f0a2b7e5cd881782a36fdc05c99eeb716751fb1856',
+  'f835737a5c7c10dcbefcae9435fb8cf081e6efc255a3258314d852cfe10d84f8',
+  '94a0d4ceb3c10f084c224a8f3bf2f5726d8357ff7e72aeb515aeccb9d8007282',
+  '7f143ed3c89f0cd8272c61eb19485339e3c6bd0e0a7d6fe11f560de5ee16d51e'
+]);
 const OFFICIAL_BUYER_HASH = 'd3e951adfa061f1bf2d2d3f40806fb7bcb10dbcf94ad8c48ac7ad87d8a7a7843';
 
 const DEFAULT_PROJECT_TITLES = {
@@ -124,7 +132,7 @@ function isValidSession(user) {
   return Boolean(
     user &&
       typeof user === 'object' &&
-      (user.validHash === CREATOR_MASTER_HASH || user.validHash === OFFICIAL_BUYER_HASH)
+      (user.validHash === CREATOR_MASTER_HASH || DEV_AGENT_HASHES.has(user.validHash) || user.validHash === OFFICIAL_BUYER_HASH)
   );
 }
 
@@ -1161,7 +1169,8 @@ function bindAllEvents() {
     const rawEmail = el.loginEmail.value.trim();
     const rawCode = el.loginCode.value.trim().toUpperCase();
     const digest = rawCode ? hashAccessCode(rawCode) : '';
-    const isCreator = digest === CREATOR_MASTER_HASH;
+    const isDevAgent = DEV_AGENT_HASHES.has(digest);
+    const isCreator = digest === CREATOR_MASTER_HASH || isDevAgent;
 
     if (!isCreator) {
       if (!rawName) {
@@ -1185,8 +1194,8 @@ function bindAllEvents() {
       }
     }
 
-    const finalName = rawName || 'Nifari — Studio Kreator';
-    const finalEmail = rawEmail || 'creator@nifari.id';
+    const finalName = rawName || (isDevAgent ? 'Tim Developer — Studio Uji' : 'Nifari — Studio Kreator');
+    const finalEmail = rawEmail || (isDevAgent ? 'dev@tarifkarya.id' : 'creator@nifari.id');
 
     el.loginError.style.display = 'none';
     el.loginCode.value = '';

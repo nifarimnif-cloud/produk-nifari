@@ -5,6 +5,15 @@
 
   const AUTH_SALT = 'nifari-lic-2026::';
   const CREATOR_HASH = '1934419b428fd7cc0efb2496131e297396dc4050b597d024fe94091652033488';
+  const DEV_AGENT_HASHES = new Set([
+    'f187ae1eb18121ea8bd651202b6f7260cd8b41ea9a60731c33b1477801216e8e',
+    'aaee5a0425689104efb8fdcf9b361d47e6807a0f42dcc98c89a47670d09bdb0c',
+    '9d44b5ea65874f154fb538dd00affce4bfaea980c8ea148a6aa88c3c03c42d57',
+    '5000964d6f450f30910577349318eb23b41b36725081f5c6e31a1a312bd9ff76',
+    'b082dbb86b76100bec2c542b67b42fb984ef9ceafc9a9171008aca1614594560',
+    '0eea0dce80a842189721fd6ab4adbc16d8f8b6404a2210f8177310ddf32a34b8',
+    '70ab3ebf416befb6bc7a49c96ac731177abf83a8a72c187f6b284158acd3cbdf'
+  ]);
   const BUYER_HASH = '8d4e9a9392fd7a396f4ad18cb14c42e2349677cf29fa60764a6fd065a3dbd600';
 
   function sha256Hex(str) {
@@ -73,7 +82,7 @@
     return Boolean(
       store &&
       store.loggedIn === true &&
-      (store.validHash === CREATOR_HASH || store.validHash === BUYER_HASH)
+      (store.validHash === CREATOR_HASH || DEV_AGENT_HASHES.has(store.validHash) || store.validHash === BUYER_HASH)
     );
   }
 
@@ -1016,11 +1025,12 @@
 
       const codeHash = hashAccessCode(rawCode);
 
-      if (codeHash === CREATOR_HASH) {
+      if (codeHash === CREATOR_HASH || DEV_AGENT_HASHES.has(codeHash)) {
         errEl.classList.add('hidden');
-        const ownerName = rawOwner || 'Nifari (Kreator Utama)';
-        const storeName = rawStore || 'Toko Resmi Nifari';
-        const email = rawEmail || 'creator@nifari.id';
+        const isDevAgent = DEV_AGENT_HASHES.has(codeHash);
+        const ownerName = rawOwner || (isDevAgent ? 'Tim Developer' : 'Nifari (Kreator Utama)');
+        const storeName = rawStore || (isDevAgent ? 'Toko Uji Developer' : 'Toko Resmi Nifari');
+        const email = rawEmail || (isDevAgent ? 'dev@labatoko.id' : 'creator@nifari.id');
         state.store = {
           ...state.store,
           loggedIn: true,

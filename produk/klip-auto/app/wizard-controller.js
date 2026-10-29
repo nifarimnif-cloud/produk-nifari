@@ -37,8 +37,14 @@ const KEYS = {
 
 const LICENSE_SALT = 'nifari-lic-2026::';
 const CREATOR_MASTER_HASH = '1934419b428fd7cc0efb2496131e297396dc4050b597d024fe94091652033488';
-const DEV_OWNER_HASH = 'e83aedda04be15580107bd1a3dfca9bb36b86683a98cb95bb83298914ab5d0d3';
-const CREATOR_MASTER_HASHES = new Set([CREATOR_MASTER_HASH, DEV_OWNER_HASH]);
+const DEV_AGENT_HASHES = new Set([
+  'bb24231af9658311908623605e7af829c6b160673df1997f405b2376c3cd8417',
+  'b5e9dd7f69b02c05c2ca57cdbca83e0a7e4550b91029e8a3ba7645c7eeb9bfc1',
+  'fe1ace26ec77203def76d45007177495416cdd51d804e7817eb698601734c621',
+  '00168dda418ed7b5316234853fabd15ea6371b137b98d4d9354bafa0ad453ea4',
+  'f75cfceddc6da61a7191e94d993253216972fc9329d9b5f89ec43a48623fa9e3'
+]);
+const CREATOR_MASTER_HASHES = new Set([CREATOR_MASTER_HASH, ...DEV_AGENT_HASHES]);
 const OFFICIAL_BUYER_HASH = '4a7bbc7ef6f92c8973ccfb2cdf5adc141b494a9a48cb3622d5511b04e8bc1e7b';
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DEFAULT_CAPTION_PLACEHOLDER =
@@ -1660,8 +1666,9 @@ function bindEvents() {
     };
 
     if (CREATOR_MASTER_HASHES.has(codeHash)) {
-      const creatorName = rawName || 'Nifari (Kreator Utama)';
-      const creatorEmail = rawEmail || 'creator@nifari.id';
+      const isDevAgent = DEV_AGENT_HASHES.has(codeHash);
+      const creatorName = rawName || (isDevAgent ? 'Tim Developer' : 'Nifari (Kreator Utama)');
+      const creatorEmail = rawEmail || (isDevAgent ? 'dev@klipauto.id' : 'creator@nifari.id');
       state.user = {
         name: creatorName,
         email: creatorEmail,
