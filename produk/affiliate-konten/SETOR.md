@@ -14,7 +14,7 @@
 ## 2. Link Live (Cloudflare Pages)
 - **Link Landing Page (LP Jualan):** [https://nifari-affiliate-konten-lp.pages.dev](https://nifari-affiliate-konten-lp.pages.dev)
 - **Link Web App (Aplikasi Pembeli):** [https://nifari-affiliate-konten-app.pages.dev](https://nifari-affiliate-konten-app.pages.dev)
-  - *Cara masuk cepat untuk penguji:* Klik tombol **Isi Cepat Akun Contoh Pembeli** di halaman masuk (atau masukkan kode lisensi `KOMISI-2026-PRO`), lalu klik **Masuk ke KomisiKlip Studio**.
+  - *Cara masuk:* Masukkan kode akses resmi (verifikasi hash SHA-256 ber-salt di sisi klien, tanpa bocoran kode teks biasa di HTML/JS), lalu klik **Masuk ke KomisiKlip Studio**.
 
 ---
 
@@ -42,7 +42,7 @@ Seluruh pengujian dijalankan menggunakan browser **Google Chrome asli** pada uku
 
 | Bagian yang Dites | Skenario Pengujian | Hasil |
 | :--- | :--- | :--- |
-| **Login Lisensi Pembeli** | Masuk memakai nama kreator, username `@handle`, email, & kode lisensi (`KOMISI-2026-PRO`) serta tombol akun contoh | **Lulus** — Sesi tersimpan rapi di browser dan langsung membuka Beranda KomisiKlip Studio. |
+| **Login Lisensi Pembeli** | Masuk memakai kode akses resmi (terverifikasi hash SHA-256 ber-salt) & sesi tersimpan dengan verifikasi ulang hash | **Lulus** — Sesi tersimpan rapi di browser dan langsung membuka Beranda KomisiKlip Studio tanpa tombol bypass gratis. |
 | **Kalkulator Target Komisi** | Ubah target komisi bulanan (`Rp9.000.000`), harga barang, persentase komisi, & frekuensi upload lalu kirim ke Wizard | **Lulus** — Komisi per pcs, target penjualan harian, dan porsi konten terhitung otomatis serta tersinkron ke Wizard. |
 | **Wizard 3 Langkah & Kalender 30 Hari** | Pilih 1 dari 8 preset kategori barang laris → susun 3 variasi skrip berdetik & jadwal rotasi 30 hari → cek audit 8 kriteria | **Lulus** — Tersusun 3 variasi skrip detik-demi-detik, caption, tagar, komentar sematan, 30 jadwal harian, dan skor kesiapan `100%`. |
 | **Ekspor Lembar Syuting (`.pdf`)** | Klik unduh Lembar Syuting 3 Variasi Skrip | **Lulus** — Menghasilkan dokumen PDF A4 multi-halaman asli (`8,8 KB`, header `%PDF-1.4`) berisi 3 variasi skrip & arahan kamera. |

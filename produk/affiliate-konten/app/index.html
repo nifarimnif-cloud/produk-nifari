@@ -54,31 +54,31 @@
         <h2 class="display-lg" style="margin-top: 14px;">Masuk ke Studio</h2>
         <p class="text-sm text-muted" style="margin-top: 8px;">Masukkan profil kreator dan kode akses pembelianmu untuk membuka seluruh fitur.</p>
 
-        <form id="loginForm" style="display: grid; gap: 16px; margin-top: 24px;">
+        <form id="loginForm" novalidate style="display: grid; gap: 16px; margin-top: 24px;">
           <div class="field-group">
             <label class="field-label" for="loginName">Nama Panggilan Kreator</label>
-            <input id="loginName" class="input" type="text" placeholder="Contoh: Rina Sari" required />
+            <input id="loginName" class="input" type="text" placeholder="Contoh: Rina Sari" autocomplete="name" />
           </div>
           <div class="field-group">
             <label class="field-label" for="loginHandle">Username Akun TikTok / Shopee</label>
-            <input id="loginHandle" class="input" type="text" placeholder="Contoh: @rina.racunhemat" required />
+            <input id="loginHandle" class="input" type="text" placeholder="Contoh: @rina.racunhemat" />
           </div>
           <div class="field-group">
             <label class="field-label" for="loginEmail">Email Pembeli</label>
-            <input id="loginEmail" class="input" type="email" placeholder="rina.kreator@email.com" required />
+            <input id="loginEmail" class="input" type="email" placeholder="rina.kreator@email.com" autocomplete="email" />
           </div>
           <div class="field-group">
             <label class="field-label" for="loginCode">Kode Lisensi Akses</label>
-            <input id="loginCode" class="input" type="text" placeholder="Masukkan kode lisensi (contoh: KOMISI-2026-PRO)" required />
+            <input id="loginCode" class="input" type="text" placeholder="Masukkan kode akses pembelian resmi" autocomplete="off" />
           </div>
-          <p id="loginError" class="text-sm hidden" style="padding: 10px 12px; background: var(--color-blush-neutral); border-radius: 4px;"></p>
+          <p id="loginError" role="alert" class="text-sm hidden" style="padding: 10px 12px; background: var(--color-blush-neutral); border-radius: 4px;"></p>
 
           <button type="submit" class="btn btn-primary btn-block" style="padding: 13px 20px;">
             Masuk ke KomisiKlip Studio
           </button>
-          <button type="button" id="fillDemoLoginBtn" class="btn btn-secondary btn-block">
-            Isi Cepat Akun Contoh Pembeli
-          </button>
+          <a href="https://nifari-affiliate-konten-lp.pages.dev#demo-coba" class="btn btn-secondary btn-block">
+            Belum Punya Kode? Coba Racik Skrip &amp; Beli Akses →
+          </a>
         </form>
       </div>
     </div>
@@ -86,20 +86,24 @@
 
   <!-- SHELL UTAMA APLIKASI -->
   <div id="appShell" class="app-shell hidden">
-    <!-- Sidebar Desktop -->
-    <aside class="sidebar">
+    <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
+    <!-- Sidebar Desktop & Mobile Drawer -->
+    <aside id="appSidebar" class="sidebar">
       <div>
-        <div class="brand-mark">
-          <svg viewBox="0 0 36 36" fill="none" aria-hidden="true">
-            <rect x="6" y="3" width="20" height="30" rx="4" stroke="#088177" stroke-width="2.3"/>
-            <path d="M13 13.5L20 17.5L13 21.5V13.5Z" fill="#088177"/>
-            <circle cx="26" cy="25" r="7" fill="#d8edeb" stroke="#088177" stroke-width="1.8"/>
-            <path d="M23.5 25H28.5M26 22.5V27.5" stroke="#1b1b1b" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-          <div>
-            <div style="font-size: 18px; line-height: 1.15;">KomisiKlip</div>
-            <div class="text-caption text-muted" style="font-size: 10px;">STUDIO AFFILIATE</div>
+        <div class="sidebar-top-row">
+          <div class="brand-mark">
+            <svg viewBox="0 0 36 36" fill="none" aria-hidden="true">
+              <rect x="6" y="3" width="20" height="30" rx="4" stroke="#088177" stroke-width="2.3"/>
+              <path d="M13 13.5L20 17.5L13 21.5V13.5Z" fill="#088177"/>
+              <circle cx="26" cy="25" r="7" fill="#d8edeb" stroke="#088177" stroke-width="1.8"/>
+              <path d="M23.5 25H28.5M26 22.5V27.5" stroke="#1b1b1b" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <div>
+              <div style="font-size: 18px; line-height: 1.15;">KomisiKlip</div>
+              <div class="text-caption text-muted" style="font-size: 10px;">STUDIO AFFILIATE</div>
+            </div>
           </div>
+          <button id="closeMobileDrawerBtn" type="button" class="btn btn-ghost sidebar-close-btn" aria-label="Tutup Menu Navigasi">×</button>
         </div>
 
         <nav class="nav-list" aria-label="Menu Utama">
@@ -167,17 +171,21 @@
     <div>
       <!-- Topbar Mobile -->
       <header class="topbar-mobile">
-        <div class="brand-mark" style="font-size: 16px; gap: 8px;">
-          <svg viewBox="0 0 36 36" fill="none" style="width: 26px; height: 26px;" aria-hidden="true">
-            <rect x="6" y="3" width="20" height="30" rx="4" stroke="#088177" stroke-width="2.4"/>
-            <path d="M13 13.5L20 17.5L13 21.5V13.5Z" fill="#088177"/>
-            <circle cx="26" cy="25" r="7" fill="#d8edeb" stroke="#088177" stroke-width="1.8"/>
-          </svg>
-          <span>KomisiKlip Studio</span>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button id="mobileMenuBtn" type="button" class="btn btn-ghost" style="padding: 6px 10px; font-size: 13px;" aria-label="Buka Menu Navigasi">☰ Menu</button>
+          <div class="brand-mark" style="font-size: 15px; gap: 6px;">
+            <svg viewBox="0 0 36 36" fill="none" style="width: 24px; height: 24px;" aria-hidden="true">
+              <rect x="6" y="3" width="20" height="30" rx="4" stroke="#088177" stroke-width="2.4"/>
+              <path d="M13 13.5L20 17.5L13 21.5V13.5Z" fill="#088177"/>
+              <circle cx="26" cy="25" r="7" fill="#d8edeb" stroke="#088177" stroke-width="1.8"/>
+            </svg>
+            <span>KomisiKlip</span>
+          </div>
         </div>
         <div style="display: flex; gap: 6px;">
-          <button id="mobileThemeBtn" type="button" class="btn btn-secondary" style="padding: 6px 10px; font-size: 12px;">Tema</button>
-          <button id="mobileSettingsBtn" type="button" class="btn btn-ghost" style="padding: 6px 10px; font-size: 12px;">Profil</button>
+          <button id="mobileFavBtn" type="button" class="btn btn-secondary" style="padding: 6px 9px; font-size: 12px;">Favorit</button>
+          <button id="mobileThemeBtn" type="button" class="btn btn-secondary" style="padding: 6px 9px; font-size: 12px;">Tema</button>
+          <button id="mobileSettingsBtn" type="button" class="btn btn-ghost" style="padding: 6px 9px; font-size: 12px;">Profil</button>
         </div>
       </header>
 
@@ -235,15 +243,15 @@
             <div class="grid-4" style="align-items: end;">
               <div class="field-group">
                 <label class="field-label" for="calcTargetIncome">Target Komisi / Bln (Rp)</label>
-                <input id="calcTargetIncome" class="input" type="number" min="500000" step="250000" value="6000000" />
+                <input id="calcTargetIncome" class="input" type="number" min="0" step="250000" value="6000000" />
               </div>
               <div class="field-group">
                 <label class="field-label" for="calcAvgPrice">Harga Barang Rata-rata (Rp)</label>
-                <input id="calcAvgPrice" class="input" type="number" min="10000" step="5000" value="75000" />
+                <input id="calcAvgPrice" class="input" type="number" min="0" step="5000" value="75000" />
               </div>
               <div class="field-group">
                 <label class="field-label" for="calcCommPct">Rata-rata Komisi (%)</label>
-                <input id="calcCommPct" class="input" type="number" min="1" max="50" step="1" value="11" />
+                <input id="calcCommPct" class="input" type="number" min="0" max="60" step="1" value="11" />
               </div>
               <div class="field-group">
                 <label class="field-label" for="calcVideosDay">Sanggup Upload / Hari</label>
@@ -274,7 +282,7 @@
             </div>
 
             <div style="margin-top: 18px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px;">
-              <p id="calcAdviceText" class="text-sm text-muted">Dengan 2 video/hari, cukup rata-rata 12–13 pesanan per gelombang konten harian untuk menembus targetmu.</p>
+              <p id="calcAdviceText" class="text-sm text-muted">Dengan ritme 2 video/hari, rata-rata butuh sekitar 13 pesanan per slot upload harian untuk menembus Rp 6.000.000/bulan.</p>
               <button type="button" id="applyCalcToWizardBtn" class="btn btn-primary">
                 Terapkan Angka Ini ke Wizard Skrip
               </button>
@@ -311,7 +319,10 @@
               <span class="badge">WIZARD PRODUKSI 3 LANGKAH</span>
               <h1 class="display-lg" style="margin-top: 8px;">Pembuat Skrip Keranjang Kuning &amp; Kalender 30 Hari</h1>
             </div>
-            <button type="button" id="saveProjectBtn" class="btn btn-secondary">Simpan ke Riwayat Proyek</button>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+              <button type="button" id="newScriptBtn" class="btn btn-ghost">Buat Paket Skrip Baru</button>
+              <button type="button" id="saveProjectBtn" class="btn btn-secondary">Simpan ke Riwayat Proyek</button>
+            </div>
           </div>
 
           <div class="stepper">
@@ -365,19 +376,23 @@
               <div class="grid-3" style="margin-bottom: 16px;">
                 <div class="field-group">
                   <label class="field-label" for="prodPrice">Harga Jual Produk (Rp)</label>
-                  <input id="prodPrice" class="input" type="number" min="1000" step="1000" />
+                  <input id="prodPrice" class="input" type="number" min="0" step="1000" />
                 </div>
                 <div class="field-group">
                   <label class="field-label" for="prodComm">Komisi Kreator (%)</label>
-                  <input id="prodComm" class="input" type="number" min="1" max="60" step="1" />
+                  <input id="prodComm" class="input" type="number" min="0" max="60" step="1" />
                 </div>
                 <div class="field-group">
                   <label class="field-label" for="prodVisualStyle">Gaya Pengambilan Video</label>
                   <select id="prodVisualStyle" class="select">
                     <option value="Tanpa Tampil Wajah (Fokus Tangan & Tekstur)">Tanpa Tampil Wajah (Fokus Tangan &amp; Tekstur)</option>
                     <option value="Tanpa Tampil Wajah (Demo Meja Dapur)">Tanpa Tampil Wajah (Demo Meja / Ruangan)</option>
+                    <option value="Tanpa Tampil Wajah (Uji Balik & Kocok)">Tanpa Tampil Wajah (Uji Balik &amp; Kocok)</option>
+                    <option value="Tanpa Tampil Wajah (Tuang ke Nasi Hangat)">Tanpa Tampil Wajah (Tuang ke Nasi Hangat)</option>
                     <option value="Cermin Setengah Badan / Tanpa Bicara Cepat">Cermin Setengah Badan (Fashion / Harian)</option>
                     <option value="Uji Suara Langsung Depan Kipas Angin">Uji Bukti Langsung Sebelum vs Sesudah</option>
+                    <option value="Visual Semprot Kabut Halus & Reaksi Jujur">Visual Semprot Kabut Halus &amp; Reaksi Jujur</option>
+                    <option value="Demo di Kamar Sempit Samping Kasur">Demo di Kamar Sempit Samping Kasur</option>
                     <option value="Ngobrol Santai Depan Kamera">Ngobrol Santai Depan Kamera</option>
                   </select>
                 </div>
@@ -457,7 +472,7 @@
                     <h2 class="heading-card">Rencana Rotasi Konten 30 Hari</h2>
                     <p class="text-sm text-muted">1 barang diputar dari beragam sudut agar tidak dianggap spam.</p>
                   </div>
-                  <select id="scheduleFreqSelect" class="select" style="width: auto; padding: 7px 12px; font-size: 13px;">
+                  <select id="scheduleFreqSelect" aria-label="Frekuensi Upload Harian" class="select" style="width: auto; padding: 7px 12px; font-size: 13px;">
                     <option value="1">1 Video / Hari</option>
                     <option value="2" selected>2 Video / Hari</option>
                     <option value="3">3 Video / Hari</option>
@@ -590,12 +605,12 @@
                 <button type="button" id="tpPlayPauseBtn" class="btn btn-primary" style="padding: 8px 16px;">Mulai Gulir</button>
                 <button type="button" id="tpResetBtn" class="btn btn-secondary" style="padding: 8px 14px;">Ulangi Atas</button>
                 <button type="button" id="tpMirrorBtn" class="btn btn-ghost" style="padding: 8px 14px;">Cermin</button>
-                <select id="tpFontSize" class="select" style="width: auto; padding: 7px 10px; font-size: 13px;">
+                <select id="tpFontSize" aria-label="Ukuran Huruf Teleprompter" class="select" style="width: auto; padding: 7px 10px; font-size: 13px;">
                   <option value="22">Huruf Sedang</option>
                   <option value="28" selected>Huruf Besar</option>
                   <option value="34">Huruf Ekstra</option>
                 </select>
-                <select id="tpSpeed" class="select" style="width: auto; padding: 7px 10px; font-size: 13px;">
+                <select id="tpSpeed" aria-label="Kecepatan Gulir Teleprompter" class="select" style="width: auto; padding: 7px 10px; font-size: 13px;">
                   <option value="1">Santai</option>
                   <option value="2" selected>Normal</option>
                   <option value="3">Cepat</option>
@@ -644,10 +659,13 @@
 
         <!-- VIEW 5: RIWAYAT PROYEK -->
         <section id="view-history" class="view-panel">
-          <div style="margin-bottom: 20px;">
-            <span class="badge">ARSIP PRODUKSI</span>
-            <h1 class="display-lg" style="margin-top: 8px;">Riwayat Proyek Skrip &amp; Jadwal</h1>
-            <p class="text-sm text-muted" style="margin-top: 6px;">Buka kembali atau unduh ulang paket skrip produk yang pernah kamu racik sebelumnya.</p>
+          <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 20px;">
+            <div>
+              <span class="badge">ARSIP PRODUKSI</span>
+              <h1 class="display-lg" style="margin-top: 8px;">Riwayat Proyek Skrip &amp; Jadwal</h1>
+              <p class="text-sm text-muted" style="margin-top: 6px;">Buka kembali atau unduh ulang paket skrip produk yang pernah kamu racik sebelumnya.</p>
+            </div>
+            <button type="button" id="clearAllHistoryBtn" class="btn btn-ghost">Bersihkan Semua Riwayat</button>
           </div>
           <div id="historyListContainer" style="display: grid; gap: 14px;"></div>
         </section>
@@ -699,16 +717,19 @@
                 <p class="text-sm text-muted" style="margin-bottom: 18px;">Seluruh riwayat skrip, favorit, dan profil tersimpan di browser perangkat ini. Kamu bisa mengunduh file cadangan JSON kapan saja untuk dipindahkan ke HP atau laptop lain.</p>
                 <div style="display: grid; gap: 10px;">
                   <button type="button" id="exportBackupBtn" class="btn btn-secondary btn-block">Unduh File Cadangan Data (.JSON)</button>
-                  <label class="btn btn-ghost btn-block" style="cursor: pointer;">
+                  <label for="importBackupInput" class="btn btn-ghost btn-block" style="cursor: pointer;">
                     <span>Pulihkan dari File Cadangan (.JSON)</span>
-                    <input id="importBackupInput" type="file" accept="application/json" style="display: none;" />
+                    <input id="importBackupInput" type="file" accept="application/json,.json" style="display: none;" />
                   </label>
                 </div>
               </div>
               <div class="info-strip">
-                <div class="text-caption">TEMA TAMPILAN STUDIO</div>
+                <div class="text-caption">TEMA &amp; SESI AKUN STUDIO</div>
                 <p class="text-sm text-muted" style="margin-top: 4px; margin-bottom: 10px;">Pilih suasana ruang kerja terang hangat ala kertas editorial atau mode gelap yang teduh untuk malam hari.</p>
-                <button type="button" id="settingsThemeBtn" class="btn btn-secondary">Ganti Tema Terang / Gelap</button>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                  <button type="button" id="settingsThemeBtn" class="btn btn-secondary">Ganti Tema Terang / Gelap</button>
+                  <button type="button" id="settingsLogoutBtn" class="btn btn-ghost">Keluar Akun</button>
+                </div>
               </div>
             </div>
           </div>

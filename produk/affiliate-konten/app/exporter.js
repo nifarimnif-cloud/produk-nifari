@@ -5,6 +5,7 @@
       .replace(/[\u2018\u2019]/g, "'")
       .replace(/[\u201C\u201D]/g, '"')
       .replace(/[\u2013\u2014]/g, '-')
+      .replace(/\u2022/g, '*')
       .replace(/\u2026/g, '...')
       .replace(/[^\x20-\x7E]/g, ' ')
       .replace(/\\/g, '\\\\')
@@ -13,19 +14,31 @@
   }
 
   function wrapLines(text, maxChars) {
-    const words = String(text || '').replace(/\s+/g, ' ').trim().split(' ');
+    const rawParas = String(text || '').split(/\r?\n/);
     const lines = [];
-    let current = '';
-    for (const w of words) {
-      if (!w) continue;
-      if ((current + ' ' + w).trim().length <= maxChars) {
-        current = (current + ' ' + w).trim();
-      } else {
-        if (current) lines.push(current);
-        current = w;
+    for (const para of rawParas) {
+      const words = para.replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
+      if (!words.length) continue;
+      let current = '';
+      for (let rawWord of words) {
+        while (rawWord.length > maxChars) {
+          if (current) {
+            lines.push(current);
+            current = '';
+          }
+          lines.push(rawWord.slice(0, maxChars - 1) + '-');
+          rawWord = rawWord.slice(maxChars - 1);
+        }
+        const candidate = current ? current + ' ' + rawWord : rawWord;
+        if (candidate.length <= maxChars) {
+          current = candidate;
+        } else {
+          if (current) lines.push(current);
+          current = rawWord;
+        }
       }
+      if (current) lines.push(current);
     }
-    if (current) lines.push(current);
     return lines.length ? lines : [''];
   }
 
@@ -35,14 +48,6 @@
   }
 
   function buildMultiPagePdf(pagesCommands) {
-    // Object layout:
-    // 1: Catalog
-    // 2: Pages
-    // 3: Font F1 (Helvetica)
-    // 4: Font F2 (Helvetica-Bold)
-    // For each page i (0..N-1):
-    //   pageObjId = 5 + i * 2
-    //   contentObjId = 6 + i * 2
     const objects = [];
     const numPages = pagesCommands.length;
     const kidsRefs = [];
@@ -100,11 +105,13 @@
   }
 
   function slugify(str) {
-    return String(str || 'produk-affiliate')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-      .slice(0, 42) || 'produk-affiliate';
+    return (
+      String(str || 'produk-affiliate')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 42) || 'produk-affiliate'
+    );
   }
 
   // 1. Ekspor Lembar Syuting 3 Variasi Skrip & Shot List (.PDF)
@@ -116,19 +123,51 @@
     function startNewPage(isFirst) {
       if (cmds.length) pages.push(cmds);
       cmds = [];
-      // Warm editorial top band (#088177 Deep Teal: R=8/255=0.031, G=129/255=0.506, B=119/255=0.467)
       if (isFirst) {
-        cmds.push('0.031 0.506 0.467 rg 0 756 595 86 re f');
+        const metaLine1 = wrapLines(
+          'KomisiKlip Studio  |  Kreator: ' +
+            (creator.name || 'Kreator Affiliate') +
+            ' (' +
+            (creator.handle || '@kreator') +
+            ')',
+          90
+        );
+        const metaLine2 = wrapLines(
+          'Platform: ' + (project.platform || '-') + '  |  Gaya: ' + (project.visualStyle || '-'),
+          92
+        );
+        const totalMetaLines = metaLine1.length + metaLine2.length;
+        const bandH = Math.max(86, 56 + totalMetaLines * 14);
+        const bandBottom = 842 - bandH;
+
+        cmds.push(`0.031 0.506 0.467 rg 0 ${bandBottom} 595 ${bandH} re f`);
         cmds.push('1 1 1 rg');
-        cmds.push(`BT /F2 17 Tf 44 806 Td (${sanitizePdfText('LEMBAR SYUTING & SKRIP VIDEO AFFILIATE')}) Tj ET`);
-        cmds.push(`BT /F1 10 Tf 44 786 Td (${sanitizePdfText('KomisiKlip Studio  |  Kreator: ' + (creator.name || 'Kreator Affiliate') + ' (' + (creator.handle || '@kreator') + ')')}) Tj ET`);
-        cmds.push(`BT /F1 9.5 Tf 44 770 Td (${sanitizePdfText('Platform: ' + project.platform + '  |  Gaya: ' + project.visualStyle)}) Tj ET`);
-        y = 730;
+        cmds.push(`BT /F2 17 Tf 44 808 Td (${sanitizePdfText('LEMBAR SYUTING & SKRIP VIDEO AFFILIATE')}) Tj ET`);
+        let hy = 788;
+        metaLine1.forEach((ln) => {
+          cmds.push(`BT /F1 10 Tf 44 ${hy} Td (${sanitizePdfText(ln)}) Tj ET`);
+          hy -= 14;
+        });
+        metaLine2.forEach((ln) => {
+          cmds.push(`BT /F1 9.5 Tf 44 ${hy} Td (${sanitizePdfText(ln)}) Tj ET`);
+          hy -= 13.5;
+        });
+        y = bandBottom - 26;
       } else {
-        cmds.push('0.031 0.506 0.467 rg 0 804 595 38 re f');
+        const contLines = wrapLines(
+          'KomisiKlip Studio - Lanjutan Lembar Syuting: ' + (project.productName || ''),
+          84
+        );
+        const bandH = Math.max(38, 22 + contLines.length * 13);
+        const bandBottom = 842 - bandH;
+        cmds.push(`0.031 0.506 0.467 rg 0 ${bandBottom} 595 ${bandH} re f`);
         cmds.push('1 1 1 rg');
-        cmds.push(`BT /F2 10.5 Tf 44 818 Td (${sanitizePdfText('KomisiKlip Studio — Lanjutan Lembar Syuting: ' + project.productName)}) Tj ET`);
-        y = 780;
+        let hy = 820;
+        contLines.forEach((ln) => {
+          cmds.push(`BT /F2 10.5 Tf 44 ${hy} Td (${sanitizePdfText(ln)}) Tj ET`);
+          hy -= 13;
+        });
+        y = bandBottom - 24;
       }
       cmds.push('0.106 0.106 0.106 rg');
     }
@@ -140,17 +179,22 @@
     }
 
     function addHeading(title) {
-      ensureSpace(32);
-      cmds.push('0.847 0.929 0.922 rg 44 ' + (y - 6) + ' 507 20 re f');
+      const hLines = wrapLines(title, 82);
+      const boxH = 8 + hLines.length * 13;
+      ensureSpace(boxH + 14);
+      cmds.push(`0.847 0.929 0.922 rg 44 ${y - boxH + 12} 507 ${boxH} re f`);
       cmds.push('0.031 0.506 0.467 rg');
-      cmds.push(`BT /F2 10.5 Tf 52 ${y} Td (${sanitizePdfText(title)}) Tj ET`);
+      hLines.forEach((ln) => {
+        cmds.push(`BT /F2 10.5 Tf 52 ${y} Td (${sanitizePdfText(ln)}) Tj ET`);
+        y -= 13;
+      });
       cmds.push('0.106 0.106 0.106 rg');
-      y -= 24;
+      y -= 11;
     }
 
     function addParagraph(label, text, indent = 44) {
       const full = label ? `${label}: ${text}` : text;
-      const maxChars = Math.floor((545 - indent) / 5.1);
+      const maxChars = Math.max(40, Math.floor((545 - indent) / 5.15));
       const lines = wrapLines(full, maxChars);
       ensureSpace(lines.length * 14 + 6);
       lines.forEach((ln, idx) => {
@@ -166,7 +210,10 @@
     const commRp = Math.round((Number(project.price) || 0) * ((Number(project.commissionPct) || 0) / 100));
     addHeading('RINGKASAN PRODUK & POTENSI KOMISI');
     addParagraph('Nama Produk', project.productName);
-    addParagraph('Harga & Komisi', `${formatRp(project.price)}  |  Komisi ${project.commissionPct}% (${formatRp(commRp)} per barang terjual)`);
+    addParagraph(
+      'Harga & Komisi',
+      `${formatRp(project.price)}  |  Komisi ${project.commissionPct}% (${formatRp(commRp)} per barang terjual)`
+    );
     addParagraph('Target Pembeli', project.audience);
     addParagraph('Masalah Utama', project.painPoint);
 
@@ -174,16 +221,16 @@
       addHeading(`VARIASI ${idx + 1}: ${v.title.toUpperCase()} (${v.duration})`);
       v.blocks.forEach((b) => {
         addParagraph(`[${b.time}] ${b.stage}`, b.spoken, 48);
-        addParagraph('   Arahan Kamera', b.visual, 54);
+        addParagraph('Arahan Kamera', b.visual, 54);
       });
       addParagraph('Teks di Layar', v.onScreenText, 48);
       y -= 4;
     });
 
     addHeading('PAKET CAPTION, TAGAR & KOMENTAR SEMATAN');
-    addParagraph('Caption Video', project.caption || '');
-    addParagraph('Tagar Pencarian', project.hashtags || '');
-    addParagraph('Komentar Sematan (Pinned)', project.pinnedComment || '');
+    addParagraph('Caption Video', project.caption || '-');
+    addParagraph('Tagar Pencarian', project.hashtags || '-');
+    addParagraph('Komentar Sematan (Pinned)', project.pinnedComment || '-');
 
     if (cmds.length) pages.push(cmds);
     const blob = buildMultiPagePdf(pages);
@@ -193,14 +240,24 @@
   }
 
   // 2. Ekspor Kartu Contekan Syuting 9:16 untuk Galeri HP (.PNG 1080x1920)
-  function exportCueCardPng(project, creator, activeVarIndex = 0) {
+  async function exportCueCardPng(project, creator, activeVarIndex = 0) {
+    if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
+      try {
+        await document.fonts.ready;
+      } catch (e) {
+        // ignore font loading timeout
+      }
+    }
+
     return new Promise((resolve) => {
       const canvas = document.createElement('canvas');
       canvas.width = 1080;
       canvas.height = 1920;
       const ctx = canvas.getContext('2d');
 
-      const v = (project.variations && project.variations[activeVarIndex]) || (project.variations && project.variations[0]);
+      const v =
+        (project.variations && project.variations[activeVarIndex]) ||
+        (project.variations && project.variations[0]);
       const commRp = Math.round((Number(project.price) || 0) * ((Number(project.commissionPct) || 0) / 100));
 
       function roundRect(x, y, w, h, r, fill, stroke) {
@@ -222,35 +279,55 @@
         }
       }
 
-      function drawWrapped(text, x, y, maxWidth, lineHeight, font, color, maxLines = 4) {
+      function fitSingleLine(text, maxWidth, font) {
         ctx.font = font;
-        ctx.fillStyle = color;
-        const words = String(text || '').split(/\s+/);
+        const clean = String(text || '').replace(/\s+/g, ' ').trim();
+        if (!clean) return '';
+        if (ctx.measureText(clean).width <= maxWidth) return clean;
+        let trimmed = clean;
+        while (trimmed.length > 1 && ctx.measureText(trimmed + '...').width > maxWidth) {
+          trimmed = trimmed.slice(0, -1);
+        }
+        return trimmed.trim() + '...';
+      }
+
+      function layoutWrappedLines(text, maxWidth, font, maxLines = 4) {
+        ctx.font = font;
+        const clean = String(text || '').replace(/\s+/g, ' ').trim();
+        if (!clean) return [''];
+        const words = clean.split(' ');
+        const lines = [];
         let line = '';
-        let count = 0;
-        let curY = y;
         for (let i = 0; i < words.length; i++) {
           const test = line ? line + ' ' + words[i] : words[i];
           if (ctx.measureText(test).width > maxWidth && line) {
-            ctx.fillText(line, x, curY);
-            curY += lineHeight;
-            count++;
+            lines.push(line);
             line = words[i];
-            if (count >= maxLines - 1) {
+            if (lines.length >= maxLines - 1) {
               const rest = words.slice(i).join(' ');
-              let trimmed = rest;
-              while (ctx.measureText(trimmed + '...').width > maxWidth && trimmed.length > 0) {
-                trimmed = trimmed.slice(0, -1);
-              }
-              ctx.fillText(trimmed + (trimmed.length < rest.length ? '...' : ''), x, curY);
-              return curY + lineHeight;
+              lines.push(fitSingleLine(rest, maxWidth, font));
+              return lines;
             }
+          } else if (ctx.measureText(test).width > maxWidth && !line) {
+            lines.push(fitSingleLine(words[i], maxWidth, font));
+            if (lines.length >= maxLines) return lines;
           } else {
             line = test;
           }
         }
-        if (line) {
-          ctx.fillText(line, x, curY);
+        if (line && lines.length < maxLines) {
+          lines.push(fitSingleLine(line, maxWidth, font));
+        }
+        return lines.length ? lines : [''];
+      }
+
+      function drawWrapped(text, x, y, maxWidth, lineHeight, font, color, maxLines = 4) {
+        const lines = layoutWrappedLines(text, maxWidth, font, maxLines);
+        ctx.font = font;
+        ctx.fillStyle = color;
+        let curY = y;
+        for (const ln of lines) {
+          ctx.fillText(ln, x, curY);
           curY += lineHeight;
         }
         return curY;
@@ -260,89 +337,132 @@
       ctx.fillStyle = '#faf8f5';
       ctx.fillRect(0, 0, 1080, 1920);
 
+      // Measure header title & meta lines first so header height fits cleanly without overlap
+      const titleFont = '700 42px "DM Sans", sans-serif';
+      const metaFont = '500 23px "DM Sans", sans-serif';
+      const titleLines = layoutWrappedLines(project.productName || 'Produk Affiliate', 952, titleFont, 2);
+      const metaRaw = `${formatRp(project.price)}  •  Komisi ${formatRp(commRp)}/pcs  •  ${v ? v.title : 'Skrip Utama'}`;
+      const metaLines = layoutWrappedLines(metaRaw, 952, metaFont, 2);
+
+      const titleStartY = 148;
+      const afterTitleY = titleStartY + titleLines.length * 50;
+      const metaStartY = afterTitleY + 8;
+      const afterMetaY = metaStartY + metaLines.length * 32;
+      const headerH = Math.max(320, afterMetaY + 18);
+
       // Deep Teal Brand Header Band (#088177)
       ctx.fillStyle = '#088177';
-      ctx.fillRect(0, 0, 1080, 320);
+      ctx.fillRect(0, 0, 1080, headerH);
 
-      // Badge inside header
-      roundRect(64, 54, 420, 44, 6, '#d8edeb', null);
+      // Dynamic width badge inside header
+      const topBadgeLabel = 'CONTEKAN SYUTING 9:16  •  KOMISIKLIP';
+      ctx.font = '700 21px "DM Sans", sans-serif';
+      const topBadgeW = Math.min(952, Math.max(420, Math.ceil(ctx.measureText(topBadgeLabel).width + 44)));
+      roundRect(64, 48, topBadgeW, 44, 6, '#d8edeb', null);
       ctx.font = '700 21px "DM Sans", sans-serif';
       ctx.fillStyle = '#1b1b1b';
-      ctx.fillText('CONTEKAN SYUTING 9:16  •  KOMISIKLIP', 84, 83);
+      ctx.fillText(topBadgeLabel, 86, 77);
 
       // Product Title in Header
-      drawWrapped(project.productName, 64, 152, 952, 54, '700 44px "DM Sans", sans-serif', '#ffffff', 2);
+      ctx.font = titleFont;
+      ctx.fillStyle = '#ffffff';
+      titleLines.forEach((ln, i) => {
+        ctx.fillText(ln, 64, titleStartY + i * 50);
+      });
 
-      ctx.font = '500 24px "DM Sans", sans-serif';
+      // Wrapped Meta in Header
+      ctx.font = metaFont;
       ctx.fillStyle = '#d8edeb';
-      ctx.fillText(
-        `${formatRp(project.price)}  •  Komisi ${formatRp(commRp)}/pcs  •  ${v ? v.title : 'Skrip Utama'}`,
-        64,
-        282
-      );
+      metaLines.forEach((ln, i) => {
+        ctx.fillText(ln, 64, metaStartY + i * 32);
+      });
 
       // Timecoded Script Cards
-      let curY = 364;
+      let curY = headerH + 34;
       const blocks = v ? v.blocks : [];
       blocks.forEach((b, idx) => {
-        const cardH = 268;
+        const cardH = 266;
         roundRect(64, curY, 952, cardH, 24, '#ffffff', '#e9e9e9');
 
-        // Time badge
+        // Dynamic-width stage badge so stage label NEVER spills outside pill
         const badgeBg = idx === 0 ? '#088177' : '#d8edeb';
         const badgeFg = idx === 0 ? '#ffffff' : '#1b1b1b';
-        roundRect(96, curY + 28, 310, 42, 6, badgeBg, null);
-        ctx.font = '700 20px "DM Sans", sans-serif';
+        const badgeFont = '700 20px "DM Sans", sans-serif';
+        const rawBadgeLabel = `${b.time}  •  ${String(b.stage || '').toUpperCase()}`;
+        const badgeLabel = fitSingleLine(rawBadgeLabel, 844, badgeFont);
+        ctx.font = badgeFont;
+        const badgeW = Math.min(888, Math.max(310, Math.ceil(ctx.measureText(badgeLabel).width + 44)));
+
+        roundRect(96, curY + 24, badgeW, 42, 6, badgeBg, null);
+        ctx.font = badgeFont;
         ctx.fillStyle = badgeFg;
-        ctx.fillText(`${b.time}  •  ${b.stage.toUpperCase()}`, 114, curY + 56);
+        ctx.fillText(badgeLabel, 118, curY + 52);
 
-        // Spoken Script
-        const nextY = drawWrapped(`"${b.spoken}"`, 96, curY + 108, 888, 38, '700 28px "DM Sans", sans-serif', '#1b1b1b', 3);
+        // Spoken Script (max 3 lines)
+        const nextY = drawWrapped(
+          `"${b.spoken || ''}"`,
+          96,
+          curY + 102,
+          888,
+          35,
+          '700 27px "DM Sans", sans-serif',
+          '#1b1b1b',
+          3
+        );
 
-        // Visual direction footer line
-        ctx.fillStyle = '#088177';
-        ctx.font = '500 21px "DM Sans", sans-serif';
-        drawWrapped(`Kamera: ${b.visual}`, 96, Math.max(nextY + 12, curY + 224), 888, 28, '500 21px "DM Sans", sans-serif', '#088177', 1);
+        // Visual direction footer line (wrapped up to 2 lines within card)
+        drawWrapped(
+          `Kamera: ${b.visual || '-'}`,
+          96,
+          Math.max(nextY + 6, curY + 210),
+          888,
+          25,
+          '500 20px "DM Sans", sans-serif',
+          '#088177',
+          2
+        );
 
-        curY += cardH + 24;
+        curY += cardH + 20;
       });
 
       // Bottom Summary Box (On-Screen Text & Pinned Comment)
-      const remH = Math.max(240, 1840 - curY);
+      const remH = Math.max(210, 1838 - curY);
       roundRect(64, curY, 952, remH, 24, '#d8edeb', '#088177');
-      ctx.font = '700 23px "DM Sans", sans-serif';
+      ctx.font = '700 22px "DM Sans", sans-serif';
       ctx.fillStyle = '#1b1b1b';
-      ctx.fillText('TEKS LAYAR & KOMENTAR SEMATAN:', 96, curY + 48);
+      ctx.fillText('TEKS LAYAR & KOMENTAR SEMATAN:', 96, curY + 44);
 
       const afterOst = drawWrapped(
-        `Teks Layar: ${v ? v.onScreenText : ''}`,
+        `Teks Layar: ${v && v.onScreenText ? v.onScreenText : '-'}`,
         96,
-        curY + 90,
+        curY + 84,
         888,
-        34,
-        '500 24px "DM Sans", sans-serif',
+        32,
+        '500 23px "DM Sans", sans-serif',
         '#1b1b1b',
         2
       );
       drawWrapped(
-        `Pinned: ${project.pinnedComment || ''}`,
+        `Pinned: ${project.pinnedComment || '-'}`,
         96,
-        afterOst + 14,
+        afterOst + 10,
         888,
-        32,
-        '400 22px "DM Sans", sans-serif',
+        30,
+        '400 21px "DM Sans", sans-serif',
         '#1b1b1b',
         2
       );
 
-      // Footer credit
-      ctx.font = '500 20px "DM Sans", sans-serif';
-      ctx.fillStyle = '#1b1b1b';
-      ctx.fillText(
+      // Footer credit clamped within card width
+      const footerFont = '500 20px "DM Sans", sans-serif';
+      const footerLine = fitSingleLine(
         `Disusun di KomisiKlip Studio  •  ${creator.handle || '@kreator.affiliate'}`,
-        64,
-        1884
+        952,
+        footerFont
       );
+      ctx.font = footerFont;
+      ctx.fillStyle = '#1b1b1b';
+      ctx.fillText(footerLine, 64, 1884);
 
       canvas.toBlob((blob) => {
         const filename = `Contekan-9x16-${slugify(project.productName)}.png`;
@@ -362,17 +482,46 @@
       if (cmds.length) pages.push(cmds);
       cmds = [];
       if (isFirst) {
-        cmds.push('0.031 0.506 0.467 rg 0 760 595 82 re f');
+        const meta1 = wrapLines(
+          'Produk: ' + (project.productName || '-') + '  |  Ritme: ' + (project.postsPerDay || 2) + ' Video/Hari',
+          90
+        );
+        const meta2 = wrapLines(
+          'Kreator: ' + (creator.name || 'Kreator Affiliate') + '  |  Platform: ' + (project.platform || '-'),
+          92
+        );
+        const totalMeta = meta1.length + meta2.length;
+        const bandH = Math.max(82, 54 + totalMeta * 14);
+        const bandBottom = 842 - bandH;
+
+        cmds.push(`0.031 0.506 0.467 rg 0 ${bandBottom} 595 ${bandH} re f`);
         cmds.push('1 1 1 rg');
-        cmds.push(`BT /F2 16 Tf 44 806 Td (${sanitizePdfText('JADWAL KALENDER KONTEN AFFILIATE 30 HARI')}) Tj ET`);
-        cmds.push(`BT /F1 10 Tf 44 786 Td (${sanitizePdfText('Produk: ' + project.productName + '  |  Ritme: ' + (project.postsPerDay || 2) + ' Video/Hari')}) Tj ET`);
-        cmds.push(`BT /F1 9.5 Tf 44 770 Td (${sanitizePdfText('Kreator: ' + (creator.name || 'Kreator Affiliate') + '  |  Platform: ' + project.platform)}) Tj ET`);
-        y = 734;
+        cmds.push(`BT /F2 16 Tf 44 808 Td (${sanitizePdfText('JADWAL KALENDER KONTEN AFFILIATE 30 HARI')}) Tj ET`);
+        let hy = 788;
+        meta1.forEach((ln) => {
+          cmds.push(`BT /F1 10 Tf 44 ${hy} Td (${sanitizePdfText(ln)}) Tj ET`);
+          hy -= 14;
+        });
+        meta2.forEach((ln) => {
+          cmds.push(`BT /F1 9.5 Tf 44 ${hy} Td (${sanitizePdfText(ln)}) Tj ET`);
+          hy -= 13.5;
+        });
+        y = bandBottom - 26;
       } else {
-        cmds.push('0.031 0.506 0.467 rg 0 804 595 38 re f');
+        const contLines = wrapLines(
+          'Kalender 30 Hari KomisiKlip Studio - ' + (project.productName || ''),
+          84
+        );
+        const bandH = Math.max(38, 22 + contLines.length * 13);
+        const bandBottom = 842 - bandH;
+        cmds.push(`0.031 0.506 0.467 rg 0 ${bandBottom} 595 ${bandH} re f`);
         cmds.push('1 1 1 rg');
-        cmds.push(`BT /F2 10.5 Tf 44 818 Td (${sanitizePdfText('Kalender 30 Hari KomisiKlip Studio — ' + project.productName)}) Tj ET`);
-        y = 780;
+        let hy = 820;
+        contLines.forEach((ln) => {
+          cmds.push(`BT /F2 10.5 Tf 44 ${hy} Td (${sanitizePdfText(ln)}) Tj ET`);
+          hy -= 13;
+        });
+        y = bandBottom - 24;
       }
       cmds.push('0.106 0.106 0.106 rg');
     }
@@ -381,23 +530,37 @@
 
     const schedule = project.schedule30 || [];
     schedule.forEach((item) => {
-      const hookLines = wrapLines(item.hookIdea, 76);
-      const need = 28 + hookLines.length * 12;
+      const dayTitleLines = wrapLines(
+        `HARI ${String(item.day).padStart(2, '0')}  |  ${item.postTime}  |  ${item.pillar}`,
+        84
+      );
+      const hookLines = wrapLines('Hook: ' + (item.hookIdea || ''), 86);
+      const visualLines = wrapLines('Visual: ' + (item.visualCue || ''), 90);
+      const need = dayTitleLines.length * 13 + hookLines.length * 12 + visualLines.length * 11.5 + 14;
+
       if (y - need < 50) startNewPage(false);
 
-      cmds.push('0.914 0.914 0.914 rg 44 ' + (y - need + 8) + ' 507 0.8 re f');
       cmds.push('0.031 0.506 0.467 rg');
-      cmds.push(
-        `BT /F2 9.8 Tf 44 ${y} Td (${sanitizePdfText(`HARI ${String(item.day).padStart(2, '0')}  |  ${item.postTime}  |  ${item.pillar}`)}) Tj ET`
-      );
+      dayTitleLines.forEach((ln) => {
+        cmds.push(`BT /F2 9.8 Tf 44 ${y} Td (${sanitizePdfText(ln)}) Tj ET`);
+        y -= 13;
+      });
+
       cmds.push('0.106 0.106 0.106 rg');
-      y -= 13;
       hookLines.forEach((ln) => {
-        cmds.push(`BT /F1 9.3 Tf 52 ${y} Td (${sanitizePdfText('Hook: ' + ln)}) Tj ET`);
+        cmds.push(`BT /F1 9.3 Tf 52 ${y} Td (${sanitizePdfText(ln)}) Tj ET`);
         y -= 12;
       });
-      cmds.push(`BT /F1 8.8 Tf 52 ${y} Td (${sanitizePdfText('Visual: ' + item.visualCue)}) Tj ET`);
-      y -= 16;
+
+      cmds.push('0.29 0.29 0.29 rg');
+      visualLines.forEach((ln) => {
+        cmds.push(`BT /F1 8.8 Tf 52 ${y} Td (${sanitizePdfText(ln)}) Tj ET`);
+        y -= 11.5;
+      });
+
+      cmds.push(`0.914 0.914 0.914 rg 44 ${y + 4} 507 0.8 re f`);
+      cmds.push('0.106 0.106 0.106 rg');
+      y -= 8;
     });
 
     if (cmds.length) pages.push(cmds);
