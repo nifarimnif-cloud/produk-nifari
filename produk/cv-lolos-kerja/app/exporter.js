@@ -7,28 +7,140 @@
 
 export function formatRp(num) {
   const n = Math.round(Number(num) || 0);
-  return 'Rp ' + n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const neg = n < 0 ? '-' : '';
+  return neg + 'Rp ' + Math.abs(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
-function sanitizePdfText(str) {
+export function summarizeSkillsClean(skills, maxLen = 120) {
+  const s = String(skills || '').replace(/\s+/g, ' ').trim();
+  if (!s) return '';
+  if (s.length <= maxLen) return s;
+
+  let depth = 0;
+  let lastTopComma = -1;
+  let lastTopSpace = -1;
+  let lastAnySpace = -1;
+
+  for (let i = 0; i < Math.min(s.length, maxLen + 1); i++) {
+    const ch = s[i];
+    if (ch === '(') depth++;
+    else if (ch === ')' && depth > 0) depth--;
+
+    if (i <= maxLen) {
+      if (ch === ',' && depth === 0 && i >= 24) {
+        lastTopComma = i;
+      }
+      if (ch === ' ') {
+        lastAnySpace = i;
+        if (depth === 0 && i >= 24) lastTopSpace = i;
+      }
+    }
+  }
+
+  if (lastTopComma > 0) {
+    return s.slice(0, lastTopComma).trim();
+  }
+  if (lastTopSpace > 0) {
+    return s.slice(0, lastTopSpace).replace(/[,;:\s]+$/, '').trim();
+  }
+  if (lastAnySpace > 0) {
+    let cut = s.slice(0, lastAnySpace).replace(/[,;:\s]+$/, '').trim();
+    const opens = (cut.match(/\(/g) || []).length;
+    const closes = (cut.match(/\)/g) || []).length;
+    if (opens > closes) cut += ')'.repeat(opens - closes);
+    return cut;
+  }
+  return s.slice(0, maxLen).trim();
+}
+
+function normalizePdfAscii(str) {
   return String(str ?? '')
     .replace(/[\u2013\u2014]/g, '-')
     .replace(/[\u2018\u2019]/g, "'")
     .replace(/[\u201C\u201D]/g, '"')
     .replace(/\u2022/g, '-')
     .replace(/\u00B7/g, '|')
-    .replace(/[^\x20-\x7E]/g, ' ')
+    .replace(/\u2026/g, '...')
+    .replace(/[^\x20-\x7E]/g, ' ');
+}
+
+function sanitizePdfText(str) {
+  return normalizePdfAscii(str)
     .replace(/\\/g, '\\\\')
     .replace(/\(/g, '\\(')
     .replace(/\)/g, '\\)');
+}
+
+function estimatePdfWidthPt(str, fontSize, bold = false) {
+  const clean = normalizePdfAscii(str);
+  let units = 0;
+  for (let i = 0; i < clean.length; i++) {
+    const ch = clean[i];
+    if ('ilI.,:;\'!| '.includes(ch)) units += 0.29;
+    else if ('()[]-/'.includes(ch)) units += 0.35;
+    else if ('mw'.includes(ch)) units += 0.8;
+    else if ('MW'.includes(ch)) units += 0.9;
+    else if (ch >= 'A' && ch <= 'Z') units += 0.69;
+    else units += 0.56;
+  }
+  return units * fontSize * (bold ? 1.07 : 1.0);
+}
+
+function wrapPdfByWidthPt(text, maxWidthPt, fontSize, bold = false) {
+  const paragraphs = normalizePdfAscii(text).split(/\n+/);
+  const out = [];
+  for (const para of paragraphs) {
+    const rawWords = para.trim().split(/\s+/).filter(Boolean);
+    if (!rawWords.length) continue;
+    const words = [];
+    for (const rw of rawWords) {
+      if (estimatePdfWidthPt(rw, fontSize, bold) <= maxWidthPt) {
+        words.push(rw);
+      } else {
+        let chunk = '';
+        for (let i = 0; i < rw.length; i++) {
+          const next = chunk + rw[i];
+          if (chunk && estimatePdfWidthPt(next, fontSize, bold) > maxWidthPt) {
+            words.push(chunk);
+            chunk = rw[i];
+          } else {
+            chunk = next;
+          }
+        }
+        if (chunk) words.push(chunk);
+      }
+    }
+    let cur = '';
+    for (const w of words) {
+      const candidate = cur ? cur + ' ' + w : w;
+      if (!cur || estimatePdfWidthPt(candidate, fontSize, bold) <= maxWidthPt) {
+        cur = candidate;
+      } else {
+        out.push(cur);
+        cur = w;
+      }
+    }
+    if (cur) out.push(cur);
+  }
+  return out.length ? out : [''];
 }
 
 function wrapPlainText(text, maxChars) {
   const paragraphs = String(text || '').split(/\n+/);
   const out = [];
   for (const para of paragraphs) {
-    const words = para.trim().split(/\s+/).filter(Boolean);
-    if (!words.length) continue;
+    const rawWords = para.trim().split(/\s+/).filter(Boolean);
+    if (!rawWords.length) continue;
+    const words = [];
+    for (const rw of rawWords) {
+      if (rw.length <= maxChars) {
+        words.push(rw);
+      } else {
+        for (let i = 0; i < rw.length; i += maxChars) {
+          words.push(rw.slice(i, i + maxChars));
+        }
+      }
+    }
     let cur = words[0];
     for (let i = 1; i < words.length; i++) {
       if ((cur + ' ' + words[i]).length <= maxChars) {
@@ -98,6 +210,7 @@ export function exportAtsCvPdf(cv) {
   let y = 788;
   const leftX = 48;
   const rightX = 547;
+  const bodyWidthPt = rightX - leftX;
 
   const ensureSpace = (needed) => {
     if (y - needed < 52) {
@@ -121,24 +234,40 @@ export function exportAtsCvPdf(cv) {
   };
 
   // Top Coinbase Blue Blueprint Rule
-  curPage.push(`0.00 0.32 1.00 rg ${leftX} 804 ${rightX - leftX} 4 re f`);
+  curPage.push(`0.00 0.32 1.00 rg ${leftX} 804 ${bodyWidthPt} 4 re f`);
 
-  // Candidate Full Name & Target Position
-  addText(cv.fullName || 'Nama Lengkap Pelamar', leftX, y, 'F2', 20, '0.04 0.04 0.05');
-  y -= 18;
-  addText(cv.targetPosition || 'Posisi yang Dilamar', leftX, y, 'F2', 11.5, '0.00 0.32 1.00');
-  y -= 15;
+  // Candidate Full Name & Target Position (wrapped safely within A4 margins)
+  const nameLines = wrapPdfByWidthPt(cv.fullName || 'Nama Lengkap Pelamar', bodyWidthPt, 20, true);
+  nameLines.forEach((ln, idx) => {
+    ensureSpace(22);
+    addText(ln, leftX, y, 'F2', 20, '0.04 0.04 0.05');
+    y -= idx === nameLines.length - 1 ? 18 : 22;
+  });
 
-  const contactParts = [cv.city, cv.phone, cv.email, cv.portfolio].filter(Boolean).join('  |  ');
-  for (const line of wrapPlainText(contactParts, 96)) {
-    addText(line, leftX, y, 'F1', 9.5, '0.35 0.38 0.43');
-    y -= 13;
+  const posLines = wrapPdfByWidthPt(cv.targetPosition || 'Posisi yang Dilamar', bodyWidthPt, 11.5, true);
+  posLines.forEach((ln) => {
+    ensureSpace(16);
+    addText(ln, leftX, y, 'F2', 11.5, '0.00 0.32 1.00');
+    y -= 15;
+  });
+
+  const contactParts = [cv.city, cv.phone, cv.email, cv.portfolio]
+    .map((x) => String(x || '').trim())
+    .filter(Boolean)
+    .join('  |  ');
+  if (contactParts) {
+    for (const line of wrapPdfByWidthPt(contactParts, bodyWidthPt, 9.5, false)) {
+      ensureSpace(14);
+      addText(line, leftX, y, 'F1', 9.5, '0.35 0.38 0.43');
+      y -= 13;
+    }
   }
 
   // Ringkasan Profesional
-  if (cv.summary) {
+  const cleanSummary = String(cv.summary || '').trim();
+  if (cleanSummary) {
     addSectionHeader('RINGKASAN PROFESIONAL');
-    for (const line of wrapPlainText(cv.summary, 92)) {
+    for (const line of wrapPdfByWidthPt(cleanSummary, bodyWidthPt, 10, false)) {
       ensureSpace(14);
       addText(line, leftX, y, 'F1', 10, '0.12 0.13 0.15');
       y -= 14;
@@ -146,24 +275,51 @@ export function exportAtsCvPdf(cv) {
   }
 
   // Pengalaman Kerja & Organisasi
-  if (Array.isArray(cv.experiences) && cv.experiences.length > 0) {
+  const validExps = (Array.isArray(cv.experiences) ? cv.experiences : []).filter(
+    (e) =>
+      String(e?.role || '').trim() ||
+      String(e?.company || '').trim() ||
+      (Array.isArray(e?.bullets) && e.bullets.some((b) => String(b || '').trim()))
+  );
+
+  if (validExps.length > 0) {
     addSectionHeader('PENGALAMAN KERJA & PROYEK RELEVAN');
-    for (const exp of cv.experiences) {
-      ensureSpace(40);
-      addText(exp.role || 'Jabatan / Peran', leftX, y, 'F2', 10.5, '0.04 0.04 0.05');
-      if (exp.period) {
-        const periodSafe = sanitizePdfText(exp.period);
-        const approxW = periodSafe.length * 5.2;
-        addText(exp.period, Math.max(340, rightX - approxW), y, 'F2', 9.5, '0.35 0.38 0.43');
+    for (const exp of validExps) {
+      const periodStr = String(exp.period || '').trim();
+      let periodX = rightX;
+      let roleMaxWidth = bodyWidthPt;
+
+      if (periodStr) {
+        const periodW = estimatePdfWidthPt(periodStr, 9.5, true);
+        periodX = Math.max(352, Math.round(rightX - periodW));
+        roleMaxWidth = Math.max(240, periodX - leftX - 14);
       }
-      y -= 13;
-      if (exp.company) {
-        addText(exp.company, leftX, y, 'F1', 9.8, '0.35 0.38 0.43');
-        y -= 14;
+
+      const roleLines = wrapPdfByWidthPt(String(exp.role || '').trim() || 'Jabatan / Peran', roleMaxWidth, 10.5, true);
+      ensureSpace(roleLines.length * 13.5 + 24);
+
+      if (periodStr) {
+        addText(periodStr, periodX, y, 'F2', 9.5, '0.35 0.38 0.43');
       }
-      const bullets = Array.isArray(exp.bullets) ? exp.bullets : [];
+      roleLines.forEach((rLine) => {
+        addText(rLine, leftX, y, 'F2', 10.5, '0.04 0.04 0.05');
+        y -= 13.5;
+      });
+
+      const compStr = String(exp.company || '').trim();
+      if (compStr) {
+        for (const cLine of wrapPdfByWidthPt(compStr, bodyWidthPt, 9.8, false)) {
+          ensureSpace(14);
+          addText(cLine, leftX, y, 'F1', 9.8, '0.35 0.38 0.43');
+          y -= 14;
+        }
+      }
+
+      const bullets = (Array.isArray(exp.bullets) ? exp.bullets : [])
+        .map((b) => String(b || '').trim())
+        .filter(Boolean);
       for (const b of bullets) {
-        const wrapped = wrapPlainText(b, 86);
+        const wrapped = wrapPdfByWidthPt(b, bodyWidthPt - 22, 9.8, false);
         wrapped.forEach((wLine, idx) => {
           ensureSpace(14);
           const prefix = idx === 0 ? '-  ' : '   ';
@@ -176,9 +332,10 @@ export function exportAtsCvPdf(cv) {
   }
 
   // Pendidikan
-  if (cv.education) {
+  const cleanEdu = String(cv.education || '').trim();
+  if (cleanEdu) {
     addSectionHeader('PENDIDIKAN');
-    for (const line of wrapPlainText(cv.education, 90)) {
+    for (const line of wrapPdfByWidthPt(cleanEdu, bodyWidthPt, 10, true)) {
       ensureSpace(14);
       addText(line, leftX, y, 'F2', 10, '0.04 0.04 0.05');
       y -= 14;
@@ -186,9 +343,10 @@ export function exportAtsCvPdf(cv) {
   }
 
   // Keahlian Utama
-  if (cv.skills) {
+  const cleanSkills = String(cv.skills || '').trim();
+  if (cleanSkills) {
     addSectionHeader('KEAHLIAN UTAMA & PERANGKAT KERJA');
-    for (const line of wrapPlainText(cv.skills, 92)) {
+    for (const line of wrapPdfByWidthPt(cleanSkills, bodyWidthPt, 10, false)) {
       ensureSpace(14);
       addText(line, leftX, y, 'F1', 10, '0.12 0.13 0.15');
       y -= 14;
@@ -196,9 +354,10 @@ export function exportAtsCvPdf(cv) {
   }
 
   // Sertifikasi & Pelatihan
-  if (cv.certifications) {
+  const cleanCerts = String(cv.certifications || '').trim();
+  if (cleanCerts) {
     addSectionHeader('SERTIFIKASI & PELATIHAN PENDUKUNG');
-    for (const line of wrapPlainText(cv.certifications, 92)) {
+    for (const line of wrapPdfByWidthPt(cleanCerts, bodyWidthPt, 10, false)) {
       ensureSpace(14);
       addText(line, leftX, y, 'F1', 10, '0.12 0.13 0.15');
       y -= 14;
@@ -209,66 +368,95 @@ export function exportAtsCvPdf(cv) {
 }
 
 /* ==========================================================================
-   2. EKSPOR SURAT LAMARAN KERJA RESMI (.PDF A4)
+   2. EKSPOR SURAT LAMARAN KERJA RESMI (.PDF A4 — MULTI-PAGE SAFE)
    ========================================================================== */
 export function exportCoverLetterPdf(cv) {
-  const cmds = [];
+  const pages = [[]];
+  let curPage = pages[0];
   let y = 784;
   const leftX = 52;
   const rightX = 543;
+  const bodyWidthPt = rightX - leftX;
 
-  const addText = (txt, x, yPos, font = 'F1', size = 10.5, rgb = '0.08 0.09 0.11') => {
-    cmds.push(`BT /${font} ${size} Tf ${rgb} rg ${x} ${yPos} Td (${sanitizePdfText(txt)}) Tj ET`);
+  const ensureSpace = (needed) => {
+    if (y - needed < 54) {
+      curPage = [];
+      pages.push(curPage);
+      y = 784;
+      curPage.push(`0.00 0.32 1.00 rg ${leftX} 802 ${bodyWidthPt} 3 re f`);
+    }
   };
 
-  const addParagraph = (txt, spacingAfter = 10) => {
-    const lines = wrapPlainText(txt, 86);
+  const addText = (txt, x, yPos, font = 'F1', size = 10.5, rgb = '0.08 0.09 0.11') => {
+    curPage.push(`BT /${font} ${size} Tf ${rgb} rg ${x} ${yPos} Td (${sanitizePdfText(txt)}) Tj ET`);
+  };
+
+  const addWrappedLines = (txt, font = 'F1', size = 10.5, rgb = '0.12 0.13 0.15', lineStep = 15, spacingAfter = 0, xOffset = 0) => {
+    const bold = font === 'F2';
+    const lines = wrapPdfByWidthPt(txt, bodyWidthPt - xOffset, size, bold);
     for (const ln of lines) {
-      addText(ln, leftX, y, 'F1', 10.5, '0.12 0.13 0.15');
-      y -= 15;
+      ensureSpace(lineStep + 2);
+      addText(ln, leftX + xOffset, y, font, size, rgb);
+      y -= lineStep;
     }
     y -= spacingAfter;
   };
 
-  cmds.push(`0.00 0.32 1.00 rg ${leftX} 802 ${rightX - leftX} 4 re f`);
+  const addParagraph = (txt, spacingAfter = 10) => {
+    addWrappedLines(txt, 'F1', 10.5, '0.12 0.13 0.15', 15, spacingAfter, 0);
+  };
 
-  addText(cv.fullName || 'Pelamar Kerja', leftX, y, 'F2', 16, '0.04 0.04 0.05');
-  y -= 15;
-  addText([cv.city, cv.phone, cv.email].filter(Boolean).join('  |  '), leftX, y, 'F1', 9.5, '0.35 0.38 0.43');
-  y -= 12;
-  cmds.push(`0.85 0.86 0.88 RG 0.8 w ${leftX} ${y} m ${rightX} ${y} l S`);
-  y -= 24;
+  curPage.push(`0.00 0.32 1.00 rg ${leftX} 802 ${bodyWidthPt} 4 re f`);
 
-  addText(`${cv.city || 'Jakarta'}, ${cv.dateLabel || '28 Oktober 2026'}`, leftX, y, 'F1', 10.5);
-  y -= 20;
-  addText(`Perihal: Lamaran Pekerjaan — Posisi ${cv.targetPosition || 'Staf Profesional'}`, leftX, y, 'F2', 10.5);
-  y -= 24;
+  addWrappedLines(cv.fullName || 'Pelamar Kerja', 'F2', 16, '0.04 0.04 0.05', 18, 0, 0);
+  const headerContacts = [cv.city, cv.phone, cv.email, cv.portfolio]
+    .map((s) => String(s || '').trim())
+    .filter(Boolean)
+    .join('  |  ');
+  if (headerContacts) {
+    addWrappedLines(headerContacts, 'F1', 9.5, '0.35 0.38 0.43', 13, 0, 0);
+  }
+  y -= 4;
+  curPage.push(`0.85 0.86 0.88 RG 0.8 w ${leftX} ${y} m ${rightX} ${y} l S`);
+  y -= 22;
 
+  addWrappedLines(`${cv.city || 'Jakarta'}, ${cv.dateLabel || '28 Oktober 2026'}`, 'F1', 10.5, '0.08 0.09 0.11', 15, 6, 0);
+  addWrappedLines(`Perihal: Lamaran Pekerjaan — Posisi ${cv.targetPosition || 'Staf Profesional'}`, 'F2', 10.5, '0.08 0.09 0.11', 15, 10, 0);
+
+  ensureSpace(48);
   addText('Kepada Yth.', leftX, y, 'F1', 10.5);
   y -= 15;
-  addText(`Bapak/Ibu Pimpinan & Tim HRD ${cv.targetCompany || 'Perusahaan Tujuan'}`, leftX, y, 'F2', 10.5);
-  y -= 15;
+  addWrappedLines(`Bapak/Ibu Pimpinan & Tim HRD ${cv.targetCompany || 'Perusahaan Tujuan'}`, 'F2', 10.5, '0.08 0.09 0.11', 15, 0, 0);
+  ensureSpace(20);
   addText('Di Tempat', leftX, y, 'F1', 10.5);
   y -= 24;
 
+  ensureSpace(24);
   addText('Dengan hormat,', leftX, y, 'F1', 10.5);
   y -= 18;
 
+  const fullName = cv.fullName || 'Pelamar Kerja';
+  const targetPos = cv.targetPosition || 'Staf Profesional';
+  const targetComp = cv.targetCompany || 'Perusahaan Tujuan';
+
   addParagraph(
-    `Melalui surat ini, saya ${cv.fullName} bermaksud mengajukan lamaran pekerjaan untuk mengisi posisi ${cv.targetPosition} di ${cv.targetCompany}. Bekal pengalaman, ketelitian kerja, serta penguasaan perangkat pendukung yang saya miliki selaras dengan kebutuhan tim Bapak/Ibu.`
+    `Melalui surat ini, saya ${fullName} bermaksud mengajukan lamaran pekerjaan untuk mengisi posisi ${targetPos} di ${targetComp}. Bekal pengalaman, ketelitian kerja, serta penguasaan perangkat pendukung yang saya miliki selaras dengan kebutuhan tim Bapak/Ibu.`
   );
 
-  if (cv.summary) {
-    addParagraph(cv.summary);
+  const cleanSummary = String(cv.summary || '').trim();
+  if (cleanSummary) {
+    addParagraph(cleanSummary);
   }
 
-  const firstExp = Array.isArray(cv.experiences) && cv.experiences[0];
-  if (firstExp && Array.isArray(firstExp.bullets) && firstExp.bullets.length > 0) {
+  const firstExp = Array.isArray(cv.experiences) && cv.experiences.find((e) => Array.isArray(e?.bullets) && e.bullets.length > 0);
+  if (firstExp) {
+    ensureSpace(32);
     addText('Beberapa kontribusi nyata yang pernah saya capai antara lain:', leftX, y, 'F2', 10.5);
     y -= 16;
     for (const b of firstExp.bullets.slice(0, 3)) {
-      const wrapped = wrapPlainText(b, 82);
+      const wrapped = wrapPdfByWidthPt(b, bodyWidthPt - 24, 10.2, false);
       wrapped.forEach((ln, idx) => {
+        ensureSpace(16);
         addText((idx === 0 ? '-  ' : '   ') + ln, leftX + 6, y, 'F1', 10.2);
         y -= 14.5;
       });
@@ -276,22 +464,33 @@ export function exportCoverLetterPdf(cv) {
     y -= 10;
   }
 
-  addParagraph(
-    `Sebagai bahan pertimbangan lebih lanjut, bersama surat ini saya lampirkan Curriculum Vitae (CV) terbaru yang memuat rincian riwayat pengalaman, pendidikan, serta keahlian utama (${(cv.skills || '').slice(0, 120)}).`
-  );
+  const skillSummary = summarizeSkillsClean(cv.skills, 120);
+  const attachText = skillSummary
+    ? `Sebagai bahan pertimbangan lebih lanjut, bersama surat ini saya lampirkan Curriculum Vitae (CV) terbaru yang memuat rincian riwayat pengalaman, pendidikan, serta keahlian utama (${skillSummary}).`
+    : 'Sebagai bahan pertimbangan lebih lanjut, bersama surat ini saya lampirkan Curriculum Vitae (CV) terbaru yang memuat rincian riwayat pengalaman, pendidikan, serta keahlian pendukung yang relevan.';
+  addParagraph(attachText);
 
   addParagraph(
-    `Besar harapan saya untuk memperoleh kesempatan wawancara guna menjelaskan bagaimana saya dapat segera berkontribusi positif bagi ${cv.targetCompany}. Atas waktu dan perhatian Bapak/Ibu, saya ucapkan terima kasih.`
+    `Besar harapan saya untuk memperoleh kesempatan wawancara guna menjelaskan bagaimana saya dapat segera berkontribusi positif bagi ${targetComp}. Atas waktu dan perhatian Bapak/Ibu, saya ucapkan terima kasih.`
   );
 
-  y -= 12;
+  const footerContact = [cv.phone, cv.portfolio]
+    .map((s) => String(s || '').trim())
+    .filter(Boolean)
+    .join('  |  ');
+  const footerContactLines = footerContact ? wrapPdfByWidthPt(footerContact, bodyWidthPt, 9.5, false) : [];
+  ensureSpace(76 + footerContactLines.length * 13);
+
+  y -= 10;
   addText('Hormat saya,', leftX, y, 'F1', 10.5);
-  y -= 44;
-  addText(cv.fullName || 'Nama Lengkap', leftX, y, 'F2', 11);
-  y -= 14;
-  addText(`${cv.phone || ''} ${cv.portfolio ? ' | ' + cv.portfolio : ''}`, leftX, y, 'F1', 9.5, '0.35 0.38 0.43');
+  y -= 42;
+  addWrappedLines(fullName, 'F2', 11, '0.04 0.04 0.05', 14, 0, 0);
+  footerContactLines.forEach((ln) => {
+    addText(ln, leftX, y, 'F1', 9.5, '0.35 0.38 0.43');
+    y -= 13;
+  });
 
-  return buildCleanA4Pdf([cmds]);
+  return buildCleanA4Pdf(pages);
 }
 
 /* ==========================================================================
@@ -407,33 +606,55 @@ export function exportAtsCvDocx(cv) {
       </w:r>
     </w:p>`;
 
-  const expXml = (cv.experiences || [])
+  const validExps = (cv.experiences || []).filter(
+    (e) =>
+      String(e?.role || '').trim() ||
+      String(e?.company || '').trim() ||
+      (Array.isArray(e?.bullets) && e.bullets.some((b) => String(b || '').trim()))
+  );
+
+  const expXml = validExps
     .map((e) => {
-      const head = p(`${e.role}  |  ${e.period || ''}`, true, 22, '0A0B0D', 40);
-      const comp = p(e.company || '', false, 20, '5B616E', 80);
-      const buls = (e.bullets || []).map((b) => p(`• ${b}`, false, 20, '0A0B0D', 70)).join('');
+      const roleStr = String(e.role || '').trim() || 'Jabatan / Peran';
+      const periodStr = String(e.period || '').trim();
+      const headLine = periodStr ? `${roleStr}  |  ${periodStr}` : roleStr;
+      const head = p(headLine, true, 22, '0A0B0D', 40);
+      const compStr = String(e.company || '').trim();
+      const comp = compStr ? p(compStr, false, 20, '5B616E', 80) : '';
+      const buls = (e.bullets || [])
+        .map((b) => String(b || '').trim())
+        .filter(Boolean)
+        .map((b) => p(`• ${b}`, false, 20, '0A0B0D', 70))
+        .join('');
       return head + comp + buls;
     })
     .join('');
 
-  const contactStr = [cv.city, cv.phone, cv.email, cv.portfolio].filter(Boolean).join('  |  ');
+  const contactStr = [cv.city, cv.phone, cv.email, cv.portfolio]
+    .map((s) => String(s || '').trim())
+    .filter(Boolean)
+    .join('  |  ');
+
+  const cleanSummary = String(cv.summary || '').trim();
+  const cleanEdu = String(cv.education || '').trim();
+  const cleanSkills = String(cv.skills || '').trim();
+  const cleanCerts = String(cv.certifications || '').trim();
+
+  const sectionsXml = [
+    p(cv.fullName || 'Nama Lengkap Pelamar', true, 36, '0A0B0D', 60),
+    p(cv.targetPosition || 'Posisi Target', true, 24, '0052FF', 80),
+    contactStr ? p(contactStr, false, 19, '5B616E', 180) : '',
+    cleanSummary ? p('RINGKASAN PROFESIONAL', true, 22, '0052FF', 80) + p(cleanSummary, false, 20, '0A0B0D', 180) : '',
+    expXml ? p('PENGALAMAN KERJA & PROYEK RELEVAN', true, 22, '0052FF', 100) + expXml : '',
+    cleanEdu ? p('PENDIDIKAN', true, 22, '0052FF', 80) + p(cleanEdu, true, 20, '0A0B0D', 160) : '',
+    cleanSkills ? p('KEAHLIAN UTAMA & PERANGKAT KERJA', true, 22, '0052FF', 80) + p(cleanSkills, false, 20, '0A0B0D', 160) : '',
+    cleanCerts ? p('SERTIFIKASI & PELATIHAN PENDUKUNG', true, 22, '0052FF', 80) + p(cleanCerts, false, 20, '0A0B0D', 120) : ''
+  ].join('');
 
   const docXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:body>
-    ${p(cv.fullName || 'Nama Lengkap Pelamar', true, 36, '0A0B0D', 60)}
-    ${p(cv.targetPosition || 'Posisi Target', true, 24, '0052FF', 80)}
-    ${p(contactStr, false, 19, '5B616E', 180)}
-    ${p('RINGKASAN PROFESIONAL', true, 22, '0052FF', 80)}
-    ${p(cv.summary || '', false, 20, '0A0B0D', 180)}
-    ${p('PENGALAMAN KERJA & PROYEK RELEVAN', true, 22, '0052FF', 100)}
-    ${expXml}
-    ${p('PENDIDIKAN', true, 22, '0052FF', 80)}
-    ${p(cv.education || '', true, 20, '0A0B0D', 160)}
-    ${p('KEAHLIAN UTAMA & PERANGKAT KERJA', true, 22, '0052FF', 80)}
-    ${p(cv.skills || '', false, 20, '0A0B0D', 160)}
-    ${p('SERTIFIKASI & PELATIHAN PENDUKUNG', true, 22, '0052FF', 80)}
-    ${p(cv.certifications || '', false, 20, '0A0B0D', 120)}
+    ${sectionsXml}
     <w:sectPr>
       <w:pgSz w:w="11906" w:h="16838"/>
       <w:pgMar w:top="1000" w:right="1000" w:bottom="1000" w:left="1000"/>

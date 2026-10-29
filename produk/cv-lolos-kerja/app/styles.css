@@ -298,6 +298,31 @@ html, body {
   outline: 2px solid rgba(0, 82, 255, 0.2);
 }
 
+.field input.input-error,
+.field select.input-error,
+.field textarea.input-error {
+  border-color: var(--color-negative-red);
+  outline: 2px solid rgba(240, 97, 109, 0.24);
+}
+
+.mobile-drawer-close {
+  display: none;
+  margin-left: auto;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-tags);
+  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-cloud);
+  color: var(--text-primary);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 .field textarea {
   min-height: 86px;
   resize: vertical;
@@ -850,6 +875,9 @@ html, body {
   }
   .sidebar.open {
     left: 0;
+  }
+  .mobile-drawer-close {
+    display: inline-flex;
   }
   .drawer-overlay.open {
     display: block;

@@ -773,7 +773,7 @@
 
         <div style="background:#141519;border-radius:16px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
           <span style="font-size:13px;color:#b1b7c3;">Rentang Buka Negosiasi Gaji Aman:</span>
-          <strong style="font-size:16px;color:#27ad75;" id="hero-salary-range">Rp 7.800.000 – Rp 8.600.000</strong>
+          <strong style="font-size:16px;color:#27ad75;" id="hero-salary-range">Rp 8.400.000 – Rp 9.300.000</strong>
         </div>
       </div>
     </div>
@@ -810,7 +810,7 @@
               </div>
               <span class="pill-tag green">Teks PDF Asli · Mudah Dipindai ATS</span>
             </div>
-            <p style="font-size:13px;color:#5b616e;margin-bottom:14px;">Jakarta Selatan  |  0812-8450-9921  |  anisa.rahmawati@email.com  |  linkedin.com/in/anisarahmawati</p>
+            <p style="font-size:13px;color:#5b616e;margin-bottom:14px;">Jakarta Selatan  |  0812-0000-0000  |  anisa.rahmawati@email.com  |  linkedin.com/in/anisarahmawati</p>
 
             <div style="font-size:11.5px;font-weight:700;color:#0052ff;letter-spacing:0.04em;margin-bottom:6px;">RINGKASAN PROFESIONAL</div>
             <p style="font-size:13.5px;line-height:1.55;margin-bottom:14px;">
@@ -1010,11 +1010,11 @@
             </div>
 
             <div style="background:#141519;border-radius:16px;padding:16px;margin-bottom:14px;">
-              <span style="font-size:12px;color:#8a919e;display:block;">RENTANG BUKA NEGO GAJI AMAN (+18% s/d +28%):</span>
+              <span style="font-size:12px;color:#8a919e;display:block;">RENTANG BUKA NEGO GAJI AMAN (1–3 THN · JABODETABEK):</span>
               <div style="font-family:var(--font-display);font-size:24px;font-weight:700;color:#27ad75;margin-top:4px;" id="demo-out-range">
-                Rp 7.700.000 – Rp 8.400.000
+                Rp 8.400.000 – Rp 9.300.000
               </div>
-              <span style="font-size:12.5px;color:#b1b7c3;" id="demo-out-floor">Batas bawah penerimaan: Rp 7.300.000</span>
+              <span style="font-size:12.5px;color:#b1b7c3;" id="demo-out-floor">Batas bawah ikhlas: Rp 7.900.000 / bulan</span>
             </div>
 
             <div style="margin-bottom:18px;">
@@ -1334,13 +1334,17 @@
 
           <div id="checkout-box" style="display:none;margin-top:18px;background:#f7f8f9;border-radius:16px;padding:18px;">
             <span class="pill-tag green" style="margin-bottom:8px;">Pesanan Siap Dikonfirmasi</span>
-            <p id="checkout-text" style="font-size:14px;color:#0a0b0d;line-height:1.5;margin-bottom:14px;"></p>
-            <div style="display:flex;flex-wrap:wrap;gap:10px;">
-              <a id="checkout-wa-btn" href="#" target="_blank" rel="noopener" class="btn-primary btn-sm" style="flex:1;">
-                Konfirmasi via WhatsApp
+            <p id="checkout-text" style="font-size:14px;color:#0a0b0d;line-height:1.5;margin-bottom:10px;"></p>
+            <textarea id="checkout-detail-box" rows="5" readonly style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #dedfe2;background:#ffffff;color:#0a0b0d;font-family:var(--font-sans);font-size:12.5px;line-height:1.45;margin-bottom:12px;resize:none;"></textarea>
+            <div style="display:grid;gap:8px;">
+              <a id="checkout-mail-btn" href="mailto:nifarimnif@gmail.com" class="btn-primary btn-sm" style="width:100%;">
+                Kirim Konfirmasi &amp; Klaim Kode Akses via Email
               </a>
-              <a href="https://nifari-cv-lolos-kerja-app.pages.dev" target="_blank" rel="noopener" class="btn-secondary-light btn-sm" style="flex:1;">
-                Masuk Ruang Kerja
+              <button type="button" id="checkout-copy-btn" class="btn-secondary-light btn-sm" style="width:100%;">
+                Salin Rincian Pesanan
+              </button>
+              <a href="https://nifari-cv-lolos-kerja-app.pages.dev" target="_blank" rel="noopener" style="font-size:13.5px;font-weight:600;color:#0052ff;text-align:center;margin-top:4px;text-decoration:underline;">
+                Sudah punya Kode Akses? Masuk Ruang Kerja &rarr;
               </a>
             </div>
           </div>
@@ -1487,10 +1491,10 @@
         {
           name: 'Anisa Rahmawati',
           role: 'Staf Administrasi & Operasional',
-          ats: 'Skor ATS: 98% Lolos',
-          pct: '98%',
+          ats: 'Skor ATS: 100% Lolos',
+          pct: '100%',
           bullet: '"Mengelola verifikasi 85 faktur & surat jalan harian di Excel dengan akurasi 99%, mempercepat penagihan piutang dari 14 hari menjadi 7 hari kerja."',
-          salary: 'Rp 7.800.000 – Rp 8.600.000'
+          salary: 'Rp 8.400.000 – Rp 9.300.000'
         },
         {
           name: 'Dimas Setiawan',
@@ -1627,14 +1631,15 @@
         const comp = elComp.value.trim() || 'Perusahaan Tujuan';
         const base = Number(elSal.value) || 6500000;
 
-        const low = Math.ceil((base * 1.19) / 100000) * 100000;
-        const high = Math.ceil((base * 1.29) / 100000) * 100000;
-        const floor = Math.ceil((base * 1.12) / 100000) * 100000;
+        const rawTarget = base * 1.22 * 1.05;
+        const low = Math.ceil(rawTarget / 100000) * 100000;
+        const high = Math.ceil((rawTarget * 1.11) / 100000) * 100000;
+        const floor = Math.ceil((low * 0.93) / 100000) * 100000;
 
         document.getElementById('demo-sal-val').textContent = formatRp(base);
         document.getElementById('demo-out-pos').textContent = d.pos;
         document.getElementById('demo-out-range').textContent = formatRp(low) + ' – ' + formatRp(high);
-        document.getElementById('demo-out-floor').textContent = 'Batas bawah penerimaan: ' + formatRp(floor);
+        document.getElementById('demo-out-floor').textContent = 'Batas bawah ikhlas: ' + formatRp(floor) + ' / bulan';
 
         let ans = '';
         if (elHrQ.value === 'ask-sal') {
@@ -1660,7 +1665,14 @@
       }
 
       function wrapTxt(str, max) {
-        const words = String(str || '').split(/\s+/).filter(Boolean);
+        const rawWords = String(str || '').split(/\s+/).filter(Boolean);
+        const words = [];
+        rawWords.forEach((rw) => {
+          if (rw.length <= max) words.push(rw);
+          else {
+            for (let k = 0; k < rw.length; k += max) words.push(rw.slice(k, k + max));
+          }
+        });
         const lines = [];
         let cur = words[0] || '';
         for (let i = 1; i < words.length; i++) {
@@ -1668,7 +1680,7 @@
           else { lines.push(cur); cur = words[i]; }
         }
         if (cur) lines.push(cur);
-        return lines;
+        return lines.length ? lines : [''];
       }
 
       function generateSampleCvPdfBlob(st) {
@@ -1676,12 +1688,21 @@
         let y = 785;
         const txt = (t, x, yp, f, sz, rgb) => cmds.push('BT /' + f + ' ' + sz + ' Tf ' + rgb + ' rg ' + x + ' ' + yp + ' Td (' + sanitizePdf(t) + ') Tj ET');
         cmds.push('0.00 0.32 1.00 rg 48 804 499 4 re f');
-        txt(st.name, 48, y, 'F2', 20, '0.04 0.04 0.05');
-        y -= 18;
-        txt(st.pos + ' (Target: ' + st.comp + ')', 48, y, 'F2', 11, '0.00 0.32 1.00');
-        y -= 15;
-        txt('Indonesia  |  0812-xxxx-xxxx  |  ' + st.name.toLowerCase().replace(/[^a-z0-9]+/g, '.') + '@email.com', 48, y, 'F1', 9.5, '0.35 0.38 0.43');
-        y -= 24;
+        wrapTxt(st.name, 46).forEach((ln) => {
+          txt(ln, 48, y, 'F2', 20, '0.04 0.04 0.05');
+          y -= 20;
+        });
+        y += 2;
+        wrapTxt(st.pos + ' (Target: ' + st.comp + ')', 74).forEach((ln) => {
+          txt(ln, 48, y, 'F2', 11, '0.00 0.32 1.00');
+          y -= 15;
+        });
+        const sampleEmail = (st.name.toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.|\.$/g, '') || 'pelamar') + '@email.com';
+        wrapTxt('Indonesia  |  0812-0000-0000  |  ' + sampleEmail, 90).forEach((ln) => {
+          txt(ln, 48, y, 'F1', 9.5, '0.35 0.38 0.43');
+          y -= 13;
+        });
+        y -= 11;
 
         txt('RINGKASAN PROFESIONAL', 48, y, 'F2', 10.5, '0.00 0.32 1.00');
         y -= 15;
@@ -1748,14 +1769,37 @@
         const method = document.getElementById('co-method').value;
         if (!name || !email || !wa) return;
 
+        const orderDetails = [
+          'KONFIRMASI PEMESANAN KARIRLOLOS STUDIO',
+          'Produk: KarirLolos Studio — Lisensi Penuh Seumur Hidup (Rp 99.000)',
+          'Nama Pemesan: ' + name,
+          'Email Pengiriman Kode Akses: ' + email,
+          'No. WhatsApp: ' + wa,
+          'Metode Pembayaran: ' + method,
+          'Mohon instruksi pembayaran resmi & pengiriman Kode Akses Pembeli.'
+        ].join('\n');
+
         document.getElementById('checkout-text').textContent =
-          'Pesanan atas nama ' + name + ' (' + email + ' / ' + wa + ') untuk Akses Penuh KarirLolos Studio seharga Rp 99.000 via ' + method + ' siap diproses.';
-        const waMsg = encodeURIComponent(
-          'Halo Admin KarirLolos, saya ingin konfirmasi pembelian KarirLolos Studio (Rp 99.000).\nNama: ' +
-            name + '\nEmail: ' + email + '\nWA: ' + wa + '\nPembayaran: ' + method
-        );
-        document.getElementById('checkout-wa-btn').href = 'https://wa.me/6281284509921?text=' + waMsg;
+          'Halo ' + name + ', silakan kirim konfirmasi pesanan di bawah untuk menyelesaikan pembayaran Rp 99.000 (' + method + ') dan mengklaim Kode Akses resmi ke email ' + email + '.';
+        const detailBox = document.getElementById('checkout-detail-box');
+        detailBox.value = orderDetails;
+        const subject = encodeURIComponent('Pemesanan KarirLolos Studio — ' + name);
+        const body = encodeURIComponent(orderDetails);
+        document.getElementById('checkout-mail-btn').href = 'mailto:nifarimnif@gmail.com?subject=' + subject + '&body=' + body;
         document.getElementById('checkout-box').style.display = 'block';
+      });
+
+      document.getElementById('checkout-copy-btn').addEventListener('click', function () {
+        const detailBox = document.getElementById('checkout-detail-box');
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(detailBox.value).catch(() => {});
+        } else {
+          detailBox.select();
+          document.execCommand('copy');
+        }
+        const prev = this.textContent;
+        this.textContent = 'Rincian Pesanan Tersalin!';
+        setTimeout(() => { this.textContent = prev; }, 1800);
       });
 
       /* 11. FAQ ACCORDION */

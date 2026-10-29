@@ -14,7 +14,7 @@
 ## 2. Link Live (Cloudflare Pages)
 - **Link Landing Page (LP Jualan):** [https://nifari-cv-lolos-kerja-lp.pages.dev](https://nifari-cv-lolos-kerja-lp.pages.dev)
 - **Link Web App (Aplikasi Pembeli):** [https://nifari-cv-lolos-kerja-app.pages.dev](https://nifari-cv-lolos-kerja-app.pages.dev)
-  - *Cara masuk cepat untuk penguji:* Klik tombol **Isi Cepat Akun Contoh Pembeli** di halaman masuk (atau masukkan kode lisensi `KARIR-2026-PRO`), lalu klik **Masuk ke KarirLolos Studio**.
+  - *Cara masuk untuk pembeli & penguji:* Masukkan Kode Akses resmi yang diterima setelah konfirmasi pembelian pada layar masuk, lalu klik **Masuk ke KarirLolos Studio** (belum punya kode dapat mencoba generator sampel CV di Landing Page terlebih dahulu).
 
 ---
 
@@ -42,7 +42,7 @@ Seluruh pengujian dijalankan menggunakan browser **Google Chrome asli** pada uku
 
 | Bagian yang Dites | Skenario Pengujian | Hasil |
 | :--- | :--- | :--- |
-| **Login Lisensi Pembeli** | Masuk memakai nama pelamar, email, & kode lisensi (`KARIR-2026-PRO`) serta tombol akun contoh | **Lulus** — Sesi tersimpan rapi di browser dan langsung membuka Beranda KarirLolos Studio. |
+| **Login Lisensi Pembeli** | Masuk memakai nama pelamar, email, & kode akses resmi terverifikasi SHA-256 | **Lulus** — Validasi hash berjalan ketat tanpa bocoran kode di kode sumber, dan sesi tersimpan rapi membuka Beranda KarirLolos Studio. |
 | **Kalkulator Target Nego Gaji** | Hitung rentang gaji ideal dari gaji saat ini/standar UMK, target kenaikan, pengalaman, & tunjangan lalu kirim ke Wizard | **Lulus** — Rentang buka negosiasi, batas aman penerimaan, dan selisih tahunan langsung terhitung serta tersinkron ke Studio Nego Gaji. |
 | **Wizard CV 3 Langkah & Skor ATS** | Pilih 1 dari 8 preset posisi kerja → isi pengalaman berangka terukur & keahlian → cek Skor Kesiapan ATS & pratinjau A4 | **Lulus** — Indikator audit memeriksa 8 kriteria keterbacaan ATS secara *real-time* (mencapai `100%`) lengkap pratinjau CV & Surat Lamaran. |
 | **Ekspor CV ATS-Friendly (`.pdf`)** | Klik unduh CV ATS-Friendly PDF | **Lulus** — Menghasilkan dokumen PDF A4 satu kolom teks asli yang dapat diseleksi mesin ATS (`4,3 KB`, header `%PDF-1.4`). |
