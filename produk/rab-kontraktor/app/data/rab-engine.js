@@ -150,6 +150,20 @@ export function formatRupiah(num) {
   return 'Rp' + n.toLocaleString('id-ID');
 }
 
+export function parseMasaGaransi(val) {
+  if (val === '' || val === null || val === undefined) return 60;
+  const parsed = Number(val);
+  return Number.isFinite(parsed) ? Math.max(0, Math.min(3650, Math.round(parsed))) : 60;
+}
+
+export function formatSpkNumber(nomorDokumen) {
+  const raw = String(nomorDokumen ?? '').trim();
+  if (!raw) return 'SPK/2026/001';
+  if (/^SPK\//i.test(raw)) return raw.replace(/^spk\//i, 'SPK/');
+  if (/^RAB[-/]/i.test(raw)) return raw.replace(/^RAB[-/]/i, 'SPK/');
+  return `SPK/${raw.replace(/^\/+/, '')}`;
+}
+
 export function formatTanggalIndo(dateInput) {
   const bulan = [
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -166,6 +180,7 @@ export function formatTanggalIndo(dateInput) {
 /**
  * Menghitung seluruh rekapitulasi biaya fisik, material vs upah, fee pemborong,
  * pembulatan penawaran, harga per m², dan tahapan termin pembayaran.
+ * Rumus baris diseragamkan: Math.round(vol * (mat + upah)) di Step 2, PDF, dan Excel.
  */
 export function calculateRabSummary(project) {
   const rows = Array.isArray(project.rows) ? project.rows : [];
@@ -175,11 +190,11 @@ export function calculateRabSummary(project) {
   const computedRows = rows.map((row, idx) => {
     const vol = Math.max(0, Number(row.volume) || 0);
     const mat = Math.max(0, Number(row.hargaMaterial) || 0);
-    const upah = Math.max(0, Number(row.hargaUpah) || 0);
+    const upah = Math.max(0, Number(row.hargaUpah ?? row.upahKerja) || 0);
     const hargaSatuan = mat + upah;
     const jumlahMaterial = Math.round(vol * mat);
     const jumlahUpah = Math.round(vol * upah);
-    const jumlahTotal = jumlahMaterial + jumlahUpah;
+    const jumlahTotal = Math.round(vol * hargaSatuan);
 
     subtotalMaterial += jumlahMaterial;
     subtotalUpah += jumlahUpah;
@@ -197,8 +212,10 @@ export function calculateRabSummary(project) {
     };
   });
 
-  const subtotalFisik = subtotalMaterial + subtotalUpah;
-  const feePersen = Math.max(0, Math.min(35, Number(project.feePersen ?? 10)));
+  const subtotalFisik = computedRows.reduce((acc, r) => acc + r.jumlahTotal, 0);
+  const rawFee = project.feePersen;
+  const parsedFee = rawFee === '' || rawFee === null || rawFee === undefined ? 10 : Number(rawFee);
+  const feePersen = Number.isFinite(parsedFee) ? Math.max(0, Math.min(35, parsedFee)) : 10;
   const feeNominal = Math.round(subtotalFisik * (feePersen / 100));
   const rawGrandTotal = subtotalFisik + feeNominal;
   const grandTotal = Math.round(rawGrandTotal / 1000) * 1000;
@@ -207,19 +224,19 @@ export function calculateRabSummary(project) {
 
   const terminList = [
     {
-      tahap: 'Termin I (Uang Muka / DP)',
+      tahap: 'Termin I — Uang Muka / DP',
       syarat: 'Saat SPK disepakati & pengiriman material awal ke lokasi',
       persen: 30,
       nominal: Math.round((grandTotal * 0.3) / 1000) * 1000
     },
     {
-      tahap: 'Termin II (Progres Fisik 50%)',
+      tahap: 'Termin II — Progres Fisik 50%',
       syarat: 'Saat pekerjaan fisik lapangan mencapai bobot 50%',
       persen: 35,
       nominal: Math.round((grandTotal * 0.35) / 1000) * 1000
     },
     {
-      tahap: 'Termin III (Progres Fisik 90%)',
+      tahap: 'Termin III — Progres Fisik 90%',
       syarat: 'Saat pekerjaan finishing utama mencapai bobot 90%',
       persen: 30,
       nominal: Math.round((grandTotal * 0.3) / 1000) * 1000
@@ -227,7 +244,7 @@ export function calculateRabSummary(project) {
   ];
   const sumFirst3 = terminList.reduce((acc, t) => acc + t.nominal, 0);
   terminList.push({
-    tahap: 'Termin IV (Serah Terima 100%)',
+    tahap: 'Termin IV — Serah Terima 100%',
     syarat: 'Setelah pemeriksaan bersama (checklist akhir) & serah terima kunci',
     persen: 5,
     nominal: Math.max(0, grandTotal - sumFirst3)
@@ -265,7 +282,7 @@ export function calculateMaterialShoppingList({
 
   if (dinding > 0) {
     if (jenisBata === 'hebel') {
-      const kubikHebel = +(dinding * 0.105).toFixed(1); // tebal 10cm + waste 5%
+      const kubikHebel = +(dinding * 0.105).toFixed(1);
       const buahHebel = Math.ceil(dinding * 8.6);
       const sakPerekat = Math.ceil(dinding * 0.12);
       const sakPlesterAcian = Math.ceil(dinding * 2 * 0.35);
@@ -316,34 +333,42 @@ export function generateRabPdfBlob(project, summary) {
   const pageH = 297;
   const margin = 15;
   const contentW = pageW - margin * 2;
+  const bottomLimit = pageH - 18;
   let y = 16;
 
   const ensureSpace = (needed = 16) => {
-    if (y + needed > pageH - 16) {
+    if (y + needed > bottomLimit) {
       doc.addPage();
       y = 18;
+      return true;
     }
+    return false;
   };
 
   // Kop Kontraktor
-  doc.setFillColor(249, 115, 22);
-  doc.rect(margin, y, 4, 15, 'F');
+  const kopTitle = (project.namaUsaha || project.namaPelaksana || 'PELAKSANA KONSTRUKSI & BORONGAN').toUpperCase();
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
+  doc.setFontSize(12.5);
+  const kopTitleLines = doc.splitTextToSize(kopTitle, contentW - 8);
+  const kopBarH = Math.max(15, kopTitleLines.length * 5 + 9.5);
+
+  doc.setFillColor(249, 115, 22);
+  doc.rect(margin, y, 4, kopBarH, 'F');
   doc.setTextColor(20, 20, 18);
-  doc.text((project.namaUsaha || 'CV KARYA MANDIRI KONSTRUKSI').toUpperCase(), margin + 7, y + 5.5);
+  doc.text(kopTitleLines, margin + 7, y + 5);
 
+  const subKopY = y + kopTitleLines.length * 5 + 1.5;
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.8);
+  doc.setFontSize(8.6);
   doc.setTextColor(90, 90, 84);
-  doc.text(
+  const kopContact = doc.splitTextToSize(
     `Penanggung Jawab: ${project.namaPelaksana || 'Pelaksana Proyek'}  |  Telp/WA: ${project.teleponUsaha || '-'}`,
-    margin + 7,
-    y + 10.5
+    contentW - 8
   );
-  doc.text(`Alamat / Domisili: ${project.kota || 'Indonesia'}`, margin + 7, y + 14.5);
+  doc.text(kopContact[0] || '', margin + 7, subKopY + 3.5);
+  doc.text(`Alamat / Domisili: ${project.kota || 'Indonesia'}`, margin + 7, subKopY + 7.5);
 
-  y += 19;
+  y += kopBarH + 4;
   doc.setDrawColor(220, 220, 214);
   doc.line(margin, y, pageW - margin, y);
   y += 7;
@@ -357,36 +382,68 @@ export function generateRabPdfBlob(project, summary) {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(90, 90, 84);
-  doc.text(`Nomor: ${project.nomorDokumen || 'RAB/2026/001'}   •   Tanggal: ${formatTanggalIndo(project.tanggal)}`, pageW / 2, y, { align: 'center' });
+  doc.text(
+    `Nomor: ${project.nomorDokumen || 'RAB/2026/001'}   •   Tanggal: ${formatTanggalIndo(project.tanggal)}`,
+    pageW / 2,
+    y,
+    { align: 'center' }
+  );
   y += 6;
 
-  // Kotak Info Proyek
+  // Kotak Info Proyek (tanpa pemotongan .slice(0, 32), dibungkus rapi memakai splitTextToSize)
+  doc.setFontSize(8.6);
+  const colMid = margin + 96;
+  const leftValW = 55;
+  const rightValW = contentW - 96 - 44 - 3;
+  const garansiHari = parseMasaGaransi(project.masaGaransiHari);
+
+  const klienLines = doc.splitTextToSize(String(project.namaKlien || '-'), leftValW);
+  const judulLines = doc.splitTextToSize(String(project.judulProyek || 'Pekerjaan Konstruksi'), leftValW);
+  const lokasiLines = doc.splitTextToSize(String(project.lokasiProyek || '-'), leftValW);
+
+  const luasLines = doc.splitTextToSize(`${project.luasM2 || 36} m²`, rightValW);
+  const durasiLines = doc.splitTextToSize(`${project.durasiHari || 30} Hari Kalender`, rightValW);
+  const garansiLines = doc.splitTextToSize(`${garansiHari} Hari Kalender`, rightValW);
+
+  const r1H = Math.max(5.5, Math.max(klienLines.length, luasLines.length) * 4);
+  const r2H = Math.max(5.5, Math.max(judulLines.length, durasiLines.length) * 4);
+  const r3H = Math.max(5.5, Math.max(lokasiLines.length, garansiLines.length) * 4);
+  const infoBoxH = 5 + r1H + r2H + r3H + 2.5;
+
   doc.setFillColor(250, 249, 245);
   doc.setDrawColor(225, 222, 212);
-  doc.roundedRect(margin, y, contentW, 24, 2, 2, 'FD');
+  doc.roundedRect(margin, y, contentW, infoBoxH, 2, 2, 'FD');
 
-  doc.setFontSize(8.8);
+  let infoY = y + 5.5;
   doc.setTextColor(30, 30, 28);
-  const colMid = margin + 94;
+
+  // Baris 1 Info
   doc.setFont('helvetica', 'bold');
-  doc.text('Kepada Yth (Klien):', margin + 4, y + 6);
-  doc.text('Nama Pekerjaan:', margin + 4, y + 12);
-  doc.text('Lokasi Proyek:', margin + 4, y + 18);
-
-  doc.text('Volume / Luas Acuan:', colMid, y + 6);
-  doc.text('Estimasi Waktu Kerja:', colMid, y + 12);
-  doc.text('Masa Garansi Pemeliharaan:', colMid, y + 18);
-
+  doc.text('Kepada Yth (Klien):', margin + 4, infoY);
+  doc.text('Volume / Luas Acuan:', colMid, infoY);
   doc.setFont('helvetica', 'normal');
-  doc.text(String(project.namaKlien || 'Bapak/Ibu Pemilik Rumah').slice(0, 32), margin + 36, y + 6);
-  doc.text(String(project.judulProyek || 'Pekerjaan Konstruksi').slice(0, 32), margin + 36, y + 12);
-  doc.text(String(project.lokasiProyek || '-').slice(0, 32), margin + 36, y + 18);
+  doc.text(klienLines, margin + 36, infoY);
+  doc.text(luasLines, colMid + 44, infoY);
+  infoY += r1H;
 
-  doc.text(`${project.luasM2 || 36} m²`, colMid + 44, y + 6);
-  doc.text(`${project.durasiHari || 30} Hari Kalender`, colMid + 44, y + 12);
-  doc.text(`${project.masaGaransiHari || 60} Hari Kalender`, colMid + 44, y + 18);
+  // Baris 2 Info
+  doc.setFont('helvetica', 'bold');
+  doc.text('Nama Pekerjaan:', margin + 4, infoY);
+  doc.text('Estimasi Waktu Kerja:', colMid, infoY);
+  doc.setFont('helvetica', 'normal');
+  doc.text(judulLines, margin + 36, infoY);
+  doc.text(durasiLines, colMid + 44, infoY);
+  infoY += r2H;
 
-  y += 30;
+  // Baris 3 Info
+  doc.setFont('helvetica', 'bold');
+  doc.text('Lokasi Proyek:', margin + 4, infoY);
+  doc.text('Garansi Pemeliharaan:', colMid, infoY);
+  doc.setFont('helvetica', 'normal');
+  doc.text(lokasiLines, margin + 36, infoY);
+  doc.text(garansiLines, colMid + 44, infoY);
+
+  y += infoBoxH + 6;
 
   // Header Tabel RAB
   const drawTableHeader = () => {
@@ -408,8 +465,16 @@ export function generateRabPdfBlob(project, summary) {
 
   let lastGroup = '';
   for (const r of summary.computedRows) {
+    const wrappedUraian = doc.splitTextToSize(String(r.uraian), 84);
+    const rowH = Math.max(6.8, wrappedUraian.length * 4.2 + 2.4);
+
     if (r.group !== lastGroup) {
-      ensureSpace(14);
+      // Cegah subjudul kelompok menggantung sendirian di bawah halaman (minimal muat header grup + baris pertama)
+      if (y + Math.max(22, 6.5 + rowH) > bottomLimit) {
+        doc.addPage();
+        y = 18;
+        drawTableHeader();
+      }
       doc.setFillColor(255, 244, 234);
       doc.rect(margin, y, contentW, 6.5, 'F');
       doc.setFont('helvetica', 'bold');
@@ -418,11 +483,7 @@ export function generateRabPdfBlob(project, summary) {
       doc.text(String(r.group), margin + 3, y + 4.5);
       y += 6.5;
       lastGroup = r.group;
-    }
-
-    const wrappedUraian = doc.splitTextToSize(String(r.uraian), 84);
-    const rowH = Math.max(6.8, wrappedUraian.length * 4.2 + 2.4);
-    if (y + rowH > pageH - 18) {
+    } else if (y + rowH > bottomLimit) {
       doc.addPage();
       y = 18;
       drawTableHeader();
@@ -447,8 +508,8 @@ export function generateRabPdfBlob(project, summary) {
   // Rekapitulasi Total
   ensureSpace(34);
   y += 4;
-  const sumBoxX = margin + 92;
-  const sumBoxW = contentW - 92;
+  const sumBoxX = margin + 88;
+  const sumBoxW = contentW - 88;
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.6);
@@ -464,63 +525,111 @@ export function generateRabPdfBlob(project, summary) {
   doc.setFillColor(249, 115, 22);
   doc.roundedRect(sumBoxX - 2, y, sumBoxW + 2, 9, 1.5, 1.5, 'F');
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9.5);
+  doc.setFontSize(9.2);
   doc.setTextColor(255, 255, 255);
   doc.text('TOTAL PENAWARAN (DIBULATKAN)', sumBoxX + 1, y + 6);
   doc.text(formatRupiah(summary.grandTotal), margin + contentW - 2, y + 6, { align: 'right' });
   y += 14;
 
-  // Tahapan Termin Pembayaran
-  ensureSpace(42);
+  // Tahapan Termin Pembayaran (tanpa kurung ganda & tanpa tumpang tindih kolom)
+  ensureSpace(22);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9.2);
   doc.setTextColor(20, 20, 18);
   doc.text('TAHAPAN PEMBAYARAN TERMIN PROGRES:', margin, y);
-  y += 4.5;
+  y += 5;
 
   for (const t of summary.terminList) {
+    doc.setFontSize(8.1);
+    const syaratWrapped = doc.splitTextToSize(`Syarat pencairan: ${t.syarat}`, contentW - 8);
+    const itemBlockH = 4.4 + syaratWrapped.length * 3.8 + 1.8;
+    ensureSpace(itemBlockH);
+
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8.2);
-    doc.setTextColor(35, 35, 32);
-    doc.text(`• ${t.tahap} (${t.persen}%): ${formatRupiah(t.nominal)}`, margin + 2, y + 3.5);
+    doc.setFontSize(8.3);
+    doc.setTextColor(32, 32, 29);
+    doc.text(`• ${t.tahap} (${t.persen}%): ${formatRupiah(t.nominal)}`, margin + 2, y + 3.4);
+    y += 4.3;
+
     doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.9);
     doc.setTextColor(95, 95, 88);
-    doc.text(`— ${t.syarat}`, margin + 78, y + 3.5);
-    y += 5;
+    doc.text(syaratWrapped, margin + 6, y + 3.1);
+    y += syaratWrapped.length * 3.8 + 1.4;
   }
 
-  // Catatan Penawaran
-  ensureSpace(48);
+  // Catatan Penawaran (dipaginasi baris demi baris dengan ensureSpace(7))
+  ensureSpace(15);
   y += 3;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.6);
   doc.setTextColor(20, 20, 18);
   doc.text('CATATAN & KETENTUAN PENAWARAN:', margin, y);
-  y += 4;
-  const catatanLines = doc.splitTextToSize(
-    project.catatanPenawaran ||
-      'Harga berlaku 14 hari kalender sejak diterbitkan. Pekerjaan tambah/kurang di luar rincian RAB dihitung secara tertulis melalui Addendum yang disetujui bersama.',
-    contentW
-  );
+  y += 4.5;
+
+  const catatanRaw =
+    (project.catatanPenawaran && project.catatanPenawaran.trim()) ||
+    'Harga berlaku 14 hari kalender sejak diterbitkan. Pekerjaan tambah/kurang di luar rincian RAB dihitung secara tertulis melalui Addendum yang disetujui bersama.';
+  const catatanParagraphs = catatanRaw
+    .split(/\r?\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(80, 80, 74);
-  doc.text(catatanLines, margin, y);
-  y += catatanLines.length * 4 + 8;
+  doc.setFontSize(8.1);
+  doc.setTextColor(75, 75, 70);
+
+  for (let pIdx = 0; pIdx < catatanParagraphs.length; pIdx++) {
+    const wrappedPara = doc.splitTextToSize(catatanParagraphs[pIdx], contentW);
+    for (const line of wrappedPara) {
+      ensureSpace(7);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.1);
+      doc.setTextColor(75, 75, 70);
+      doc.text(line, margin, y + 3.2);
+      y += 4.2;
+    }
+    if (pIdx < catatanParagraphs.length - 1) {
+      y += 1.6;
+    }
+  }
+  y += 6;
 
   // Blok Tanda Tangan
-  ensureSpace(34);
+  ensureSpace(36);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.6);
   doc.setTextColor(25, 25, 22);
-  doc.text('Menyetujui Pemberi Tugas,', margin + 10, y);
-  doc.text(`${project.kota || 'Jakarta'}, ${formatTanggalIndo(project.tanggal)}`, margin + 118, y);
-  doc.text('Hormat Kami, Pelaksana', margin + 118, y + 4.5);
+  doc.text('Menyetujui Pemberi Tugas,', margin + 8, y);
+  doc.text(`${project.kota || 'Indonesia'}, ${formatTanggalIndo(project.tanggal)}`, margin + 108, y);
+  doc.text('Hormat Kami, Pelaksana', margin + 108, y + 4.5);
 
   y += 22;
   doc.setFont('helvetica', 'bold');
-  doc.text(`(${project.namaKlien || 'Pemilik Proyek'})`, margin + 10, y);
-  doc.text(`(${project.namaPelaksana || project.namaUsaha || 'Pelaksana'})`, margin + 118, y);
+  const signKlien = doc.splitTextToSize(`(${project.namaKlien || 'Pemilik Proyek'})`, 78);
+  const signPelaksana = doc.splitTextToSize(
+    `(${project.namaPelaksana || project.namaUsaha || 'Pelaksana'})`,
+    72
+  );
+  doc.text(signKlien, margin + 8, y);
+  doc.text(signPelaksana, margin + 108, y);
+
+  // Nomor Halaman Footer di Setiap Halaman
+  const totalPages = doc.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p += 1) {
+    doc.setPage(p);
+    doc.setDrawColor(232, 230, 224);
+    doc.line(margin, pageH - 13, pageW - margin, pageH - 13);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.6);
+    doc.setTextColor(120, 120, 112);
+    doc.text(
+      `RancangRAB Studio  •  ${project.nomorDokumen || 'RAB'}  •  Halaman ${p} dari ${totalPages}`,
+      pageW / 2,
+      pageH - 8.5,
+      { align: 'center' }
+    );
+  }
 
   return doc.output('blob');
 }
@@ -535,7 +644,7 @@ function escapeXml(str) {
 }
 
 /**
- * 2) GENERATOR MICROSOFT EXCEL ASLI (.xlsx OOXML) LENGKAP RUMUS PERKALIAN & SUM!
+ * 2) GENERATOR MICROSOFT EXCEL ASLI (.xlsx OOXML) LENGKAP RUMUS PERKALIAN, SUM & BORDER RAPI
  */
 export function generateRabXlsxBlob(project, summary) {
   const xmlRows = [];
@@ -549,12 +658,25 @@ export function generateRabXlsxBlob(project, summary) {
   };
 
   addTitleRow(`RENCANA ANGGARAN BIAYA (RAB) — ${project.judulProyek || 'PROYEK KONSTRUKSI'}`, 1);
-  addTitleRow(`Klien: ${project.namaKlien || '-'} | Lokasi: ${project.lokasiProyek || '-'} | Pelaksana: ${project.namaUsaha || '-'}`, 0);
+  addTitleRow(
+    `Klien: ${project.namaKlien || '-'} | Lokasi: ${project.lokasiProyek || '-'} | Pelaksana: ${project.namaUsaha || project.namaPelaksana || '-'}`,
+    0
+  );
   rowNum += 1; // baris kosong
 
-  // Header Tabel di baris 4
+  // Header Tabel di baris 4 (style 2 = header oranye huruf putih + border tipis)
   const headerRowIdx = rowNum;
-  const headers = ['No', 'Kelompok', 'Uraian Pekerjaan', 'Volume', 'Satuan', 'Harga Material (Rp)', 'Upah Tukang (Rp)', 'Harga Satuan (Rp)', 'Jumlah Total (Rp)'];
+  const headers = [
+    'No',
+    'Kelompok',
+    'Uraian Pekerjaan',
+    'Volume',
+    'Satuan',
+    'Harga Material (Rp)',
+    'Upah Tukang (Rp)',
+    'Harga Satuan (Rp)',
+    'Jumlah Total (Rp)'
+  ];
   const colLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
   xmlRows.push(
     `<row r="${headerRowIdx}">` +
@@ -565,16 +687,18 @@ export function generateRabXlsxBlob(project, summary) {
   );
   rowNum += 1;
 
+  const hasRows = summary.computedRows.length > 0;
   const firstDataRow = rowNum;
+
   for (const r of summary.computedRows) {
     const rn = rowNum;
     xmlRows.push(
       `<row r="${rn}">` +
-        `<c r="A${rn}" s="0"><v>${r.no}</v></c>` +
-        `<c r="B${rn}" s="0" t="inlineStr"><is><t>${escapeXml(r.group)}</t></is></c>` +
-        `<c r="C${rn}" s="0" t="inlineStr"><is><t>${escapeXml(r.uraian)}</t></is></c>` +
-        `<c r="D${rn}" s="0"><v>${r.volume}</v></c>` +
-        `<c r="E${rn}" s="0" t="inlineStr"><is><t>${escapeXml(r.satuan)}</t></is></c>` +
+        `<c r="A${rn}" s="5"><v>${r.no}</v></c>` +
+        `<c r="B${rn}" s="5" t="inlineStr"><is><t>${escapeXml(r.group)}</t></is></c>` +
+        `<c r="C${rn}" s="5" t="inlineStr"><is><t>${escapeXml(r.uraian)}</t></is></c>` +
+        `<c r="D${rn}" s="5"><v>${r.volume}</v></c>` +
+        `<c r="E${rn}" s="5" t="inlineStr"><is><t>${escapeXml(r.satuan)}</t></is></c>` +
         `<c r="F${rn}" s="3"><v>${r.hargaMaterial}</v></c>` +
         `<c r="G${rn}" s="3"><v>${r.hargaUpah}</v></c>` +
         `<c r="H${rn}" s="3"><f>F${rn}+G${rn}</f><v>${r.hargaSatuan}</v></c>` +
@@ -583,14 +707,29 @@ export function generateRabXlsxBlob(project, summary) {
     );
     rowNum += 1;
   }
-  const lastDataRow = Math.max(firstDataRow, rowNum - 1);
 
-  // Baris Subtotal, Jasa & Grand Total dengan Rumus Excel Asli
+  const lastDataRow = rowNum - 1;
+  const emptySummaryBorders = (rn, styleIdx = 5) =>
+    ['A', 'B']
+      .map((c) => `<c r="${c}${rn}" s="${styleIdx}"/>`)
+      .join('');
+  const midSummaryBorders = (rn, styleIdx = 5) =>
+    ['D', 'E', 'F', 'G', 'H']
+      .map((c) => `<c r="${c}${rn}" s="${styleIdx}"/>`)
+      .join('');
+
+  // Baris Subtotal, Jasa & Grand Total (aman terhadap tabel kosong tanpa circular SUM)
   const subRow = rowNum;
+  const subFormulaCell = hasRows
+    ? `<c r="I${subRow}" s="4"><f>SUM(I${firstDataRow}:I${lastDataRow})</f><v>${summary.subtotalFisik}</v></c>`
+    : `<c r="I${subRow}" s="4"><v>0</v></c>`;
+
   xmlRows.push(
     `<row r="${subRow}">` +
-      `<c r="C${subRow}" s="1" t="inlineStr"><is><t>SUBTOTAL BIAYA FISIK (MATERIAL + UPAH)</t></is></c>` +
-      `<c r="I${subRow}" s="4"><f>SUM(I${firstDataRow}:I${lastDataRow})</f><v>${summary.subtotalFisik}</v></c>` +
+      emptySummaryBorders(subRow, 6) +
+      `<c r="C${subRow}" s="6" t="inlineStr"><is><t>SUBTOTAL BIAYA FISIK (MATERIAL + UPAH)</t></is></c>` +
+      midSummaryBorders(subRow, 6) +
+      subFormulaCell +
       `</row>`
   );
   rowNum += 1;
@@ -598,7 +737,9 @@ export function generateRabXlsxBlob(project, summary) {
   const feeRow = rowNum;
   xmlRows.push(
     `<row r="${feeRow}">` +
-      `<c r="C${feeRow}" s="0" t="inlineStr"><is><t>Jasa Pengelolaan &amp; Pengawasan (${summary.feePersen}%)</t></is></c>` +
+      emptySummaryBorders(feeRow, 5) +
+      `<c r="C${feeRow}" s="5" t="inlineStr"><is><t>Jasa Pengelolaan &amp; Pengawasan (${summary.feePersen}%)</t></is></c>` +
+      midSummaryBorders(feeRow, 5) +
       `<c r="I${feeRow}" s="3"><f>ROUND(I${subRow}*${summary.feePersen / 100},0)</f><v>${summary.feeNominal}</v></c>` +
       `</row>`
   );
@@ -607,8 +748,10 @@ export function generateRabXlsxBlob(project, summary) {
   const grandRow = rowNum;
   xmlRows.push(
     `<row r="${grandRow}">` +
+      emptySummaryBorders(grandRow, 2) +
       `<c r="C${grandRow}" s="2" t="inlineStr"><is><t>TOTAL NILAI PENAWARAN (DIBULATKAN)</t></is></c>` +
-      `<c r="I${grandRow}" s="4"><f>ROUND(I${subRow}+I${feeRow},-3)</f><v>${summary.grandTotal}</v></c>` +
+      midSummaryBorders(grandRow, 2) +
+      `<c r="I${grandRow}" s="7"><f>ROUND(I${subRow}+I${feeRow},-3)</f><v>${summary.grandTotal}</v></c>` +
       `</row>`
   );
 
@@ -635,20 +778,31 @@ export function generateRabXlsxBlob(project, summary) {
     <font><b/><sz val="11"/><name val="Calibri"/></font>
     <font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>
   </fonts>
-  <fills count="3">
+  <fills count="4">
     <fill><patternFill patternType="none"/></fill>
     <fill><patternFill patternType="gray125"/></fill>
     <fill><patternFill patternType="solid"><fgColor rgb="FFF97316"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFFFF7ED"/></patternFill></fill>
   </fills>
-  <borders count="1">
+  <borders count="2">
     <border><left/><right/><top/><bottom/><diagonal/></border>
+    <border>
+      <left style="thin"><color rgb="FFCBD5E1"/></left>
+      <right style="thin"><color rgb="FFCBD5E1"/></right>
+      <top style="thin"><color rgb="FFCBD5E1"/></top>
+      <bottom style="thin"><color rgb="FFCBD5E1"/></bottom>
+      <diagonal/>
+    </border>
   </borders>
-  <cellXfs count="5">
+  <cellXfs count="8">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
-    <xf numFmtId="0" fontId="1" fillId="0" borderId="0"/>
-    <xf numFmtId="0" fontId="2" fillId="2" borderId="0" applyFont="1" applyFill="1"/>
-    <xf numFmtId="164" fontId="0" fillId="0" borderId="0" applyNumberFormat="1"/>
-    <xf numFmtId="164" fontId="1" fillId="0" borderId="0" applyFont="1" applyNumberFormat="1"/>
+    <xf numFmtId="0" fontId="1" fillId="0" borderId="0" applyFont="1"/>
+    <xf numFmtId="0" fontId="2" fillId="2" borderId="1" applyFont="1" applyFill="1" applyBorder="1"/>
+    <xf numFmtId="164" fontId="0" fillId="0" borderId="1" applyNumberFormat="1" applyBorder="1"/>
+    <xf numFmtId="164" fontId="1" fillId="3" borderId="1" applyFont="1" applyFill="1" applyNumberFormat="1" applyBorder="1"/>
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" applyBorder="1"/>
+    <xf numFmtId="0" fontId="1" fillId="3" borderId="1" applyFont="1" applyFill="1" applyBorder="1"/>
+    <xf numFmtId="164" fontId="2" fillId="2" borderId="1" applyFont="1" applyFill="1" applyNumberFormat="1" applyBorder="1"/>
   </cellXfs>
 </styleSheet>`;
 
@@ -695,24 +849,82 @@ export function generateRabXlsxBlob(project, summary) {
  * 3) GENERATOR MICROSOFT WORD ASLI (.docx OOXML): Draf Surat Perjanjian Kerja Borongan (SPK)
  */
 export function generateSpkDocxBlob(project, summary) {
+  const spkNomor = formatSpkNumber(project.nomorDokumen);
+  const garansiHari = parseMasaGaransi(project.masaGaransiHari);
+
   const pCenterBold = (t, sz = 26) =>
     `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="80"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="${sz}"/></w:rPr><w:t>${escapeXml(t)}</w:t></w:r></w:p>`;
 
   const pPasal = (t) =>
-    `<w:p><w:pPr><w:spacing w:before="200" w:after="60"/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="C2410C"/><w:sz w:val="23"/></w:rPr><w:t>${escapeXml(t)}</w:t></w:r></w:p>`;
+    `<w:p><w:pPr><w:keepNext/><w:spacing w:before="200" w:after="60"/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="C2410C"/><w:sz w:val="23"/></w:rPr><w:t>${escapeXml(t)}</w:t></w:r></w:p>`;
 
-  const pText = (t) =>
-    `<w:p><w:pPr><w:spacing w:after="90" w:line="276" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:sz w:val="22"/></w:rPr><w:t xml:space="preserve">${escapeXml(t)}</w:t></w:r></w:p>`;
+  const pText = (t, keepWithNext = false) =>
+    `<w:p><w:pPr>${keepWithNext ? '<w:keepNext/>' : ''}<w:spacing w:after="90" w:line="276" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:sz w:val="22"/></w:rPr><w:t xml:space="preserve">${escapeXml(t)}</w:t></w:r></w:p>`;
 
   const terminParagraphs = summary.terminList
     .map((t, idx) => pText(`${idx + 1}. ${t.tahap} (${t.persen}%) sebesar ${formatRupiah(t.nominal)} — ${t.syarat}.`))
     .join('');
 
+  const catatanRaw =
+    (project.catatanPenawaran && project.catatanPenawaran.trim()) ||
+    'Setiap penambahan atau pengurangan item pekerjaan di luar rincian RAB wajib disepakati secara tertulis melalui Addendum Pekerjaan Tambah-Kurang.';
+  const catatanParagraphs = catatanRaw
+    .split(/\r?\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => pText(line))
+    .join('');
+
+  const cellPara = (text, { bold = false, italic = false, color = '1C1917', sz = 21, after = 40 } = {}) =>
+    `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="${after}"/></w:pPr><w:r><w:rPr>${bold ? '<w:b/>' : ''}${italic ? '<w:i/>' : ''}<w:color w:val="${color}"/><w:sz w:val="${sz}"/></w:rPr><w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r></w:p>`;
+
+  const signatureTableXml = `
+    <w:tbl>
+      <w:tblPr>
+        <w:tblW w:w="9026" w:type="dxa"/>
+        <w:tblBorders>
+          <w:top w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+          <w:left w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+          <w:bottom w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+          <w:right w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+          <w:insideH w:val="none" w:sz="0" w:space="0" w:color="auto"/>
+          <w:insideV w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+        </w:tblBorders>
+        <w:tblCellMar>
+          <w:top w:w="140" w:type="dxa"/>
+          <w:left w:w="160" w:type="dxa"/>
+          <w:bottom w:w="140" w:type="dxa"/>
+          <w:right w:w="160" w:type="dxa"/>
+        </w:tblCellMar>
+      </w:tblPr>
+      <w:tblGrid>
+        <w:gridCol w:w="4513"/>
+        <w:gridCol w:w="4513"/>
+      </w:tblGrid>
+      <w:tr>
+        <w:trPr><w:cantSplit/></w:trPr>
+        <w:tc>
+          <w:tcPr><w:tcW w:w="4513" w:type="dxa"/></w:tcPr>
+          ${cellPara('PIHAK PERTAMA', { bold: true, sz: 22, after: 20 })}
+          ${cellPara('Pemberi Tugas / Pemilik Proyek', { color: '57534E', sz: 19, after: 260 })}
+          ${cellPara('[ Meterai Rp10.000 ]', { italic: true, color: '78716C', sz: 18, after: 260 })}
+          ${cellPara(`( ${project.namaKlien || '........................................'} )`, { bold: true, sz: 21, after: 20 })}
+        </w:tc>
+        <w:tc>
+          <w:tcPr><w:tcW w:w="4513" w:type="dxa"/></w:tcPr>
+          ${cellPara('PIHAK KEDUA', { bold: true, sz: 22, after: 20 })}
+          ${cellPara(project.namaUsaha || 'Pelaksana Konstruksi', { color: '57534E', sz: 19, after: 260 })}
+          ${cellPara('[ Meterai Rp10.000 ]', { italic: true, color: '78716C', sz: 18, after: 260 })}
+          ${cellPara(`( ${project.namaPelaksana || project.namaUsaha || '........................................'} )`, { bold: true, sz: 21, after: 20 })}
+        </w:tc>
+      </w:tr>
+    </w:tbl>`;
+
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:body>
     ${pCenterBold('SURAT PERJANJIAN KERJA BORONGAN (SPK)', 28)}
-    ${pCenterBold(`Nomor: ${project.nomorDokumen || 'SPK/2026/001'}`, 21)}
+    ${pCenterBold(`Nomor: ${spkNomor}`, 21)}
     ${pText(`Pada tanggal ${formatTanggalIndo(project.tanggal)}, bertempat di ${project.kota || 'Indonesia'}, kami yang bertanda tangan di bawah ini:`)}
     ${pText(`1. PIHAK PERTAMA (Pemberi Tugas): ${project.namaKlien || 'Pemilik Proyek'}, selaku pemilik bangunan di lokasi ${project.lokasiProyek || '-'}.`)}
     ${pText(`2. PIHAK KEDUA (Pelaksana Konstruksi): ${project.namaPelaksana || '-'} (${project.namaUsaha || 'Pelaksana Borongan'}), Kontak: ${project.teleponUsaha || '-'}.`)}
@@ -730,13 +942,13 @@ export function generateSpkDocxBlob(project, summary) {
     ${pText(`Jangka waktu pelaksanaan pekerjaan disepakati selama ${project.durasiHari || 30} hari kalender terhitung sejak Uang Muka (Termin I) diterima dan lokasi siap dikerjakan.`)}
 
     ${pPasal('PASAL 4 — PEKERJAAN TAMBAH-KURANG & KETENTUAN LAPANGAN')}
-    ${pText(project.catatanPenawaran || 'Setiap penambahan atau pengurangan item pekerjaan di luar rincian RAB wajib disepakati secara tertulis melalui Addendum Pekerjaan Tambah-Kurang.')}
+    ${catatanParagraphs}
 
     ${pPasal('PASAL 5 — MASA PEMELIHARAAN (GARANSI PEKERJAAN)')}
-    ${pText(`PIHAK KEDUA memberikan jaminan masa pemeliharaan hasil pekerjaan selama ${project.masaGaransiHari || 60} hari kalender terhitung sejak Berita Acara Serah Terima ditandatangani kedua belah pihak.`)}
+    ${pText(`PIHAK KEDUA memberikan jaminan masa pemeliharaan hasil pekerjaan selama ${garansiHari} hari kalender terhitung sejak Berita Acara Serah Terima ditandatangani kedua belah pihak.`)}
 
-    ${pText('Demikian Surat Perjanjian Kerja Borongan ini dibuat dalam rangkap 2 (dua) bermeterai cukup dan memiliki kekuatan hukum yang sama.')}
-    ${pText(`PIHAK PERTAMA: (${project.namaKlien || '........................'})          |          PIHAK KEDUA: (${project.namaPelaksana || project.namaUsaha || '........................'})`)}
+    ${pText('Demikian Surat Perjanjian Kerja Borongan ini dibuat dalam rangkap 2 (dua) bermeterai cukup dan memiliki kekuatan hukum yang sama.', true)}
+    ${signatureTableXml}
     <w:sectPr>
       <w:pgSz w:w="11906" w:h="16838"/>
       <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/>
@@ -744,11 +956,39 @@ export function generateSpkDocxBlob(project, summary) {
   </w:body>
 </w:document>`;
 
+  const wordStylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults>
+    <w:rPrDefault>
+      <w:rPr>
+        <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>
+        <w:sz w:val="22"/>
+        <w:lang w:val="id-ID"/>
+      </w:rPr>
+    </w:rPrDefault>
+    <w:pPrDefault>
+      <w:pPr>
+        <w:spacing w:after="100" w:line="276" w:lineRule="auto"/>
+      </w:pPr>
+    </w:pPrDefault>
+  </w:docDefaults>
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+    <w:qFormat/>
+  </w:style>
+</w:styles>`;
+
+  const docRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+
   const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
 </Types>`;
 
   const rootRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -759,7 +999,9 @@ export function generateSpkDocxBlob(project, summary) {
   const zipped = zipSync({
     '[Content_Types].xml': strToU8(contentTypes),
     '_rels/.rels': strToU8(rootRels),
-    'word/document.xml': strToU8(documentXml)
+    'word/document.xml': strToU8(documentXml),
+    'word/styles.xml': strToU8(wordStylesXml),
+    'word/_rels/document.xml.rels': strToU8(docRelsXml)
   });
 
   return new Blob([zipped], {

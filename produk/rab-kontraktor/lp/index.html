@@ -784,6 +784,62 @@
       gap: 10px;
     }
 
+    .order-form {
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+      margin-top: 6px;
+    }
+
+    .ord-field label {
+      display: block;
+      font-size: 0.77rem;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .ord-field input {
+      width: 100%;
+      padding: 10px 13px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.87rem;
+    }
+
+    .ord-field input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .ord-err {
+      background: rgba(239, 68, 68, 0.14);
+      border: 1px solid rgba(239, 68, 68, 0.36);
+      color: #fca5a5;
+      border-radius: 10px;
+      padding: 8px 11px;
+      font-size: 0.79rem;
+      font-weight: 600;
+      display: none;
+    }
+
+    .app-login-link {
+      display: inline-block;
+      text-align: center;
+      color: var(--accent-text);
+      font-size: 0.83rem;
+      font-weight: 700;
+      text-decoration: none;
+      padding: 6px 0 2px;
+    }
+
+    .app-login-link:hover {
+      text-decoration: underline;
+    }
+
     /* 10. GARANSI */
     .guarantee-card {
       background: var(--surface);
@@ -1045,17 +1101,28 @@
                 </tr>
               </thead>
               <tbody>
-                <tr><td>1</td><td>Bongkar keramik lama & angkut puing</td><td>23,2 m²</td><td>Rp46.000</td><td>Rp1.067.200</td></tr>
-                <tr><td>2</td><td>Peremajaan pipa air bersih AW & drain</td><td>1 ls</td><td>Rp1.500.000</td><td>Rp1.500.000</td></tr>
+                <tr><td>1</td><td>Bongkar keramik lama &amp; angkut puing</td><td>23,2 m²</td><td>Rp46.000</td><td>Rp1.067.200</td></tr>
+                <tr><td>2</td><td>Peremajaan pipa air bersih AW &amp; drain</td><td>1 ls</td><td>Rp1.500.000</td><td>Rp1.500.000</td></tr>
                 <tr><td>3</td><td>Waterproofing 2 lapis + tes rendam</td><td>7,5 m²</td><td>Rp74.000</td><td>Rp555.000</td></tr>
-                <tr><td>4</td><td>Keramik lantai anti-slip & dinding full</td><td>23,2 m²</td><td>Rp211.000</td><td>Rp4.895.200</td></tr>
-                <tr><td>5</td><td>Kloset duduk monoblok, shower & pintu UPVC</td><td>1 pkt</td><td>Rp4.570.000</td><td>Rp4.570.000</td></tr>
+                <tr><td>4</td><td>Keramik lantai anti-slip &amp; dinding full</td><td>23,2 m²</td><td>Rp211.000</td><td>Rp4.895.200</td></tr>
+                <tr><td>5</td><td>Plafon PVC tahan lembap + lampu LED</td><td>4 m²</td><td>Rp250.000</td><td>Rp1.000.000</td></tr>
+                <tr><td>6</td><td>Kloset duduk monoblok, shower &amp; pintu UPVC</td><td>1 pkt</td><td>Rp4.570.000</td><td>Rp4.570.000</td></tr>
               </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="4" style="text-align:right;color:#475569;">Subtotal Biaya Fisik (Material + Upah)</td>
+                  <td><strong>Rp13.587.400</strong></td>
+                </tr>
+                <tr>
+                  <td colspan="4" style="text-align:right;color:#475569;">Jasa Pengelolaan &amp; Pengawasan (10%)</td>
+                  <td><strong>Rp1.358.740</strong></td>
+                </tr>
+              </tfoot>
             </table>
           </div>
 
           <div style="display:flex;justify-content:space-between;align-items:center;background:#fff7ed;border-left:4px solid #f97316;padding:8px 10px;border-radius:6px;font-weight:800;color:#9a3412;">
-            <span>TOTAL PENAWARAN BORONGAN (TERMASUK JASA 10%)</span>
+            <span>TOTAL PENAWARAN BORONGAN (DIBULATKAN)</span>
             <span>Rp14.946.000</span>
           </div>
           <p style="font-size:0.73rem;color:#475569;margin-top:8px;">
@@ -1146,6 +1213,7 @@
               <option value="renovasi-dapur">Renovasi Dapur + Meja Cor Granit</option>
               <option value="atap-baja-ringan">Ganti Rangka Atap Baja Ringan + Genteng</option>
               <option value="kanopi-carport">Kanopi Carport Minimalis + Lantai Parkir</option>
+              <option value="cat-plafon-rumah">Peremajaan Plafon Gypsum &amp; Cat Full Rumah</option>
             </select>
           </div>
 
@@ -1153,10 +1221,11 @@
             <label for="d-zona">Zona Harga Wilayah</label>
             <select id="d-zona">
               <option value="1">Jawa Barat / Tengah / DIY / Timur</option>
-              <option value="1.08">DKI Jakarta, Bodetabek & Banten</option>
+              <option value="1.08">DKI Jakarta, Bodetabek &amp; Banten</option>
               <option value="1.09">Sumatera</option>
-              <option value="1.12">Bali, NTB & NTT</option>
-              <option value="1.16">Kalimantan & Sulawesi</option>
+              <option value="1.12">Bali, NTB &amp; NTT</option>
+              <option value="1.16">Kalimantan &amp; Sulawesi</option>
+              <option value="1.32">Maluku &amp; Papua</option>
             </select>
           </div>
 
@@ -1460,30 +1529,55 @@
           </ul>
         </div>
 
-        <!-- KANAN: HARGA & TOMBOL BELI -->
+        <!-- KANAN: HARGA & FORMULIR PEMESANAN -->
         <div class="checkout-box">
           <div>
             <span class="eyebrow" style="margin-bottom:8px;">Lisensi Penggunaan Penuh</span>
             <div class="price-big">Rp149.000</div>
-            <p style="font-size:0.86rem;color:var(--muted);margin-bottom:20px;">
-              Bayar satu kali saja · Langsung dapat link aplikasi & kode akses pembeli.
+            <p style="font-size:0.85rem;color:var(--muted);margin-bottom:14px;">
+              Bayar satu kali saja · Isi data di bawah untuk menerima Link Studio &amp; Kode Akses Pembeli via WhatsApp.
             </p>
           </div>
 
-          <div style="display:flex;flex-direction:column;gap:10px;">
+          <form class="order-form" id="lp-checkout-form" novalidate>
+            <div class="ord-field">
+              <label for="ord-name">Nama Pelaksana / Usaha</label>
+              <input type="text" id="ord-name" placeholder="Contoh: Budi Santoso — CV Maju Jaya" />
+            </div>
+            <div class="ord-field">
+              <label for="ord-email">Email Aktif (Pengiriman Kode Akses)</label>
+              <input type="email" id="ord-email" placeholder="Contoh: budi@majujaya.id" />
+            </div>
+            <div class="ord-field">
+              <label for="ord-wa">Nomor WhatsApp Aktif</label>
+              <input type="tel" id="ord-wa" placeholder="Contoh: 081234567890" />
+            </div>
+            <div class="ord-err" id="ord-error" role="alert"></div>
+
+            <button type="submit" class="btn btn-primary" style="width:100%;padding:14px;margin-top:4px;">
+              Pesan &amp; Ambil Kode Akses Resmi — Rp149.000
+            </button>
+            <div id="ord-confirm-box" style="display:none;margin-top:12px;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--surface-2);font-size:0.84rem;">
+              <div id="ord-confirm-text" style="margin-bottom:8px;"></div>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <a id="ord-email-btn" href="mailto:nifarimnif@gmail.com" class="btn btn-primary" style="width:100%;text-align:center;padding:10px;">
+                  Kirim Pesanan via Email Resmi →
+                </a>
+                <button type="button" id="ord-copy-btn" class="btn btn-secondary" style="width:100%;text-align:center;padding:10px;">
+                  Salin Format Pesanan
+                </button>
+              </div>
+            </div>
             <a
               href="https://nifari-rab-kontraktor-app.pages.dev"
-              target="_blank"
-              rel="noopener"
-              class="btn btn-primary"
-              style="width:100%;padding:15px;"
+              class="app-login-link"
             >
-              Beli & Buka RancangRAB Studio Sekarang
+              Sudah punya Kode Akses? Masuk ke Studio →
             </a>
-            <p style="font-size:0.77rem;color:var(--muted);text-align:center;">
+            <p style="font-size:0.75rem;color:var(--muted);text-align:center;">
               Akses instan 24 jam lewat browser HP Android, iPhone, maupun Laptop.
             </p>
-          </div>
+          </form>
         </div>
       </div>
     </div>
@@ -1598,69 +1692,102 @@
       const PRESETS = {
         'bangun-rumah-1lt': {
           defaultLuas: 36,
-          build: (L, m) => {
+          build: (luas, m) => {
+            const L = Math.max(12, Number(luas) || 36);
             const r = (n) => Math.round((n * m) / 500) * 500;
             return [
-              { uraian: 'Pembersihan lahan & bowplank siku', vol: +(L * 1.1).toFixed(1), sat: 'm²', mat: r(18000), upah: r(16000) },
-              { uraian: 'Galian & pondasi batu kali 1:5', vol: +(L * 0.34).toFixed(1), sat: 'm³', mat: r(640000), upah: r(260000) },
-              { uraian: 'Sloof, kolom praktis & ring balk beton', vol: +(L * 1.45).toFixed(1), sat: "m'", mat: r(118000), upah: r(56000) },
-              { uraian: 'Dinding bata ringan hebel 10 cm + mortar', vol: +(L * 2.85).toFixed(1), sat: 'm²', mat: r(82000), upah: r(38000) },
-              { uraian: 'Plesteran + acian halus dinding', vol: +(L * 5.2).toFixed(1), sat: 'm²', mat: r(48000), upah: r(58000) },
-              { uraian: 'Lantai granit 60×60 + plafon gypsum', vol: +(L * 0.95).toFixed(1), sat: 'm²', mat: r(277000), upah: r(133000) },
-              { uraian: 'Rangka atap baja ringan C75 + genteng metal', vol: +(L * 1.32).toFixed(1), sat: 'm²', mat: r(225000), upah: r(85000) },
-              { uraian: 'Kusen pintu jendela, listrik, pipa & cat', vol: 1, sat: 'paket', mat: r(11800000), upah: r(4200000) }
+              { uraian: 'Pembersihan lahan & pemasangan bowplank siku', vol: +(L * 1.1).toFixed(1), sat: 'm²', mat: r(18000), upah: r(16000) },
+              { uraian: 'Galian tanah & pasangan pondasi batu kali 1:5', vol: +(L * 0.34).toFixed(1), sat: 'm³', mat: r(640000), upah: r(260000) },
+              { uraian: 'Sloof 15×20, kolom praktis & ring balk beton bertulang', vol: +(L * 1.45).toFixed(1), sat: "m'", mat: r(118000), upah: r(56000) },
+              { uraian: 'Pasangan dinding bata ringan hebel 10 cm + mortar', vol: +(L * 2.85).toFixed(1), sat: 'm²', mat: r(82000), upah: r(38000) },
+              { uraian: 'Plesteran + acian halus dinding luar & dalam', vol: +(L * 5.2).toFixed(1), sat: 'm²', mat: r(48000), upah: r(58000) },
+              { uraian: 'Lantai granit tile 60×60 ruang utama + rabat bawah', vol: +(L * 0.88).toFixed(1), sat: 'm²', mat: r(195000), upah: r(85000) },
+              { uraian: 'Keramik lantai & dinding kamar mandi + waterproofing', vol: +(L * 0.35).toFixed(1), sat: 'm²', mat: r(138000), upah: r(74000) },
+              { uraian: 'Plafon gypsum 9 mm rangka hollow galvalum terpasang', vol: +(L * 1.05).toFixed(1), sat: 'm²', mat: r(82000), upah: r(48000) },
+              { uraian: 'Rangka atap baja ringan C75 + genteng metal pasir', vol: +(L * 1.32).toFixed(1), sat: 'm²', mat: r(225000), upah: r(85000) },
+              { uraian: 'Paket kusen aluminium, pintu utama, pintu kamar & KM', vol: Math.max(1, Math.round(L / 12)), sat: 'paket', mat: r(3450000), upah: r(650000) },
+              { uraian: 'Instalasi listrik SNI, lampu LED, saklar, stop kontak & MCB', vol: Math.max(6, Math.round(L * 0.35)), sat: 'titik', mat: r(215000), upah: r(95000) },
+              { uraian: 'Instalasi pipa air bersih/kotor, kloset duduk & septic tank', vol: 1, sat: 'ls', mat: r(5400000), upah: r(1850000) },
+              { uraian: 'Pengecatan dinding interior, eksterior weatherproof & plafon', vol: +(L * 5.8).toFixed(1), sat: 'm²', mat: r(29000), upah: r(19000) }
             ];
           }
         },
         'renovasi-kamar-mandi': {
           defaultLuas: 4,
-          build: (L, m) => {
+          build: (luas, m) => {
+            const L = Math.max(2, Number(luas) || 4);
             const d = +(Math.sqrt(L) * 4 * 2.4).toFixed(1);
             const r = (n) => Math.round((n * m) / 500) * 500;
             return [
-              { uraian: 'Bongkar keramik lama & buang puing', vol: +(L + d).toFixed(1), sat: 'm²', mat: r(8000), upah: r(38000) },
-              { uraian: 'Peremajaan jalur pipa air bersih AW & drain', vol: 1, sat: 'ls', mat: r(950000), upah: r(550000) },
-              { uraian: 'Waterproofing coating 2 lapis + tes rendam', vol: +(L + 3.5).toFixed(1), sat: 'm²', mat: r(48000), upah: r(26000) },
-              { uraian: 'Keramik lantai anti-slip & dinding full', vol: +(L + d).toFixed(1), sat: 'm²', mat: r(138000), upah: r(73000) },
-              { uraian: 'Plafon PVC tahan lembap + lampu LED', vol: L, sat: 'm²', mat: r(185000), upah: r(65000) },
-              { uraian: 'Kloset duduk monoblok, shower & pintu UPVC', vol: 1, sat: 'paket', mat: r(3930000), upah: r(640000) }
+              { uraian: 'Bongkar keramik lantai & dinding lama + angkut puing', vol: +(L + d).toFixed(1), sat: 'm²', mat: r(8000), upah: r(38000) },
+              { uraian: 'Peremajaan jalur pipa air bersih AW, floor drain & kloset', vol: 1, sat: 'ls', mat: r(950000), upah: r(550000) },
+              { uraian: 'Waterproofing coating 2 lapis lantai & sudut + tes rendam', vol: +(L + 3.5).toFixed(1), sat: 'm²', mat: r(48000), upah: r(26000) },
+              { uraian: 'Pasang keramik lantai anti-slip 30×30 cm kemiringan ke drain', vol: L, sat: 'm²', mat: r(105000), upah: r(65000) },
+              { uraian: 'Pasang keramik/granit dinding full plafon + nat anti-jamur', vol: d, sat: 'm²', mat: r(145000), upah: r(75000) },
+              { uraian: 'Plafon PVC tahan lembap + lampu downlight LED + exhaust', vol: L, sat: 'm²', mat: r(185000), upah: r(65000) },
+              { uraian: 'Pasang kloset duduk monoblok, jet shower & kran shower set', vol: 1, sat: 'paket', mat: r(2650000), upah: r(420000) },
+              { uraian: 'Pintu kamar mandi aluminium/UPVC tahan air komplit', vol: 1, sat: 'unit', mat: r(1280000), upah: r(220000) }
             ];
           }
         },
         'renovasi-dapur': {
           defaultLuas: 9,
-          build: (L, m) => {
+          build: (luas, m) => {
+            const L = Math.max(4, Number(luas) || 9);
             const p = +(Math.max(2.4, Math.sqrt(L) * 1.2)).toFixed(1);
             const r = (n) => Math.round((n * m) / 500) * 500;
             return [
-              { uraian: 'Cor meja dapur beton bertulang lebar 60 cm', vol: p, sat: "m'", mat: r(265000), upah: r(145000) },
-              { uraian: 'Top table granit 60×60 + keramik backsplash', vol: +(p * 1.75).toFixed(1), sat: 'm²', mat: r(178000), upah: r(85000) },
-              { uraian: 'Pasang lantai granit 60×60 ruang dapur', vol: L, sat: 'm²', mat: r(175000), upah: r(70000) },
-              { uraian: 'Kitchen sink stainless SUS 304 + kran + pipa', vol: 1, sat: 'paket', mat: r(1150000), upah: r(280000) },
-              { uraian: 'Instalasi stop kontak dapur & cat bersih', vol: 1, sat: 'ls', mat: r(980000), upah: r(620000) }
+              { uraian: 'Bongkar meja lama, perapian jalur dinding & buang puing', vol: 1, sat: 'ls', mat: r(350000), upah: r(550000) },
+              { uraian: 'Cor meja dapur beton bertulang lebar 60 cm + kaki penyangga', vol: p, sat: "m'", mat: r(265000), upah: r(145000) },
+              { uraian: 'Lapis top table meja dapur granit tile 60×60 + bibir rapi', vol: +(p * 0.85).toFixed(1), sat: 'm²', mat: r(210000), upah: r(95000) },
+              { uraian: 'Pasang keramik dinding backsplash mudah dilap anti-minyak', vol: +(p * 0.9).toFixed(1), sat: 'm²', mat: r(145000), upah: r(75000) },
+              { uraian: 'Pasang lantai granit 60×60 area dapur', vol: L, sat: 'm²', mat: r(175000), upah: r(70000) },
+              { uraian: 'Pasang kitchen sink stainless SUS 304 + kran angsa + pipa', vol: 1, sat: 'paket', mat: r(1150000), upah: r(280000) },
+              { uraian: 'Instalasi 3 stop kontak alat dapur NYM 3×2,5 + lampu kerja', vol: 4, sat: 'titik', mat: r(185000), upah: r(90000) },
+              { uraian: 'Pengecatan ulang dinding & plafon ruang dapur bersih', vol: +(L * 2.8).toFixed(1), sat: 'm²', mat: r(28000), upah: r(20000) }
             ];
           }
         },
         'atap-baja-ringan': {
           defaultLuas: 54,
-          build: (L, m) => {
+          build: (luas, m) => {
+            const L = Math.max(15, Number(luas) || 54);
             const r = (n) => Math.round((n * m) / 500) * 500;
             return [
-              { uraian: 'Bongkar genteng & kayu lapuk lama + terpal', vol: L, sat: 'm²', mat: r(9000), upah: r(44000) },
-              { uraian: 'Rangka atap baja ringan C75.075 SNI + reng', vol: L, sat: 'm²', mat: r(135000), upah: r(55000) },
-              { uraian: 'Aluminium foil peredam panas + genteng metal pasir', vol: L, sat: 'm²', mat: r(120000), upah: r(44000) },
-              { uraian: 'Nok bubungan anti-bocor & lisplank GRC keliling', vol: +(Math.sqrt(L) * 4).toFixed(1), sat: "m'", mat: r(85000), upah: r(42000) }
+              { uraian: 'Bongkar genteng & kayu lapuk lama + proteksi terpal hujan', vol: L, sat: 'm²', mat: r(9000), upah: r(44000) },
+              { uraian: 'Perbaikan/perataan dudukan ring balk beton tumpuan kuda-kuda', vol: +(Math.sqrt(L) * 4).toFixed(1), sat: "m'", mat: r(65000), upah: r(45000) },
+              { uraian: 'Rangka atap baja ringan C75.075 SNI + reng terpasang', vol: L, sat: 'm²', mat: r(135000), upah: r(55000) },
+              { uraian: 'Insulasi peredam panas aluminium foil bubble bawah reng', vol: L, sat: 'm²', mat: r(28000), upah: r(12000) },
+              { uraian: 'Penutup atap genteng metal pasir peredam bising hujan', vol: L, sat: 'm²', mat: r(92000), upah: r(32000) },
+              { uraian: 'Nok bubungan + flashing waterproofing sambungan dinding', vol: +(Math.sqrt(L) * 1.8).toFixed(1), sat: "m'", mat: r(74000), upah: r(36000) },
+              { uraian: 'Lisplank GRC 20 cm keliling + pengecatan tahan cuaca', vol: +(Math.sqrt(L) * 4).toFixed(1), sat: "m'", mat: r(54000), upah: r(28000) }
             ];
           }
         },
         'kanopi-carport': {
           defaultLuas: 18,
-          build: (L, m) => {
+          build: (luas, m) => {
+            const L = Math.max(9, Number(luas) || 18);
             const r = (n) => Math.round((n * m) / 500) * 500;
             return [
-              { uraian: 'Rangka kanopi besi hollow galvanis cat duco hitam', vol: L, sat: 'm²', mat: r(320000), upah: r(115000) },
-              { uraian: 'Atap dingin UPVC twinwall + talang pipa PVC', vol: L, sat: 'm²', mat: r(268000), upah: r(52000) },
-              { uraian: 'Perkerasan lantai carport batu sikat / paving', vol: L, sat: 'm²', mat: r(140000), upah: r(75000) }
+              { uraian: 'Rangka kanopi hollow galvanis 4×8 & 4×6 cat duco hitam anti-karat', vol: L, sat: 'm²', mat: r(320000), upah: r(115000) },
+              { uraian: 'Atap dingin UPVC twinwall (setara Alderon) + baut seal karet', vol: L, sat: 'm²', mat: r(245000), upah: r(42000) },
+              { uraian: 'Talang air depan kanopi + pipa buang PVC 3 inch rapi', vol: +(Math.sqrt(L) * 1.2).toFixed(1), sat: "m'", mat: r(72000), upah: r(32000) },
+              { uraian: 'Perataan tanah dasar + lantai koral sikat / paving K-300', vol: L, sat: 'm²', mat: r(140000), upah: r(75000) }
+            ];
+          }
+        },
+        'cat-plafon-rumah': {
+          defaultLuas: 45,
+          build: (luas, m) => {
+            const L = Math.max(18, Number(luas) || 45);
+            const r = (n) => Math.round((n * m) / 500) * 500;
+            return [
+              { uraian: 'Plafon gypsum 9 mm rangka hollow galvalum + kompon rata', vol: L, sat: 'm²', mat: r(82000), upah: r(48000) },
+              { uraian: 'List shadow line / profil tepi plafon rapi', vol: +(L * 1.1).toFixed(1), sat: "m'", mat: r(18000), upah: r(16000) },
+              { uraian: 'Kerok bagian terkelupas, perapian retak rambut & cat interior 2 lapis', vol: +(L * 2.9).toFixed(1), sat: 'm²', mat: r(26000), upah: r(20000) },
+              { uraian: 'Pengecatan fasad luar tahan cuaca (weatherproof)', vol: +(L * 0.8).toFixed(1), sat: 'm²', mat: r(38000), upah: r(20000) },
+              { uraian: 'Pengecatan plafon putih doff 2 lapis bersih', vol: L, sat: 'm²', mat: r(21000), upah: r(17000) }
             ];
           }
         }
@@ -1712,13 +1839,16 @@
       function refreshDemoTotals() {
         let sumMat = 0;
         let sumUpah = 0;
+        let fisik = 0;
         demoRows.forEach((r) => {
           sumMat += Math.round(r.vol * r.mat);
           sumUpah += Math.round(r.vol * r.upah);
+          fisik += Math.round(r.vol * (r.mat + r.upah));
         });
-        const fisik = sumMat + sumUpah;
-        const feePct = Math.max(0, Math.min(35, Number(feeEl.value) || 0));
-        const grand = Math.round((fisik * (1 + feePct / 100)) / 1000) * 1000;
+        const rawFee = feeEl.value === '' ? 10 : Number(feeEl.value);
+        const feePct = Number.isFinite(rawFee) ? Math.max(0, Math.min(35, rawFee)) : 10;
+        const feeNominal = Math.round(fisik * (feePct / 100));
+        const grand = Math.round((fisik + feeNominal) / 1000) * 1000;
         const dp = Math.round((grand * 0.3) / 1000) * 1000;
 
         document.getElementById('dkpi-mat').textContent = rp(sumMat);
@@ -1756,6 +1886,74 @@
       feeEl.addEventListener('input', refreshDemoTotals);
 
       rebuildDemoRows(false);
+
+      // 3. Formulir Checkout WhatsApp untuk Kode Akses Resmi
+      const checkoutForm = document.getElementById('lp-checkout-form');
+      if (checkoutForm) {
+        const nameInp = document.getElementById('ord-name');
+        const emailInp = document.getElementById('ord-email');
+        const waInp = document.getElementById('ord-wa');
+        const errBox = document.getElementById('ord-error');
+
+        [nameInp, emailInp, waInp].forEach((inp) => {
+          inp.addEventListener('input', () => {
+            errBox.style.display = 'none';
+          });
+        });
+
+        checkoutForm.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const nama = nameInp.value.trim();
+          const email = emailInp.value.trim();
+          const wa = waInp.value.trim();
+
+          if (!nama) {
+            errBox.textContent = 'Mohon isi Nama Pelaksana atau Usaha Anda.';
+            errBox.style.display = 'block';
+            nameInp.focus();
+            return;
+          }
+          if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            errBox.textContent = 'Mohon masukkan alamat email aktif dengan format yang benar.';
+            errBox.style.display = 'block';
+            emailInp.focus();
+            return;
+          }
+          if (!wa || wa.replace(/\D/g, '').length < 8) {
+            errBox.textContent = 'Mohon masukkan nomor WhatsApp aktif Anda.';
+            errBox.style.display = 'block';
+            waInp.focus();
+            return;
+          }
+
+          errBox.style.display = 'none';
+          const pesan =
+            'Halo Admin RancangRAB Studio, saya ingin memesan Lisensi Penuh RancangRAB Studio (Rp149.000).\n\n' +
+            'Nama / Usaha: ' + nama + '\n' +
+            'Email: ' + email + '\n' +
+            'No. WhatsApp: ' + wa + '\n\n' +
+            'Mohon info pembayaran untuk pengiriman Kode Akses Pembeli. Terima kasih.';
+
+          const confirmBox = document.getElementById('ord-confirm-box');
+          const confirmTxt = document.getElementById('ord-confirm-text');
+          const emailBtn = document.getElementById('ord-email-btn');
+          const copyBtn = document.getElementById('ord-copy-btn');
+          confirmTxt.textContent =
+            'Ringkasan pesanan atas nama ' + nama + ' siap dikirim ke nifarimnif@gmail.com agar info pembayaran & Kode Akses Pembeli langsung dikirimkan.';
+          emailBtn.href =
+            'mailto:nifarimnif@gmail.com?subject=' +
+            encodeURIComponent('Pesanan Lisensi RancangRAB Studio - ' + nama) +
+            '&body=' +
+            encodeURIComponent(pesan);
+          copyBtn.onclick = () => {
+            navigator.clipboard.writeText(pesan).then(() => {
+              copyBtn.textContent = 'Format Pesanan Tersalin!';
+              setTimeout(() => { copyBtn.textContent = 'Salin Format Pesanan'; }, 2200);
+            });
+          };
+          confirmBox.style.display = 'block';
+        });
+      }
     })();
   </script>
 </body>

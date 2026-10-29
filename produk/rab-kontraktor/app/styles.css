@@ -856,6 +856,37 @@ input[type="range"] {
   color: #dc2626;
 }
 
+.btn-outline {
+  background: transparent;
+  color: var(--primary-text);
+  border-color: var(--border-hover);
+}
+
+.btn-outline:hover {
+  background: var(--primary-soft);
+}
+
+.login-error-banner {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #f87171;
+  border-radius: 12px;
+  padding: 10px 13px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  line-height: 1.45;
+}
+
+[data-theme="light"] .login-error-banner {
+  color: #b91c1c;
+}
+
+.input-error {
+  border-color: var(--danger) !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important;
+}
+
 /* ================= WIZARD & LIVE BAR ================= */
 .wizard-steps {
   display: grid;
@@ -921,6 +952,26 @@ input[type="range"] {
 }
 
 /* INTERACTIVE RAB ROW EDITOR */
+.rab-rows-header {
+  display: grid;
+  grid-template-columns: 2fr 88px 76px 128px 128px 130px 36px;
+  gap: 8px;
+  padding: 0 15px 6px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.rab-mobile-lbl {
+  display: none;
+  font-size: 0.71rem;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 3px;
+}
+
 .rab-items-list {
   display: flex;
   flex-direction: column;
@@ -981,6 +1032,7 @@ input[type="range"] {
   line-height: 1.55;
   max-height: 540px;
   overflow-y: auto;
+  overflow-x: auto;
   margin-top: 16px;
 }
 
@@ -1062,6 +1114,12 @@ input[type="range"] {
 .lib-card:hover {
   border-color: var(--primary);
   transform: translateY(-2px);
+}
+
+.lib-card:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-color: var(--primary);
 }
 
 .lib-meta {
@@ -1151,6 +1209,13 @@ input[type="range"] {
   margin: 10px 0 14px;
 }
 
+.price-breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
 .toast {
   position: fixed;
   bottom: 92px;
@@ -1232,6 +1297,14 @@ input[type="range"] {
     grid-template-columns: 1fr;
   }
 
+  .rab-rows-header {
+    display: none;
+  }
+
+  .rab-mobile-lbl {
+    display: block;
+  }
+
   .rab-row-card {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
@@ -1246,6 +1319,10 @@ input[type="range"] {
     display: flex;
     justify-content: space-between;
     align-items: center;
+  }
+
+  .price-breakdown-grid {
+    grid-template-columns: 1fr;
   }
 
   .content-wrap {
@@ -1272,6 +1349,10 @@ input[type="range"] {
     align-items: center;
     justify-content: center;
     cursor: pointer;
+  }
+
+  .mobile-fab.fab-hidden {
+    display: none !important;
   }
 
   .mobile-bottom-nav {

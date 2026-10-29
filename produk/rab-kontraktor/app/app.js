@@ -12,7 +12,8 @@ import {
   formatTanggalIndo,
   generateRabPdfBlob,
   generateRabXlsxBlob,
-  generateSpkDocxBlob
+  generateSpkDocxBlob,
+  parseMasaGaransi
 } from './data/rab-engine.js';
 
 const KEYS = {
@@ -22,6 +23,125 @@ const KEYS = {
   FAVORITES: 'rancangrab_favs_v1',
   THEME: 'rancangrab_theme_v1'
 };
+
+// Validasi Kode Akses SHA-256 Tersinkron (murni JS tanpa teks kode terbuka)
+const LICENSE_SALT = 'nifari-lic-2026::';
+const CREATOR_MASTER_HASH = '1934419b428fd7cc0efb2496131e297396dc4050b597d024fe94091652033488';
+const BUYER_VALID_HASHES = new Set([
+  '87037471c7d7f51d8697e9d9969d08349b3484296c898fcb12a5a133bb8f35f6',
+  'b780853b63d89442070cdef038837e34fc3d62a80a045831a67819a870b83085'
+]);
+
+const SHA256_K = [
+  0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+  0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+  0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+  0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+  0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+  0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+  0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+  0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+];
+
+function rotr32(n, x) {
+  return (x >>> n) | (x << (32 - n));
+}
+
+function sha256Hex(asciiText) {
+  const bytes = new TextEncoder().encode(asciiText);
+  const bitLen = bytes.length * 8;
+  const totalLen = (((bytes.length + 9 + 63) >> 6) << 6);
+  const buf = new Uint8Array(totalLen);
+  buf.set(bytes);
+  buf[bytes.length] = 0x80;
+  const view = new DataView(buf.buffer);
+  view.setUint32(totalLen - 8, Math.floor(bitLen / 0x100000000), false);
+  view.setUint32(totalLen - 4, bitLen >>> 0, false);
+
+  let h0 = 0x6a09e667;
+  let h1 = 0xbb67ae85;
+  let h2 = 0x3c6ef372;
+  let h3 = 0xa54ff53a;
+  let h4 = 0x510e527f;
+  let h5 = 0x9b05688c;
+  let h6 = 0x1f83d9ab;
+  let h7 = 0x5be0cd19;
+
+  const w = new Uint32Array(64);
+  for (let offset = 0; offset < totalLen; offset += 64) {
+    for (let i = 0; i < 16; i += 1) {
+      w[i] = view.getUint32(offset + i * 4, false);
+    }
+    for (let i = 16; i < 64; i += 1) {
+      const s0 = rotr32(7, w[i - 15]) ^ rotr32(18, w[i - 15]) ^ (w[i - 15] >>> 3);
+      const s1 = rotr32(17, w[i - 2]) ^ rotr32(19, w[i - 2]) ^ (w[i - 2] >>> 10);
+      w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
+    }
+
+    let a = h0;
+    let b = h1;
+    let c = h2;
+    let d = h3;
+    let e = h4;
+    let f = h5;
+    let g = h6;
+    let h = h7;
+
+    for (let i = 0; i < 64; i += 1) {
+      const S1 = rotr32(6, e) ^ rotr32(11, e) ^ rotr32(25, e);
+      const ch = (e & f) ^ (~e & g);
+      const temp1 = (h + S1 + ch + SHA256_K[i] + w[i]) >>> 0;
+      const S0 = rotr32(2, a) ^ rotr32(13, a) ^ rotr32(22, a);
+      const maj = (a & b) ^ (a & c) ^ (b & c);
+      const temp2 = (S0 + maj) >>> 0;
+
+      h = g;
+      g = f;
+      f = e;
+      e = (d + temp1) >>> 0;
+      d = c;
+      c = b;
+      b = a;
+      a = (temp1 + temp2) >>> 0;
+    }
+
+    h0 = (h0 + a) >>> 0;
+    h1 = (h1 + b) >>> 0;
+    h2 = (h2 + c) >>> 0;
+    h3 = (h3 + d) >>> 0;
+    h4 = (h4 + e) >>> 0;
+    h5 = (h5 + f) >>> 0;
+    h6 = (h6 + g) >>> 0;
+    h7 = (h7 + h) >>> 0;
+  }
+
+  return [h0, h1, h2, h3, h4, h5, h6, h7]
+    .map((v) => v.toString(16).padStart(8, '0'))
+    .join('');
+}
+
+function hashAccessCode(rawCode) {
+  const normalized = String(rawCode ?? '').trim().toUpperCase();
+  if (!normalized) return '';
+  return sha256Hex(LICENSE_SALT + normalized);
+}
+
+function isValidLicenseHash(h) {
+  return Boolean(h) && (h === CREATOR_MASTER_HASH || BUYER_VALID_HASHES.has(h));
+}
+
+function parseLoginIdentity(rawName) {
+  const clean = String(rawName || '').trim();
+  if (!clean) return { pelaksana: '', usaha: '' };
+  const parts = clean
+    .split(/\s*(?:—|–|\s-\s|\|)\s*/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return {
+    pelaksana: parts[0] || clean,
+    usaha: parts.slice(1).join(' — ')
+  };
+}
 
 function loadJson(key, fallback) {
   try {
@@ -66,22 +186,28 @@ function triggerBlobDownload(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
+const DEFAULT_SETTINGS = {
+  namaUsaha: '',
+  namaPelaksana: '',
+  teleponUsaha: '',
+  kota: 'Indonesia',
+  rekeningPembayaran: ''
+};
+
 const state = {
   user: loadJson(KEYS.USER, null),
-  settings: loadJson(KEYS.SETTINGS, {
-    namaUsaha: 'CV Karya Mandiri Bangunan',
-    namaPelaksana: 'Hendra Pratama',
-    teleponUsaha: '0812-8899-7766',
-    kota: 'Bekasi',
-    rekeningPembayaran: 'BCA 5420-8899-11 a.n. Hendra Pratama'
-  }),
+  settings: loadJson(KEYS.SETTINGS, { ...DEFAULT_SETTINGS }),
   history: loadJson(KEYS.HISTORY, []),
   favorites: loadJson(KEYS.FAVORITES, []),
   selectedPresetId: 'bangun-rumah-1lt',
   activeRows: [],
   activeProjectId: null,
   activeLibCategory: 'SEMUA',
-  activeModalItem: null
+  activeModalItem: null,
+  appliedZonaFactor: 1.0,
+  appliedLuas: 36,
+  rowsManuallyEdited: false,
+  currentView: 'dashboard'
 };
 
 function showToast(msg) {
@@ -91,7 +217,7 @@ function showToast(msg) {
   clearTimeout(showToast._timer);
   showToast._timer = setTimeout(() => {
     t.style.display = 'none';
-  }, 2600);
+  }, 2800);
 }
 
 // TEMA GELAP / TERANG
@@ -113,58 +239,140 @@ function applyTheme(theme) {
     theme === 'dark' ? 'Mode Terang' : 'Mode Gelap';
 }
 
-// LOGIN PEMBELI
+// LOGIN PEMBELI & VALIDASI KODE AKSES SHA-256
 function initAuth() {
   const loginScreen = document.getElementById('login-screen');
   const appLayout = document.getElementById('app-layout');
   const form = document.getElementById('login-form');
   const errEl = document.getElementById('login-error');
+  const nameInp = document.getElementById('login-name');
+  const emailInp = document.getElementById('login-email');
+  const codeInp = document.getElementById('login-code');
 
-  document.getElementById('btn-demo-fill').addEventListener('click', () => {
-    document.getElementById('login-name').value = 'Hendra Pratama — Karya Mandiri Bangunan';
-    document.getElementById('login-email').value = 'hendra@karyamandiri.id';
-    document.getElementById('login-code').value = 'RAB-PRO-2026';
-  });
+  const showLoginError = (msg, focusEl) => {
+    errEl.textContent = msg;
+    errEl.style.display = 'block';
+    if (focusEl) {
+      focusEl.classList.add('input-error');
+      focusEl.focus();
+    }
+  };
+
+  for (const inp of [nameInp, emailInp, codeInp]) {
+    inp.addEventListener('input', () => {
+      inp.classList.remove('input-error');
+      if (errEl.style.display !== 'none') errEl.style.display = 'none';
+    });
+  }
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    const name = document.getElementById('login-name').value.trim();
-    const email = document.getElementById('login-email').value.trim();
-    const code = document.getElementById('login-code').value.trim();
+    const rawName = nameInp.value.trim();
+    const rawEmail = emailInp.value.trim();
+    const rawCode = codeInp.value.trim();
+    const codeHash = hashAccessCode(rawCode);
 
-    if (code.length < 4) {
-      errEl.textContent = 'Masukkan kode akses pembelian yang valid (minimal 4 karakter).';
-      errEl.style.display = 'block';
+    // 1. Jika kode cocok dengan Creator Master Hash -> langsung masuk 1 klik
+    if (codeHash === CREATOR_MASTER_HASH) {
+      errEl.style.display = 'none';
+      const finalName = rawName || 'Nifari (Kreator Utama)';
+      const finalEmail = rawEmail || 'creator@nifari.id';
+      applyLoggedInIdentity(finalName, finalEmail, codeHash, 'creator');
+      enterApp();
+      return;
+    }
+
+    // 2. Validasi Pembeli Resmi (Nama, format Email, & Official Buyer Hash)
+    if (!rawName) {
+      showLoginError('Mohon isi Nama Kontraktor atau Pelaksana terlebih dulu.', nameInp);
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!rawEmail || !emailRegex.test(rawEmail)) {
+      showLoginError('Mohon masukkan alamat email aktif dengan format yang benar.', emailInp);
+      return;
+    }
+    if (!rawCode) {
+      showLoginError('Masukkan kode akses pembelian resmi RancangRAB Studio Anda.', codeInp);
+      return;
+    }
+    if (!BUYER_VALID_HASHES.has(codeHash)) {
+      showLoginError(
+        'Kode akses tidak sesuai. Periksa kembali kode pembelian resmi Anda atau pesan akses lewat halaman utama.',
+        codeInp
+      );
       return;
     }
 
     errEl.style.display = 'none';
-    state.user = { name, email, code, loginAt: new Date().toISOString() };
-    saveJson(KEYS.USER, state.user);
-
-    if (name.includes('—')) {
-      const [pelaksana, usaha] = name.split('—').map((s) => s.trim());
-      if (pelaksana) state.settings.namaPelaksana = pelaksana;
-      if (usaha) state.settings.namaUsaha = usaha;
-      saveJson(KEYS.SETTINGS, state.settings);
-    }
-
+    applyLoggedInIdentity(rawName, rawEmail, codeHash, 'buyer');
     enterApp();
   });
 
   document.getElementById('btn-logout').addEventListener('click', () => {
     localStorage.removeItem(KEYS.USER);
     state.user = null;
+    codeInp.value = '';
     appLayout.classList.remove('active');
     loginScreen.style.display = 'flex';
   });
 
-  if (state.user) {
+  // Verifikasi ulang sesi tersimpan agar sesi lama/palsu tidak lolos
+  if (state.user && isValidLicenseHash(state.user.validHash)) {
+    // Bersihkan sisa nama bawaan lama bila berbeda dari akun login
+    const parsed = parseLoginIdentity(state.user.name);
+    if (
+      parsed.pelaksana &&
+      (!state.settings.namaPelaksana ||
+        (state.settings.namaPelaksana === 'Hendra Pratama' && !state.user.name.includes('Hendra Pratama')))
+    ) {
+      state.settings.namaPelaksana = parsed.pelaksana;
+      if (parsed.usaha) {
+        state.settings.namaUsaha = parsed.usaha;
+      } else if (state.settings.namaUsaha === 'CV Karya Mandiri Bangunan') {
+        state.settings.namaUsaha = '';
+      }
+      if (state.settings.rekeningPembayaran && state.settings.rekeningPembayaran.includes('Hendra Pratama')) {
+        state.settings.rekeningPembayaran = '';
+      }
+      saveJson(KEYS.SETTINGS, state.settings);
+    }
     enterApp();
   } else {
+    localStorage.removeItem(KEYS.USER);
+    state.user = null;
     loginScreen.style.display = 'flex';
     appLayout.classList.remove('active');
   }
+}
+
+function applyLoggedInIdentity(fullName, email, validHash, role) {
+  state.user = {
+    name: fullName,
+    email,
+    role,
+    validHash,
+    loginAt: new Date().toISOString()
+  };
+  saveJson(KEYS.USER, state.user);
+
+  const { pelaksana, usaha } = parseLoginIdentity(fullName);
+  if (pelaksana) {
+    state.settings.namaPelaksana = pelaksana;
+  }
+  if (usaha) {
+    state.settings.namaUsaha = usaha;
+  } else if (state.settings.namaUsaha === 'CV Karya Mandiri Bangunan') {
+    state.settings.namaUsaha = '';
+  }
+  if (
+    state.settings.rekeningPembayaran &&
+    state.settings.rekeningPembayaran.includes('Hendra Pratama') &&
+    !fullName.includes('Hendra Pratama')
+  ) {
+    state.settings.rekeningPembayaran = '';
+  }
+  saveJson(KEYS.SETTINGS, state.settings);
 }
 
 function enterApp() {
@@ -177,10 +385,19 @@ function enterApp() {
   updateQuickSimulator();
   renderMaterialCalculator();
   refreshDashboardAndBadges();
+  updateMobileFabVisibility(state.currentView || 'dashboard');
+}
+
+function updateMobileFabVisibility(viewName) {
+  const fab = document.getElementById('mobile-fab-add');
+  if (!fab) return;
+  const hideOnViews = ['wizard', 'material', 'settings'];
+  fab.classList.toggle('fab-hidden', hideOnViews.includes(viewName));
 }
 
 // NAVIGASI VIEW
 function switchView(viewName) {
+  state.currentView = viewName;
   for (const btn of document.querySelectorAll('.nav-btn')) {
     btn.classList.toggle('active', btn.dataset.view === viewName);
   }
@@ -190,6 +407,7 @@ function switchView(viewName) {
   for (const sec of document.querySelectorAll('.view-section')) {
     sec.classList.toggle('active', sec.id === `view-${viewName}`);
   }
+  updateMobileFabVisibility(viewName);
   closeMobileSidebar();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -219,21 +437,46 @@ function initNavigation() {
   });
   document.getElementById('sidebar-overlay').addEventListener('click', closeMobileSidebar);
 
-  document.getElementById('dash-btn-new-rab').addEventListener('click', () => switchView('wizard'));
+  document.getElementById('dash-btn-new-rab').addEventListener('click', () => {
+    switchView('wizard');
+    switchWizardStep(1);
+  });
   document.getElementById('dash-btn-open-material').addEventListener('click', () => switchView('material'));
-  document.getElementById('dash-chevron-wizard').addEventListener('click', () => switchView('wizard'));
-  document.getElementById('bento-go-wizard').addEventListener('click', () => switchView('wizard'));
+  document.getElementById('dash-chevron-wizard').addEventListener('click', () => {
+    switchView('wizard');
+    switchWizardStep(1);
+  });
+  document.getElementById('bento-go-wizard').addEventListener('click', () => {
+    switchView('wizard');
+    switchWizardStep(1);
+  });
   document.getElementById('bento-go-history').addEventListener('click', () => switchView('history'));
   document.getElementById('bento-go-library').addEventListener('click', () => switchView('library'));
   document.getElementById('bento-go-fav').addEventListener('click', () => switchView('favorites'));
   document.getElementById('dash-go-history').addEventListener('click', () => switchView('history'));
-  document.getElementById('mobile-fab-add').addEventListener('click', () => switchView('wizard'));
+
+  // FAB mobile: buka Wizard & reset ke Langkah 1
+  document.getElementById('mobile-fab-add').addEventListener('click', () => {
+    switchView('wizard');
+    switchWizardStep(1);
+  });
 
   document.getElementById('dash-search-form').addEventListener('submit', (e) => {
     e.preventDefault();
     const q = document.getElementById('dash-search-input').value.trim();
     document.getElementById('lib-search').value = q;
     switchView('library');
+  });
+
+  // Tutup modal & sidebar saat tombol Escape ditekan
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const modal = document.getElementById('item-modal');
+      if (modal && modal.classList.contains('active')) {
+        closeItemModal();
+      }
+      closeMobileSidebar();
+    }
   });
 }
 
@@ -270,10 +513,28 @@ function initQuickSimulator() {
     const zona = zonaSel.value;
     document.getElementById('p-zona').value = zona;
     document.getElementById('p-luas').value = String(luas);
+    const presetObj = PROJECT_PRESETS[presetId] || PROJECT_PRESETS['bangun-rumah-1lt'];
+    if (!document.getElementById('p-judul').value.trim()) {
+      document.getElementById('p-judul').value = presetObj.label;
+    }
     loadPresetIntoWizard(presetId, true);
     switchView('wizard');
-    switchWizardStep(2);
-    showToast('Simulasi berhasil dibuka menjadi rincian RAB lengkap!');
+
+    const hasKlienLokasi =
+      document.getElementById('p-klien').value.trim() &&
+      document.getElementById('p-lokasi').value.trim();
+
+    if (hasKlienLokasi) {
+      attemptWizardStep(2);
+      showToast('Simulasi berhasil dibuka menjadi rincian RAB lengkap!');
+    } else {
+      switchWizardStep(1);
+      const target = !document.getElementById('p-klien').value.trim()
+        ? document.getElementById('p-klien')
+        : document.getElementById('p-lokasi');
+      target.focus();
+      showToast('Simulasi dimuat! Isi Nama Klien dan Lokasi dulu sebelum cek rincian harga.');
+    }
   });
 }
 
@@ -294,8 +555,10 @@ function updateQuickSimulator() {
 
 // DASHBOARD STATS & TICKETS
 function refreshDashboardAndBadges() {
-  const pelaksana = state.settings.namaPelaksana || state.user?.name || 'Pelaksana Proyek';
-  const usaha = state.settings.namaUsaha || 'Kontraktor Mandiri';
+  const parsedUser = parseLoginIdentity(state.user?.name || '');
+  const pelaksana = state.settings.namaPelaksana || parsedUser.pelaksana || 'Pelaksana Proyek';
+  const usaha = state.settings.namaUsaha || parsedUser.usaha || 'Kontraktor & Pelaksana Mandiri';
+
   document.getElementById('greeting-title').textContent = `Halo, ${pelaksana}`;
   document.getElementById('greeting-usaha').textContent = `${usaha} · Domisili ${state.settings.kota || 'Indonesia'}`;
 
@@ -315,8 +578,15 @@ function refreshDashboardAndBadges() {
   document.getElementById('badge-history-count').textContent = String(state.history.length);
   document.getElementById('badge-fav-count').textContent = String(state.favorites.length);
   document.getElementById('dash-doc-pill').textContent = String(state.history.length).padStart(2, '0');
-  document.getElementById('mobile-top-badge').textContent =
-    state.history.length > 0 ? String(state.history.length).padStart(2, '0') : String(AHSP_LIBRARY_ITEMS.length);
+
+  const topBadge = document.getElementById('mobile-top-badge');
+  if (state.history.length > 0) {
+    topBadge.textContent = String(state.history.length).padStart(2, '0');
+    topBadge.title = `${state.history.length} Penawaran Proyek Tersimpan`;
+  } else {
+    topBadge.textContent = String(AHSP_LIBRARY_ITEMS.length);
+    topBadge.title = `${AHSP_LIBRARY_ITEMS.length} Koleksi AHSP & Klausul Siap Pakai`;
+  }
 
   const recentBox = document.getElementById('dash-recent-list');
   recentBox.innerHTML = '';
@@ -353,7 +623,16 @@ function refreshDashboardAndBadges() {
       card.querySelector('button').addEventListener('click', () => {
         loadPresetIntoWizard(qp.id, false);
         switchView('wizard');
-        switchWizardStep(2);
+        if (
+          document.getElementById('p-klien').value.trim() &&
+          document.getElementById('p-lokasi').value.trim()
+        ) {
+          attemptWizardStep(2);
+        } else {
+          switchWizardStep(1);
+          document.getElementById('p-klien').focus();
+          showToast('Paket dimuat! Isi Nama Klien dan Lokasi dulu di Langkah 1.');
+        }
       });
       recentBox.appendChild(card);
     }
@@ -384,7 +663,7 @@ function refreshDashboardAndBadges() {
   }
 }
 
-// PENGATURAN PROFIL USAHA
+// PENGATURAN PROFIL USAHA & CADANGAN JSON
 function syncSettingsToInputs() {
   const s = state.settings;
   document.getElementById('s-usaha').value = s.namaUsaha || '';
@@ -405,7 +684,7 @@ function initSettings() {
       namaUsaha: document.getElementById('s-usaha').value.trim(),
       namaPelaksana: document.getElementById('s-pelaksana').value.trim(),
       teleponUsaha: document.getElementById('s-telepon').value.trim(),
-      kota: document.getElementById('s-kota').value.trim(),
+      kota: document.getElementById('s-kota').value.trim() || 'Indonesia',
       rekeningPembayaran: document.getElementById('s-rekening').value.trim()
     };
     saveJson(KEYS.SETTINGS, state.settings);
@@ -415,14 +694,131 @@ function initSettings() {
 
   document.getElementById('btn-export-backup').addEventListener('click', () => {
     const blob = new Blob(
-      [JSON.stringify({ exportedAt: new Date().toISOString(), settings: state.settings, history: state.history, favorites: state.favorites }, null, 2)],
+      [
+        JSON.stringify(
+          {
+            exportedAt: new Date().toISOString(),
+            settings: state.settings,
+            history: state.history,
+            favorites: state.favorites
+          },
+          null,
+          2
+        )
+      ],
       { type: 'application/json' }
     );
     triggerBlobDownload(blob, 'cadangan-rancangrab-studio.json');
+    showToast('File cadangan data (.json) berhasil diunduh!');
+  });
+
+  const importBtn = document.getElementById('btn-import-backup');
+  const importInput = document.getElementById('input-import-backup');
+  importBtn.addEventListener('click', () => importInput.click());
+
+  importInput.addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result || ''));
+        if (
+          !parsed ||
+          typeof parsed !== 'object' ||
+          (!parsed.settings && !Array.isArray(parsed.history) && !Array.isArray(parsed.favorites))
+        ) {
+          showToast('Format file cadangan (.json) tidak dikenali.');
+          return;
+        }
+        if (parsed.settings && typeof parsed.settings === 'object') {
+          state.settings = { ...DEFAULT_SETTINGS, ...parsed.settings };
+          saveJson(KEYS.SETTINGS, state.settings);
+        }
+        if (Array.isArray(parsed.history)) {
+          state.history = parsed.history;
+          saveJson(KEYS.HISTORY, state.history);
+        }
+        if (Array.isArray(parsed.favorites)) {
+          state.favorites = parsed.favorites;
+          saveJson(KEYS.FAVORITES, state.favorites);
+        }
+        syncSettingsToInputs();
+        refreshDashboardAndBadges();
+        showToast('Cadangan data (.json) berhasil dipulihkan!');
+      } catch {
+        showToast('Gagal membaca file cadangan. Pastikan file berformat .json yang benar.');
+      } finally {
+        importInput.value = '';
+      }
+    };
+    reader.readAsText(file);
   });
 }
 
-// WIZARD 3 LANGKAH RAB
+// WIZARD 3 LANGKAH RAB + VALIDASI + SINKRONISASI ZONA & LUAS
+function validateStep1Required() {
+  const requiredIds = ['p-judul', 'p-klien', 'p-lokasi'];
+  let firstEmpty = null;
+  for (const id of requiredIds) {
+    const el = document.getElementById(id);
+    if (!el.value.trim()) {
+      el.classList.add('input-error');
+      if (!firstEmpty) firstEmpty = el;
+    } else {
+      el.classList.remove('input-error');
+    }
+  }
+
+  if (firstEmpty) {
+    switchWizardStep(1);
+    firstEmpty.focus();
+    showToast('Isi dulu Judul Proyek, Nama Klien, dan Lokasi di Langkah 1 ya.');
+    return false;
+  }
+  return true;
+}
+
+function syncLuasBeforeStepChange() {
+  const luasEl = document.getElementById('p-luas');
+  const newLuas = Math.max(1, Number(luasEl.value) || 36);
+  const oldLuas = state.appliedLuas || newLuas;
+
+  if (Math.abs(newLuas - oldLuas) <= 0.001 || state.activeRows.length === 0) {
+    state.appliedLuas = newLuas;
+    return;
+  }
+
+  // Jika baris belum pernah diubah manual & berasal dari preset aktif -> sesuaikan otomatis
+  if (
+    !state.rowsManuallyEdited &&
+    !state.activeProjectId &&
+    state.selectedPresetId &&
+    PROJECT_PRESETS[state.selectedPresetId]
+  ) {
+    loadPresetIntoWizard(state.selectedPresetId, true);
+    showToast(`Volume item otomatis disesuaikan ke luas ${newLuas} m².`);
+    return;
+  }
+
+  // Jika baris sudah pernah diedit / proyek tersimpan -> tawarkan penyesuaian proporsional
+  const ok = window.confirm(
+    `Luas acuan berubah dari ${oldLuas} m² menjadi ${newLuas} m². Sesuaikan volume pekerjaan secara proporsional mengikuti luas baru?`
+  );
+  if (ok) {
+    const ratio = newLuas / oldLuas;
+    const fixedUnits = new Set(['ls', 'paket', 'pkt', 'unit']);
+    for (const row of state.activeRows) {
+      const satKey = String(row.satuan || '').trim().toLowerCase();
+      if (!fixedUnits.has(satKey)) {
+        row.volume = Math.max(0.1, +((Number(row.volume) || 0) * ratio).toFixed(1));
+      }
+    }
+    showToast(`Volume pekerjaan disesuaikan proporsional ke ${newLuas} m²!`);
+  }
+  state.appliedLuas = newLuas;
+}
+
 function switchWizardStep(stepNum) {
   for (const tab of document.querySelectorAll('.wiz-tab')) {
     tab.classList.toggle('active', Number(tab.dataset.wstep) === stepNum);
@@ -439,24 +835,54 @@ function switchWizardStep(stepNum) {
   }
 }
 
+function attemptWizardStep(targetStep) {
+  if (targetStep === 1) {
+    switchWizardStep(1);
+    return true;
+  }
+  if (!validateStep1Required()) {
+    return false;
+  }
+  syncLuasBeforeStepChange();
+
+  if (targetStep === 3 && state.activeRows.length === 0) {
+    switchWizardStep(2);
+    showToast('Tambahkan minimal 1 baris item pekerjaan di Langkah 2 terlebih dulu.');
+    return false;
+  }
+
+  switchWizardStep(targetStep);
+  return true;
+}
+
 function collectCurrentProject() {
+  const rawFee = document.getElementById('p-fee').value;
+  const parsedFee = rawFee === '' ? 10 : Number(rawFee);
+  const feePersen = Number.isFinite(parsedFee) ? Math.max(0, Math.min(35, parsedFee)) : 10;
+  const masaGaransiHari = parseMasaGaransi(document.getElementById('p-garansi').value);
+
+  const parsedUser = parseLoginIdentity(state.user?.name || '');
+  const namaPelaksana = state.settings.namaPelaksana || parsedUser.pelaksana || 'Pelaksana Proyek';
+  const namaUsaha = state.settings.namaUsaha || parsedUser.usaha || namaPelaksana;
+
   return {
     id: state.activeProjectId || `rab-${Date.now()}`,
-    judulProyek: document.getElementById('p-judul').value.trim() || 'Pekerjaan Konstruksi & Renovasi',
-    namaKlien: document.getElementById('p-klien').value.trim() || 'Bapak Budi Santoso',
-    lokasiProyek: document.getElementById('p-lokasi').value.trim() || 'Perumahan Griya Asri, Bekasi',
+    selectedPresetId: state.selectedPresetId,
+    judulProyek: document.getElementById('p-judul').value.trim(),
+    namaKlien: document.getElementById('p-klien').value.trim(),
+    lokasiProyek: document.getElementById('p-lokasi').value.trim(),
     zona: document.getElementById('p-zona').value,
-    luasM2: Number(document.getElementById('p-luas').value) || 36,
-    feePersen: Number(document.getElementById('p-fee').value ?? 10),
-    durasiHari: Number(document.getElementById('p-durasi').value) || 30,
+    luasM2: Math.max(1, Number(document.getElementById('p-luas').value) || 36),
+    feePersen,
+    durasiHari: Math.max(1, Number(document.getElementById('p-durasi').value) || 30),
     nomorDokumen: document.getElementById('p-nomor').value.trim() || 'RAB/2026/108',
     tanggal: document.getElementById('p-tanggal').value,
-    masaGaransiHari: Number(document.getElementById('p-garansi').value) || 60,
+    masaGaransiHari,
     catatanPenawaran: document.getElementById('p-catatan').value.trim(),
-    namaUsaha: state.settings.namaUsaha,
-    namaPelaksana: state.settings.namaPelaksana,
+    namaUsaha,
+    namaPelaksana,
     teleponUsaha: state.settings.teleponUsaha,
-    kota: state.settings.kota,
+    kota: state.settings.kota || 'Indonesia',
     rekeningPembayaran: state.settings.rekeningPembayaran,
     rows: state.activeRows
   };
@@ -475,13 +901,18 @@ function loadPresetIntoWizard(presetId, keepCustomLuas = false) {
     document.getElementById('p-luas').value = String(preset.defaultLuas);
     document.getElementById('p-durasi').value = String(preset.defaultDurasiHari);
     document.getElementById('p-judul').value = preset.label;
+    document.getElementById('p-judul').classList.remove('input-error');
   }
 
-  const luas = Number(document.getElementById('p-luas').value) || preset.defaultLuas;
+  const luas = Math.max(1, Number(document.getElementById('p-luas').value) || preset.defaultLuas);
   const zona = document.getElementById('p-zona').value;
   const mult = ZONA_WILAYAH[zona] || 1.0;
 
+  state.appliedLuas = luas;
+  state.appliedZonaFactor = mult;
+  state.rowsManuallyEdited = false;
   state.activeRows = preset.buildRows(luas, mult);
+
   renderRabRowsEditor();
   refreshLiveBanner();
 }
@@ -498,30 +929,55 @@ function refreshLiveBanner() {
 
 function renderRabRowsEditor() {
   const container = document.getElementById('rab-rows-container');
+  const headerBar = document.getElementById('rab-rows-header');
   container.innerHTML = '';
+
+  if (headerBar) {
+    headerBar.style.display = state.activeRows.length === 0 ? 'none' : '';
+  }
+
+  if (state.activeRows.length === 0) {
+    container.innerHTML = `
+      <div class="card" style="background:var(--surface-2);padding:16px;text-align:center;">
+        <p style="font-size:0.86rem;color:var(--muted);margin:0;">
+          Belum ada baris item pekerjaan. Klik <strong>+ Tambah Baris</strong> atau <strong>+ Ambil dari 120 AHSP</strong> di atas.
+        </p>
+      </div>
+    `;
+    return;
+  }
 
   state.activeRows.forEach((row, idx) => {
     const el = document.createElement('div');
     el.className = 'rab-row-card';
-    const rowSubtotal = Math.round((Number(row.volume) || 0) * ((Number(row.hargaMaterial) || 0) + (Number(row.hargaUpah) || 0)));
+    const upahVal = Number(row.hargaUpah ?? row.upahKerja) || 0;
+    const matVal = Number(row.hargaMaterial) || 0;
+    const volVal = Number(row.volume) || 0;
+    const rowSubtotal = Math.round(volVal * (matVal + upahVal));
 
     el.innerHTML = `
       <div class="row-uraian-wrap">
+        <span class="rab-mobile-lbl">Uraian Pekerjaan</span>
         <input type="text" class="inp-uraian" value="${escHtml(row.uraian)}" aria-label="Uraian Pekerjaan" />
       </div>
       <div>
-        <input type="number" step="0.1" class="inp-vol" value="${escHtml(row.volume)}" aria-label="Volume" title="Volume" />
+        <span class="rab-mobile-lbl">Volume</span>
+        <input type="number" step="0.1" min="0" class="inp-vol" value="${escHtml(row.volume)}" aria-label="Volume" title="Volume" />
       </div>
       <div>
+        <span class="rab-mobile-lbl">Satuan</span>
         <input type="text" class="inp-sat" value="${escHtml(row.satuan)}" aria-label="Satuan" title="Satuan" />
       </div>
       <div>
-        <input type="number" step="500" class="inp-mat" value="${escHtml(row.hargaMaterial)}" aria-label="Harga Material" title="Harga Material per Satuan" />
+        <span class="rab-mobile-lbl">Material (Rp)</span>
+        <input type="number" step="500" min="0" class="inp-mat" value="${escHtml(matVal)}" aria-label="Material (Rp)" title="Harga Material per Satuan" />
       </div>
       <div>
-        <input type="number" step="500" class="inp-upah" value="${escHtml(row.hargaUpah)}" aria-label="Upah Tukang" title="Upah Tukang per Satuan" />
+        <span class="rab-mobile-lbl">Upah (Rp)</span>
+        <input type="number" step="500" min="0" class="inp-upah" value="${escHtml(upahVal)}" aria-label="Upah (Rp)" title="Upah Tukang per Satuan" />
       </div>
       <div class="row-foot-wrap">
+        <span class="rab-mobile-lbl" style="margin-bottom:0;">Subtotal Baris</span>
         <div class="rab-row-sub">${formatRupiah(rowSubtotal)}</div>
       </div>
       <div>
@@ -530,11 +986,12 @@ function renderRabRowsEditor() {
     `;
 
     const syncRow = () => {
+      state.rowsManuallyEdited = true;
       row.uraian = el.querySelector('.inp-uraian').value;
-      row.volume = Number(el.querySelector('.inp-vol').value) || 0;
+      row.volume = Math.max(0, Number(el.querySelector('.inp-vol').value) || 0);
       row.satuan = el.querySelector('.inp-sat').value || 'ls';
-      row.hargaMaterial = Number(el.querySelector('.inp-mat').value) || 0;
-      row.hargaUpah = Number(el.querySelector('.inp-upah').value) || 0;
+      row.hargaMaterial = Math.max(0, Number(el.querySelector('.inp-mat').value) || 0);
+      row.hargaUpah = Math.max(0, Number(el.querySelector('.inp-upah').value) || 0);
       const newSub = Math.round(row.volume * (row.hargaMaterial + row.hargaUpah));
       el.querySelector('.rab-row-sub').textContent = formatRupiah(newSub);
       refreshLiveBanner();
@@ -545,6 +1002,7 @@ function renderRabRowsEditor() {
     }
 
     el.querySelector('.rab-del-btn').addEventListener('click', () => {
+      state.rowsManuallyEdited = true;
       state.activeRows.splice(idx, 1);
       renderRabRowsEditor();
       refreshLiveBanner();
@@ -579,11 +1037,18 @@ function renderPaperPreview() {
     )
     .join('');
 
+  const catatanHtml = (proj.catatanPenawaran || '')
+    .split(/\r?\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => `<p style="font-size:0.8rem;color:#334155;margin-bottom:4px;">• ${escHtml(line)}</p>`)
+    .join('');
+
   document.getElementById('rab-paper-preview').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #f97316;padding-bottom:10px;margin-bottom:12px;gap:10px;flex-wrap:wrap;">
       <div>
-        <strong style="font-size:1.05rem;color:#0f172a;">${escHtml((proj.namaUsaha || 'PELAKSANA PROYEK').toUpperCase())}</strong><br/>
-        <span style="font-size:0.78rem;color:#475569;">Pelaksana: ${escHtml(proj.namaPelaksana)} · WA: ${escHtml(proj.teleponUsaha)} · ${escHtml(proj.kota)}</span>
+        <strong style="font-size:1.05rem;color:#0f172a;">${escHtml((proj.namaUsaha || proj.namaPelaksana || 'PELAKSANA PROYEK').toUpperCase())}</strong><br/>
+        <span style="font-size:0.78rem;color:#475569;">Pelaksana: ${escHtml(proj.namaPelaksana)} · WA: ${escHtml(proj.teleponUsaha || '-')} · ${escHtml(proj.kota || 'Indonesia')}</span>
       </div>
       <div style="text-align:right;font-size:0.78rem;color:#475569;">
         <strong>No: ${escHtml(proj.nomorDokumen)}</strong><br/>
@@ -639,11 +1104,13 @@ function renderPaperPreview() {
     <div class="sec-head">TAHAPAN TERMIN PEMBAYARAN</div>
     <ul style="padding-left:18px;margin-bottom:12px;">${terminHtml}</ul>
 
-    <p style="font-size:0.8rem;color:#334155;"><strong>Catatan & Ketentuan:</strong> ${escHtml(proj.catatanPenawaran)}</p>
+    <div class="sec-head">CATATAN & KETENTUAN PENAWARAN</div>
+    ${catatanHtml || '<p style="font-size:0.8rem;color:#334155;">-</p>'}
   `;
 }
 
 function saveCurrentProjectToHistory(silent = false) {
+  if (!validateStep1Required()) return false;
   const proj = collectCurrentProject();
   const sum = calculateRabSummary(proj);
   const record = { ...proj, grandTotal: sum.grandTotal, savedAt: new Date().toISOString() };
@@ -664,6 +1131,7 @@ function saveCurrentProjectToHistory(silent = false) {
   saveJson(KEYS.HISTORY, state.history);
   refreshDashboardAndBadges();
   if (!silent) showToast('Penawaran RAB berhasil disimpan ke Riwayat!');
+  return true;
 }
 
 function initWizard() {
@@ -674,6 +1142,39 @@ function initWizard() {
     opt.textContent = z;
     zonaSel.appendChild(opt);
   }
+  state.appliedZonaFactor = ZONA_WILAYAH[zonaSel.value] || 1.0;
+
+  // Bersihkan highlight merah saat pengguna mengetik di field wajib Langkah 1
+  for (const reqId of ['p-judul', 'p-klien', 'p-lokasi']) {
+    document.getElementById(reqId).addEventListener('input', (e) => {
+      if (e.target.value.trim()) e.target.classList.remove('input-error');
+    });
+  }
+
+  // Sinkronisasi indeks zona wilayah secara langsung pada seluruh baris RAB aktif
+  zonaSel.addEventListener('change', () => {
+    const newZona = zonaSel.value;
+    const newFactor = ZONA_WILAYAH[newZona] || 1.0;
+    const oldFactor = state.appliedZonaFactor || 1.0;
+
+    if (Math.abs(newFactor - oldFactor) > 0.0001 && state.activeRows.length > 0) {
+      const ratio = newFactor / oldFactor;
+      for (const row of state.activeRows) {
+        row.hargaMaterial = Math.round(((Number(row.hargaMaterial) || 0) * ratio) / 100) * 100;
+        const curUpah = Number(row.hargaUpah ?? row.upahKerja) || 0;
+        row.hargaUpah = Math.round((curUpah * ratio) / 100) * 100;
+      }
+      state.appliedZonaFactor = newFactor;
+      renderRabRowsEditor();
+      refreshLiveBanner();
+      if (document.getElementById('wiz-pane-3').classList.contains('active')) {
+        renderPaperPreview();
+      }
+      showToast(`Harga material & upah disesuaikan ke zona ${newZona}!`);
+    } else {
+      state.appliedZonaFactor = newFactor;
+    }
+  });
 
   const tilesBox = document.getElementById('wizard-preset-tiles');
   for (const p of Object.values(PROJECT_PRESETS)) {
@@ -686,6 +1187,13 @@ function initWizard() {
       <span>Default ${p.defaultLuas} ${escHtml(p.satuanAcuan)} · Est. ${p.defaultDurasiHari} hari</span>
     `;
     btn.addEventListener('click', () => {
+      if (
+        state.rowsManuallyEdited &&
+        state.activeRows.length > 0 &&
+        !window.confirm(`Ganti ke paket "${p.label}"? Perubahan manual pada rincian baris saat ini akan diganti.`)
+      ) {
+        return;
+      }
       loadPresetIntoWizard(p.id, false);
       showToast(`Paket "${p.label}" dimuat otomatis!`);
     });
@@ -693,31 +1201,43 @@ function initWizard() {
   }
 
   for (const tab of document.querySelectorAll('.wiz-tab')) {
-    tab.addEventListener('click', () => switchWizardStep(Number(tab.dataset.wstep)));
+    tab.addEventListener('click', () => attemptWizardStep(Number(tab.dataset.wstep)));
   }
 
   document.getElementById('btn-reapply-preset').addEventListener('click', () => {
+    if (
+      state.activeRows.length > 0 &&
+      !window.confirm(
+        'Hitung ulang seluruh volume item mengikuti luas m² saat ini? Perubahan manual pada rincian baris akan disesuaikan ulang.'
+      )
+    ) {
+      return;
+    }
     loadPresetIntoWizard(state.selectedPresetId, true);
     showToast('Volume seluruh item berhasil dihitung ulang mengikuti luas m²!');
   });
 
   document.getElementById('p-fee').addEventListener('input', refreshLiveBanner);
 
-  document.getElementById('btn-to-wstep-2').addEventListener('click', () => switchWizardStep(2));
+  document.getElementById('btn-to-wstep-2').addEventListener('click', () => attemptWizardStep(2));
   document.getElementById('btn-back-wstep-1').addEventListener('click', () => switchWizardStep(1));
-  document.getElementById('btn-to-wstep-3').addEventListener('click', () => switchWizardStep(3));
-  document.getElementById('btn-back-wstep-2').addEventListener('click', () => switchWizardStep(2));
+  document.getElementById('btn-to-wstep-3').addEventListener('click', () => attemptWizardStep(3));
+  document.getElementById('btn-back-wstep-2').addEventListener('click', () => attemptWizardStep(2));
 
   document.getElementById('btn-fill-sample-rab').addEventListener('click', () => {
     document.getElementById('p-klien').value = 'Bapak Budi Santoso';
     document.getElementById('p-lokasi').value = 'Cluster Harmoni Indah Blok B12, Bekasi';
     document.getElementById('p-luas').value = '45';
     document.getElementById('p-judul').value = 'Bangun Rumah 1 Lantai Tipe 45 Minimalis';
+    for (const reqId of ['p-judul', 'p-klien', 'p-lokasi']) {
+      document.getElementById(reqId).classList.remove('input-error');
+    }
     loadPresetIntoWizard('bangun-rumah-1lt', true);
     showToast('Contoh proyek klien Tipe 45 siap dicek!');
   });
 
   document.getElementById('btn-add-custom-row').addEventListener('click', () => {
+    state.rowsManuallyEdited = true;
     state.activeRows.push({
       group: 'Pekerjaan Tambahan',
       uraian: 'Item pekerjaan tambahan baru',
@@ -736,9 +1256,21 @@ function initWizard() {
     `${proj.judulProyek}-${proj.namaKlien}`
       .replace(/[^a-zA-Z0-9-]+/g, '-')
       .replace(/-+/g, '-')
-      .slice(0, 60);
+      .replace(/^-|-$/g, '')
+      .slice(0, 60) || 'Proyek';
+
+  const guardExportReady = () => {
+    if (!validateStep1Required()) return false;
+    if (state.activeRows.length === 0) {
+      switchWizardStep(2);
+      showToast('Tambahkan minimal 1 baris item pekerjaan sebelum mengunduh dokumen.');
+      return false;
+    }
+    return true;
+  };
 
   document.getElementById('btn-download-pdf').addEventListener('click', () => {
+    if (!guardExportReady()) return;
     const proj = collectCurrentProject();
     const sum = calculateRabSummary(proj);
     saveCurrentProjectToHistory(true);
@@ -748,6 +1280,7 @@ function initWizard() {
   });
 
   document.getElementById('btn-download-xlsx').addEventListener('click', () => {
+    if (!guardExportReady()) return;
     const proj = collectCurrentProject();
     const sum = calculateRabSummary(proj);
     saveCurrentProjectToHistory(true);
@@ -757,6 +1290,7 @@ function initWizard() {
   });
 
   document.getElementById('btn-download-spk').addEventListener('click', () => {
+    if (!guardExportReady()) return;
     const proj = collectCurrentProject();
     const sum = calculateRabSummary(proj);
     saveCurrentProjectToHistory(true);
@@ -766,6 +1300,7 @@ function initWizard() {
   });
 
   document.getElementById('btn-copy-wa-quote').addEventListener('click', async () => {
+    if (!guardExportReady()) return;
     const proj = collectCurrentProject();
     const sum = calculateRabSummary(proj);
     const waText =
@@ -789,6 +1324,7 @@ function initWizard() {
   });
 
   document.getElementById('btn-handoff-ai').addEventListener('click', async () => {
+    if (!validateStep1Required()) return;
     const proj = collectCurrentProject();
     const prompt = `Saya seorang kontraktor yang sedang menyusun penawaran "${proj.judulProyek}" seluas ${proj.luasM2} m² di ${proj.lokasiProyek}. Berikan checklist pengawasan mutu lapangan dan potensi risiko pembengkakan biaya yang harus saya periksa sebelum tanda tangan kontrak.`;
     try {
@@ -812,6 +1348,18 @@ function renderMaterialCalculator() {
 
   const out = document.getElementById('material-shopping-output');
   out.innerHTML = '';
+
+  if (list.length === 0) {
+    out.innerHTML = `
+      <div class="ticket-card" style="padding:16px;">
+        <p style="font-size:0.86rem;color:var(--muted);margin:0;">
+          Belum ada ukuran bidang kerja yang diisi. Masukkan luas dinding, lantai, pengecatan, atau volume beton di atas <strong>0</strong> pada kolom sebelah kiri untuk melihat estimasi daftar belanja material.
+        </p>
+      </div>
+    `;
+    return;
+  }
+
   for (const item of list) {
     const row = document.createElement('div');
     row.className = 'ticket-card';
@@ -843,6 +1391,10 @@ function initMaterialTool() {
       luasCatM2: document.getElementById('m-cat').value,
       volumeBetonM3: document.getElementById('m-beton').value
     });
+    if (list.length === 0) {
+      showToast('Isi minimal satu ukuran bidang di atas 0 sebelum menyalin daftar belanja.');
+      return;
+    }
     const text =
       `DAFTAR PESANAN MATERIAL PROYEK:\n` +
       list.map((i, idx) => `${idx + 1}. ${i.nama}: *${i.qty}*`).join('\n');
@@ -911,13 +1463,22 @@ function initLibrary() {
       const catEl = document.getElementById('p-catatan');
       catEl.value = (catEl.value ? catEl.value + '\n\n' : '') + item.specs;
       switchView('wizard');
-      switchWizardStep(2);
+      if (
+        document.getElementById('p-judul').value.trim() &&
+        document.getElementById('p-klien').value.trim() &&
+        document.getElementById('p-lokasi').value.trim()
+      ) {
+        switchWizardStep(2);
+      } else {
+        switchWizardStep(1);
+      }
       showToast('Klausul ditambahkan ke Catatan Penawaran & SPK!');
       return;
     }
 
     const zona = document.getElementById('p-zona').value;
     const mult = ZONA_WILAYAH[zona] || 1.0;
+    state.rowsManuallyEdited = true;
     state.activeRows.push({
       group: item.workGroup,
       uraian: item.title,
@@ -927,7 +1488,17 @@ function initLibrary() {
       hargaUpah: Math.round((item.hargaUpah * mult) / 500) * 500
     });
     switchView('wizard');
-    switchWizardStep(2);
+    if (
+      document.getElementById('p-judul').value.trim() &&
+      document.getElementById('p-klien').value.trim() &&
+      document.getElementById('p-lokasi').value.trim()
+    ) {
+      switchWizardStep(2);
+    } else {
+      renderRabRowsEditor();
+      refreshLiveBanner();
+      switchWizardStep(1);
+    }
     showToast(`"${item.title}" ditambahkan ke baris RAB aktif!`);
   });
 }
@@ -967,6 +1538,10 @@ function createLibraryCardEl(item) {
   const isFav = state.favorites.includes(item.id);
   const el = document.createElement('div');
   el.className = 'lib-card';
+  el.setAttribute('role', 'button');
+  el.setAttribute('tabindex', '0');
+  el.setAttribute('aria-label', `${item.title} — ${item.category}`);
+
   const priceTag = item.isClause
     ? 'Teks Klausul Siap Pakai'
     : `${formatRupiah(item.hargaTotal)} / ${item.satuan}`;
@@ -987,6 +1562,12 @@ function createLibraryCardEl(item) {
     </div>
   `;
   el.addEventListener('click', () => openItemModal(item));
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openItemModal(item);
+    }
+  });
   return el;
 }
 
@@ -1004,7 +1585,7 @@ function openItemModal(item) {
     pb.style.display = 'none';
     document.getElementById('m-btn-use').textContent = 'Tambahkan ke Catatan Penawaran & SPK';
   } else {
-    pb.style.display = 'grid';
+    pb.style.display = '';
     pb.innerHTML = `
       <div style="background:var(--surface-2);padding:10px;border-radius:12px;">
         <span style="font-size:0.72rem;color:var(--muted);display:block;">Material</span>
@@ -1040,17 +1621,44 @@ function closeItemModal() {
 function loadProjectFromHistory(proj) {
   state.activeProjectId = proj.id;
   state.activeRows = JSON.parse(JSON.stringify(proj.rows || []));
+  state.rowsManuallyEdited = true;
+
+  const presetId =
+    proj.selectedPresetId && PROJECT_PRESETS[proj.selectedPresetId]
+      ? proj.selectedPresetId
+      : state.selectedPresetId || 'bangun-rumah-1lt';
+  state.selectedPresetId = presetId;
+  for (const tile of document.querySelectorAll('.preset-tile')) {
+    tile.classList.toggle('active', tile.dataset.preset === presetId);
+  }
+
+  const zonaKeys = Object.keys(ZONA_WILAYAH);
+  const zona = proj.zona && ZONA_WILAYAH[proj.zona] ? proj.zona : zonaKeys[0];
+  document.getElementById('p-zona').value = zona;
+  state.appliedZonaFactor = ZONA_WILAYAH[zona] || 1.0;
+
+  const luas = Math.max(1, Number(proj.luasM2) || 36);
+  document.getElementById('p-luas').value = String(luas);
+  state.appliedLuas = luas;
+
+  const parsedFee = Number(proj.feePersen);
+  document.getElementById('p-fee').value = String(Number.isFinite(parsedFee) ? parsedFee : 10);
+
   document.getElementById('p-judul').value = proj.judulProyek || '';
   document.getElementById('p-klien').value = proj.namaKlien || '';
   document.getElementById('p-lokasi').value = proj.lokasiProyek || '';
-  document.getElementById('p-luas').value = String(proj.luasM2 || 36);
-  document.getElementById('p-fee').value = String(proj.feePersen ?? 10);
   document.getElementById('p-durasi').value = String(proj.durasiHari || 30);
   document.getElementById('p-nomor').value = proj.nomorDokumen || 'RAB/2026/108';
   document.getElementById('p-tanggal').value = proj.tanggal || '';
-  document.getElementById('p-garansi').value = String(proj.masaGaransiHari || 60);
+  document.getElementById('p-garansi').value = String(parseMasaGaransi(proj.masaGaransiHari));
   document.getElementById('p-catatan').value = proj.catatanPenawaran || '';
 
+  for (const reqId of ['p-judul', 'p-klien', 'p-lokasi']) {
+    document.getElementById(reqId).classList.remove('input-error');
+  }
+
+  renderRabRowsEditor();
+  refreshLiveBanner();
   switchView('wizard');
   switchWizardStep(3);
 }
@@ -1090,10 +1698,15 @@ function renderHistoryView() {
     `;
     card.querySelector('.btn-h-open').addEventListener('click', () => loadProjectFromHistory(proj));
     card.querySelector('.btn-h-del').addEventListener('click', () => {
+      if (!window.confirm(`Hapus penawaran "${proj.judulProyek}" dari riwayat?`)) return;
       state.history.splice(idx, 1);
+      if (state.activeProjectId === proj.id) {
+        state.activeProjectId = null;
+      }
       saveJson(KEYS.HISTORY, state.history);
       renderHistoryView();
       refreshDashboardAndBadges();
+      showToast('Penawaran berhasil dihapus dari riwayat.');
     });
     box.appendChild(card);
   });

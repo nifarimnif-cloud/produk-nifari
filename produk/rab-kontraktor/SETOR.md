@@ -14,7 +14,7 @@
 ## 2. Link Live (Cloudflare Pages)
 - **Link Landing Page (LP Jualan):** [https://nifari-rab-kontraktor-lp.pages.dev](https://nifari-rab-kontraktor-lp.pages.dev)
 - **Link Web App (Aplikasi Pembeli):** [https://nifari-rab-kontraktor-app.pages.dev](https://nifari-rab-kontraktor-app.pages.dev)
-  - *Cara masuk cepat untuk penguji:* Klik tombol **Isi Akun Contoh Pembeli** di halaman masuk (atau masukkan kode lisensi `RAB-2026-PRO`), lalu klik **Masuk ke RancangRAB Studio**.
+  - *Gerbang Akses Pembeli:* Dilindungi verifikasi hash kriptografi SHA-256 + salt untuk Kode Lisensi Pembeli resmi (tanpa membocorkan kode asli di source code maupun placeholder).
 
 ---
 
@@ -42,7 +42,7 @@ Seluruh pengujian dijalankan menggunakan browser **Google Chrome asli** pada uku
 
 | Bagian yang Dites | Skenario Pengujian | Hasil |
 | :--- | :--- | :--- |
-| **Login Lisensi Pembeli** | Masuk menggunakan email & kode akses lisensi (`RAB-2026-PRO`) serta tombol akun contoh | **Lulus** — Sesi tersimpan rapi di browser, langsung menyapa nama usaha & pelaksana di Beranda. |
+| **Login Lisensi Pembeli** | Masuk menggunakan nama, email, & Kode Lisensi Pembeli tervalidasi SHA-256 (menolak kode sembarang) | **Lulus** — Sesi tersimpan rapi di browser, langsung menyapa nama usaha & pelaksana asli di Beranda. |
 | **Simulasi Cepat Beranda** | Pilih jenis proyek, zona harga wilayah Indonesia, dan ubah luas acuan m² | **Lulus** — Angka taksiran wajar, kisaran m², dan tombol lanjut ke Wizard langsung merespons instan. |
 | **Wizard RAB 3 Langkah** | Langkah 1 (Data Klien & Template) → Langkah 2 (Edit volume/material/upah real-time) → Langkah 3 (Pratinjau & Unduh) | **Lulus** — Banner total biaya, modal material, upah tukang, fee jasa, dan 4 termin berubah otomatis saat angka diketik. |
 | **Ekspor File PDF (`.pdf`)** | Klik unduh Surat Penawaran & RAB Resmi | **Lulus** — Menghasilkan file PDF A4 asli (`23,5 KB`, header `%PDF-`) lengkap kop usaha, tabel rincian, termin pembayaran, dan blok tanda tangan. |

@@ -30,14 +30,13 @@
         Masuk menggunakan nama usaha atau pelaksana, email, dan kode akses pembelian untuk mulai menyusun RAB resmi.
       </p>
 
-      <form id="login-form">
+      <form id="login-form" novalidate>
         <div class="field">
           <label for="login-name">Nama Kontraktor / Pelaksana</label>
           <input
             type="text"
             id="login-name"
-            placeholder="Contoh: Hendra Pratama — Karya Mandiri Bangunan"
-            required
+            placeholder="Contoh: Budi Santoso — CV Maju Jaya"
           />
         </div>
         <div class="field">
@@ -45,8 +44,7 @@
           <input
             type="email"
             id="login-email"
-            placeholder="Contoh: hendra@karyamandiri.id"
-            required
+            placeholder="Contoh: budi@majujaya.id"
           />
         </div>
         <div class="field">
@@ -54,18 +52,22 @@
           <input
             type="text"
             id="login-code"
-            placeholder="Contoh: RAB-PRO-2026"
-            required
+            placeholder="Masukkan kode akses pembelian resmi"
+            autocomplete="off"
           />
         </div>
-        <p id="login-error" style="color:var(--danger);font-size:0.82rem;font-weight:700;display:none;margin-bottom:10px;"></p>
+        <div id="login-error" class="login-error-banner" role="alert" style="display:none;"></div>
 
         <button type="submit" class="btn btn-primary" style="width:100%;margin-bottom:10px;">
           Masuk ke Studio RAB
         </button>
-        <button type="button" class="btn btn-secondary" id="btn-demo-fill" style="width:100%;font-size:0.82rem;">
-          Isi Cepat Contoh Akun Pembeli
-        </button>
+        <a
+          href="https://nifari-rab-kontraktor-lp.pages.dev#coba-demo"
+          class="btn btn-outline"
+          style="width:100%;font-size:0.82rem;text-align:center;"
+        >
+          Belum Punya Kode? Coba Kalkulator &amp; Beli Akses →
+        </a>
       </form>
     </div>
   </section>
@@ -160,10 +162,10 @@
       <!-- HEADER MOBILE -->
       <header class="mobile-header">
         <button type="button" class="icon-circle-btn" id="btn-open-sidebar" aria-label="Buka Menu">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-            <circle cx="12" cy="5" r="2"/>
-            <circle cx="12" cy="12" r="2"/>
-            <circle cx="12" cy="19" r="2"/>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
           </svg>
         </button>
 
@@ -176,7 +178,7 @@
         </div>
 
         <div class="top-right-cluster">
-          <span class="accent-pill-count" id="mobile-top-badge">120</span>
+          <span class="accent-pill-count" id="mobile-top-badge" title="120 Koleksi AHSP &amp; Klausul Siap Pakai">120</span>
           <button type="button" class="theme-icon-btn" id="btn-theme-mobile" aria-label="Ganti Tema">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="4"/>
@@ -469,6 +471,15 @@
                 </div>
               </div>
 
+              <div class="rab-rows-header" id="rab-rows-header">
+                <span>Uraian Pekerjaan</span>
+                <span>Volume</span>
+                <span>Satuan</span>
+                <span>Material (Rp)</span>
+                <span>Upah (Rp)</span>
+                <span style="text-align:right;">Subtotal</span>
+                <span aria-hidden="true"></span>
+              </div>
               <div class="rab-items-list" id="rab-rows-container"></div>
 
               <div class="field" style="margin-top:12px;">
@@ -641,11 +652,11 @@
               <div class="grid-2">
                 <div class="field">
                   <label for="s-usaha">Nama CV / Usaha Kontraktor / Tim Borongan</label>
-                  <input type="text" id="s-usaha" placeholder="Contoh: CV Karya Mandiri Bangunan" />
+                  <input type="text" id="s-usaha" placeholder="Contoh: CV Maju Jaya Konstruksi" />
                 </div>
                 <div class="field">
                   <label for="s-pelaksana">Nama Penanggung Jawab Tanda Tangan</label>
-                  <input type="text" id="s-pelaksana" placeholder="Contoh: Hendra Pratama, S.T." />
+                  <input type="text" id="s-pelaksana" placeholder="Contoh: Budi Santoso, S.T." />
                 </div>
               </div>
               <div class="grid-2">
@@ -660,7 +671,7 @@
               </div>
               <div class="field">
                 <label for="s-rekening">Info Rekening Pencairan Termin (Tercetak di SPK)</label>
-                <input type="text" id="s-rekening" placeholder="Contoh: BCA 5420-1122-33 a.n. Hendra Pratama" />
+                <input type="text" id="s-rekening" placeholder="Contoh: BCA 5420-1122-33 a.n. Budi Santoso" />
               </div>
 
               <div class="btn-row">
@@ -668,6 +679,10 @@
                 <button type="button" class="btn btn-secondary" id="btn-export-backup">
                   Unduh Cadangan Data (.json)
                 </button>
+                <button type="button" class="btn btn-secondary" id="btn-import-backup">
+                  Impor Cadangan (.json)
+                </button>
+                <input type="file" id="input-import-backup" accept=".json,application/json" style="display:none;" />
               </div>
             </form>
           </div>
@@ -712,7 +727,7 @@
       <h2 id="m-title" style="margin-bottom:8px;">Nama Item Pekerjaan</h2>
       <p id="m-summary" style="font-size:0.88rem;color:var(--muted);margin-bottom:12px;"></p>
 
-      <div id="m-price-breakdown" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;"></div>
+      <div id="m-price-breakdown" class="price-breakdown-grid"></div>
 
       <strong style="font-size:0.83rem;">Spesifikasi / Koefisien / Bunyi Klausul:</strong>
       <div class="specs-box" id="m-specs"></div>
