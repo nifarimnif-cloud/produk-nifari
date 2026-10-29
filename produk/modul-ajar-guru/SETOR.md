@@ -14,7 +14,7 @@
 ## 2. Link Live (Cloudflare Pages)
 - **Link Landing Page (LP Jualan):** [https://nifari-modul-ajar-lp.pages.dev](https://nifari-modul-ajar-lp.pages.dev)
 - **Link Web App (Aplikasi Pembeli):** [https://nifari-modul-ajar-app.pages.dev](https://nifari-modul-ajar-app.pages.dev)
-  - *Cara masuk cepat untuk penguji:* Klik tombol **Isi Cepat Contoh Akun Pembeli** di halaman masuk (atau masukkan kode akses `GURU-MERDEKA-2026`), lalu klik **Masuk ke Ruang Kerja**.
+  - *Gerbang Akses Pembeli:* Dilindungi verifikasi hash kriptografi SHA-256 + salt untuk Kode Akses Pembeli resmi (tanpa membocorkan kode asli di source code maupun placeholder).
 
 ---
 
@@ -42,7 +42,7 @@ Seluruh pengujian dijalankan menggunakan browser **Google Chrome asli** pada uku
 
 | Bagian yang Dites | Skenario Pengujian | Hasil |
 | :--- | :--- | :--- |
-| **Login Lisensi Guru** | Masuk menggunakan nama, email, & kode akses (`GURU-MERDEKA-2026`) serta tombol contoh akun pembeli | **Lulus** — Sesi tersimpan di browser, Beranda langsung menyapa nama guru dan satuan pendidikan. |
+| **Login Lisensi Guru** | Masuk menggunakan nama, email, & Kode Akses Pembeli tervalidasi SHA-256 (menolak kode sembarang) | **Lulus** — Sesi tersimpan di browser, Beranda langsung menyapa nama guru dan satuan pendidikan. |
 | **Beranda, Kalender & Statistik** | Cek kartu angka Bento, navigasi minggu pada Kalender Kapsul, klik cepat ke Wizard & Pengaturan | **Lulus** — Seluruh angka riwayat, siswa rapor, koleksi pustaka (`120`), dan favorit terbarui otomatis. |
 | **Wizard Modul Ajar 3 Langkah** | Langkah 1 (Identitas & Kelas/Fase) → Langkah 2 (Pilih Model Belajar & Susun Otomatis) → Langkah 3 (Pratinjau) | **Lulus** — Perhitungan menit JP otomatis akurat (`35/40/45` menit), komponen inti, rubrik 4 skala, dan LKPD tersusun lengkap. |
 | **Ekspor File Word (`.docx`)** | Klik unduh dokumen Word Modul Ajar | **Lulus** — Menghasilkan file OOXML `.docx` asli lengkap tabel Informasi Umum, Sintaks Kegiatan, Rubrik, LKPD, dan blok tanda tangan Kepala Sekolah + NIP. |

@@ -877,6 +877,53 @@ svg {
   border-color: var(--primary);
 }
 
+.field input.input-error,
+.field select.input-error,
+.field textarea.input-error {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18);
+}
+
+.login-error-banner {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+  border-radius: 13px;
+  padding: 10px 13px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.45;
+  margin-bottom: 12px;
+}
+
+[data-theme="light"] .login-error-banner {
+  background: rgba(220, 38, 38, 0.08);
+  color: #b91c1c;
+}
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--border-hover);
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-outline:hover {
+  background: var(--accent-soft);
+  border-color: var(--primary);
+}
+
 .field textarea {
   min-height: 88px;
   resize: vertical;
@@ -1014,9 +1061,31 @@ svg {
   padding: 28px 24px;
   font-size: 0.88rem;
   line-height: 1.6;
-  max-height: 540px;
+  max-height: 580px;
   overflow-y: auto;
+  overflow-x: auto;
   margin-top: 16px;
+}
+
+.paper-page-break {
+  border-top: 2px dashed #94a3b8;
+  margin: 22px 0 16px;
+  padding-top: 8px;
+  text-align: center;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.lkpd-dotted-line {
+  color: #64748b;
+  font-size: 0.8rem;
+  line-height: 1.85;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: clip;
 }
 
 .paper-preview h3 {
@@ -1131,9 +1200,15 @@ svg {
   transition: border-color 0.16s ease, transform 0.14s ease;
 }
 
-.lib-card:hover {
+.lib-card:hover,
+.lib-card:focus-visible {
   border-color: var(--primary);
   transform: translateY(-2px);
+  outline: none;
+}
+
+.lib-card:focus-visible {
+  box-shadow: 0 0 0 3px rgba(245, 208, 42, 0.35), var(--shadow);
 }
 
 .lib-meta {
@@ -1245,6 +1320,10 @@ svg {
 /* FLOATING YELLOW '+' FAB & BOTTOM NAV BAR (KHUSUS HP <= 880px) */
 .mobile-fab {
   display: none;
+}
+
+.mobile-fab.fab-hidden {
+  display: none !important;
 }
 
 .mobile-bottom-nav {

@@ -29,14 +29,13 @@
         Masuk dengan nama, email, dan kode akses pembelian untuk menyusun perangkat ajar resmi siap cetak.
       </p>
 
-      <form id="login-form">
+      <form id="login-form" novalidate>
         <div class="field">
           <label for="login-name">Nama Lengkap & Gelar Guru</label>
           <input
             type="text"
             id="login-name"
             placeholder="Contoh: Ibu Ratna Dewi, S.Pd."
-            required
           />
         </div>
         <div class="field">
@@ -45,7 +44,6 @@
             type="email"
             id="login-email"
             placeholder="Contoh: ratnadewi@sekolah.sch.id"
-            required
           />
         </div>
         <div class="field">
@@ -53,18 +51,22 @@
           <input
             type="text"
             id="login-code"
-            placeholder="Contoh: GURU-MERDEKA-2026"
-            required
+            placeholder="Masukkan kode akses pembelian resmi"
+            autocomplete="off"
           />
         </div>
-        <p id="login-error" style="color:var(--danger);font-size:0.82rem;font-weight:700;display:none;margin-bottom:10px;"></p>
+        <div id="login-error" class="login-error-banner" role="alert" style="display:none;"></div>
 
         <button type="submit" class="btn btn-primary" style="width:100%;margin-bottom:10px;">
           Masuk ke Ruang Kerja
         </button>
-        <button type="button" class="btn btn-secondary" id="btn-demo-fill" style="width:100%;font-size:0.82rem;">
-          Isi Cepat Contoh Akun Pembeli
-        </button>
+        <a
+          href="https://nifari-modul-ajar-lp.pages.dev#coba-demo"
+          class="btn-outline"
+          style="width:100%;font-size:0.82rem;"
+        >
+          Belum Punya Kode? Coba Demo & Beli Akses →
+        </a>
       </form>
     </div>
   </section>
@@ -158,10 +160,10 @@
       <!-- HEADER MOBILE ALA STUDIO MOCKUP -->
       <header class="mobile-header">
         <button type="button" class="icon-circle-btn" id="btn-open-sidebar" aria-label="Buka Menu">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-            <circle cx="12" cy="5" r="2"/>
-            <circle cx="12" cy="12" r="2"/>
-            <circle cx="12" cy="19" r="2"/>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="12" x2="21" y2="12"/>
+            <line x1="3" y1="18" x2="21" y2="18"/>
           </svg>
         </button>
 
@@ -173,7 +175,7 @@
         </div>
 
         <div class="top-right-cluster">
-          <span class="coral-pill-count" id="mobile-top-badge">120</span>
+          <span class="coral-pill-count" id="mobile-top-badge" title="120 Koleksi Perpustakaan Guru">120</span>
           <button type="button" class="theme-icon-btn" id="btn-theme-mobile" aria-label="Ganti Tema">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="4"/>
@@ -614,6 +616,9 @@
               <button type="button" class="btn btn-primary" id="btn-add-rapor-row">
                 + Buat & Tambahkan Kalimat Rapor
               </button>
+              <button type="button" class="btn btn-secondary" id="btn-cancel-rapor-edit" style="display:none;">
+                Batal Edit
+              </button>
               <button type="button" class="btn btn-accent" id="btn-export-rapor-csv">
                 Unduh Rekap Excel (.csv)
               </button>
@@ -733,6 +738,10 @@
                 <button type="button" class="btn btn-secondary" id="btn-export-backup">
                   Unduh Cadangan Data (.json)
                 </button>
+                <button type="button" class="btn btn-secondary" id="btn-import-backup">
+                  Impor Cadangan Data (.json)
+                </button>
+                <input type="file" id="input-import-backup" accept=".json,application/json" style="display:none;" />
               </div>
             </form>
           </div>
