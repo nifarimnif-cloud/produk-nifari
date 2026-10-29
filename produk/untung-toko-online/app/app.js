@@ -3,12 +3,86 @@
   const STORAGE_KEY = 'labatoko_studio_state_v1';
   const DATA = window.LABATOKO_DATA || { presets: [], library: [] };
 
+  const AUTH_SALT = 'nifari-lic-2026::';
+  const CREATOR_HASH = '1934419b428fd7cc0efb2496131e297396dc4050b597d024fe94091652033488';
+  const BUYER_HASH = '8d4e9a9392fd7a396f4ad18cb14c42e2349677cf29fa60764a6fd065a3dbd600';
+
+  function sha256Hex(str) {
+    const K = [
+      0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+      0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+      0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+      0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+      0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+      0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+      0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+      0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+    ];
+    const bytes = Array.from(new TextEncoder().encode(String(str)));
+    const bitLen = bytes.length * 8;
+    bytes.push(0x80);
+    while (bytes.length % 64 !== 56) bytes.push(0);
+    const hi = Math.floor(bitLen / 0x100000000);
+    const lo = bitLen >>> 0;
+    bytes.push(
+      (hi >>> 24) & 255, (hi >>> 16) & 255, (hi >>> 8) & 255, hi & 255,
+      (lo >>> 24) & 255, (lo >>> 16) & 255, (lo >>> 8) & 255, lo & 255
+    );
+    let H = [
+      0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+      0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+    ];
+    const W = new Int32Array(64);
+    const rotr = (x, n) => (x >>> n) | (x << (32 - n));
+    for (let i = 0; i < bytes.length; i += 64) {
+      for (let t = 0; t < 16; t++) {
+        const j = i + t * 4;
+        W[t] = (bytes[j] << 24) | (bytes[j + 1] << 16) | (bytes[j + 2] << 8) | bytes[j + 3];
+      }
+      for (let t = 16; t < 64; t++) {
+        const s0 = rotr(W[t - 15], 7) ^ rotr(W[t - 15], 18) ^ (W[t - 15] >>> 3);
+        const s1 = rotr(W[t - 2], 17) ^ rotr(W[t - 2], 19) ^ (W[t - 2] >>> 10);
+        W[t] = (W[t - 16] + s0 + W[t - 7] + s1) | 0;
+      }
+      let [a, b, c, d, e, f, g, h] = H;
+      for (let t = 0; t < 64; t++) {
+        const S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
+        const ch = (e & f) ^ (~e & g);
+        const temp1 = (h + S1 + ch + K[t] + W[t]) | 0;
+        const S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
+        const maj = (a & b) ^ (a & c) ^ (b & c);
+        const temp2 = (S0 + maj) | 0;
+        h = g; g = f; f = e; e = (d + temp1) | 0;
+        d = c; c = b; b = a; a = (temp1 + temp2) | 0;
+      }
+      H = [
+        (H[0] + a) | 0, (H[1] + b) | 0, (H[2] + c) | 0, (H[3] + d) | 0,
+        (H[4] + e) | 0, (H[5] + f) | 0, (H[6] + g) | 0, (H[7] + h) | 0
+      ];
+    }
+    return H.map((v) => (v >>> 0).toString(16).padStart(8, '0')).join('');
+  }
+
+  function hashAccessCode(rawCode) {
+    const clean = String(rawCode || '').trim().toUpperCase();
+    if (!clean) return '';
+    return sha256Hex(AUTH_SALT + clean);
+  }
+
+  function isValidSessionStore(store) {
+    return Boolean(
+      store &&
+      store.loggedIn === true &&
+      (store.validHash === CREATOR_HASH || store.validHash === BUYER_HASH)
+    );
+  }
+
   const defaultStore = {
     loggedIn: false,
     ownerName: '',
     storeName: '',
     email: '',
-    license: '',
+    validHash: '',
     theme: 'light'
   };
 
@@ -17,11 +91,18 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
+        const mergedStore = { ...defaultStore, ...(parsed.store || {}) };
+        delete mergedStore.license;
+        if (!isValidSessionStore(mergedStore)) {
+          mergedStore.loggedIn = false;
+          mergedStore.validHash = '';
+        }
         return {
-          store: { ...defaultStore, ...(parsed.store || {}) },
+          store: mergedStore,
           skus: Array.isArray(parsed.skus) ? parsed.skus : [],
           favorites: Array.isArray(parsed.favorites) ? parsed.favorites : [],
-          exportsCount: Number(parsed.exportsCount) || 0
+          exportsCount: Number.isFinite(Number(parsed.exportsCount)) ? Number(parsed.exportsCount) : 0,
+          customSellPriceEdited: false
         };
       }
     } catch (e) {
@@ -31,7 +112,8 @@
       store: { ...defaultStore },
       skus: [],
       favorites: [],
-      exportsCount: 0
+      exportsCount: 0,
+      customSellPriceEdited: false
     };
   }
 
@@ -44,14 +126,40 @@
 
   function saveState() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      const cleanStore = { ...state.store };
+      delete cleanStore.license;
+      const toPersist = {
+        store: cleanStore,
+        skus: state.skus,
+        favorites: state.favorites,
+        exportsCount: state.exportsCount
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(toPersist));
     } catch (e) {
       // ignore storage quota
     }
   }
 
+  function escHtml(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function readNum(id, fallback) {
+    const el = document.getElementById(id);
+    if (!el) return fallback;
+    const raw = String(el.value).trim();
+    if (raw === '') return fallback;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : fallback;
+  }
+
   function formatRp(num) {
-    const n = Math.round(Number(num) || 0);
+    const n = Math.round(Number.isFinite(Number(num)) ? Number(num) : 0);
     const neg = n < 0 ? '-' : '';
     return neg + 'Rp ' + Math.abs(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   }
@@ -62,7 +170,7 @@
     el.textContent = msg;
     el.classList.add('show');
     clearTimeout(showToast._t);
-    showToast._t = setTimeout(() => el.classList.remove('show'), 2600);
+    showToast._t = setTimeout(() => el.classList.remove('show'), 2800);
   }
 
   function applyTheme(theme) {
@@ -74,12 +182,48 @@
     saveState();
   }
 
+  function openMobileDrawer() {
+    const drawer = document.getElementById('sidebarDrawer');
+    const backdrop = document.getElementById('mobileDrawerBackdrop');
+    if (drawer) drawer.classList.add('open');
+    if (backdrop) backdrop.classList.add('open');
+  }
+
+  function closeMobileDrawer() {
+    const drawer = document.getElementById('sidebarDrawer');
+    const backdrop = document.getElementById('mobileDrawerBackdrop');
+    if (drawer) drawer.classList.remove('open');
+    if (backdrop) backdrop.classList.remove('open');
+  }
+
+  function setSelectValueSafe(selectId, value, fallbackValue) {
+    const sel = document.getElementById(selectId);
+    if (!sel) return '';
+    const target = String(value == null ? '' : value).trim();
+    if (target) {
+      const hasOption = Array.from(sel.options).some((opt) => opt.value === target);
+      if (!hasOption) {
+        const opt = document.createElement('option');
+        opt.value = target;
+        opt.textContent = target;
+        sel.appendChild(opt);
+      }
+      sel.value = target;
+    } else if (fallbackValue != null) {
+      sel.value = String(fallbackValue);
+    }
+    if (!sel.value && sel.options.length > 0) {
+      sel.selectedIndex = 0;
+    }
+    return sel.value;
+  }
+
   // 1. Dashboard Quick Leak Scanner
   function updateQuickLeakScanner() {
-    const hpp = Math.max(0, Number(document.getElementById('qHpp').value) || 0);
-    const price = Math.max(1000, Number(document.getElementById('qPrice').value) || 1000);
-    const adminPct = Math.min(50, Math.max(0, Number(document.getElementById('qAdminPct').value) || 0));
-    const adCpa = Math.max(0, Number(document.getElementById('qAdCpa').value) || 0);
+    const hpp = Math.max(0, readNum('qHpp', 0));
+    const price = Math.max(1000, readNum('qPrice', 1000));
+    const adminPct = Math.min(85, Math.max(0, readNum('qAdminPct', 0)));
+    const adCpa = Math.max(0, readNum('qAdCpa', 0));
 
     const fixedFee = 1250;
     const feeRp = Math.round(price * (adminPct / 100)) + fixedFee;
@@ -115,51 +259,123 @@
     }
   }
 
+  // Unified Step 1 Cost & Clamped Fee Reader (<= 85%)
+  function readStep1Parameters() {
+    const hpp = Math.max(0, readNum('skuHpp', 0));
+    const packingCost = Math.max(0, readNum('skuPacking', 0));
+    const returnBuffer = Math.max(0, readNum('skuReturnBuf', 0));
+    const adminPct = Math.max(0, readNum('skuAdminPct', 0));
+    const programXtraPct = Math.max(0, readNum('skuXtraPct', 0));
+    const fixedOrderFee = Math.max(0, readNum('skuFixedFee', 0));
+    const voucherSellerRp = Math.max(0, readNum('skuVoucher', 0));
+    const targetProfit = Math.max(0, readNum('skuTargetProfit', 0));
+
+    const rawTotalFeePct = adminPct + programXtraPct;
+    const isFeeCapped = rawTotalFeePct > 85;
+    const totalFeePct = Math.min(85, Math.max(0, rawTotalFeePct));
+
+    const warnEl = document.getElementById('step1FeeWarn');
+    if (warnEl) {
+      if (isFeeCapped) {
+        warnEl.textContent = `Perhatian: Total biaya Admin + Promo Xtra (${rawTotalFeePct.toFixed(1)}%) tidak realistis dan otomatis dibatasi maksimal 85% agar perhitungan harga tetap aman.`;
+        warnEl.classList.remove('hidden');
+      } else {
+        warnEl.classList.add('hidden');
+      }
+    }
+
+    return {
+      hpp,
+      packingCost,
+      returnBuffer,
+      adminPct,
+      programXtraPct,
+      rawTotalFeePct,
+      totalFeePct,
+      isFeeCapped,
+      fixedOrderFee,
+      voucherSellerRp,
+      targetProfit
+    };
+  }
+
   // 2. Step 1 Recommended Price Computation
   function calcRecommendedPriceFromStep1() {
-    const hpp = Math.max(0, Number(document.getElementById('skuHpp').value) || 0);
-    const packing = Math.max(0, Number(document.getElementById('skuPacking').value) || 0);
-    const retBuf = Math.max(0, Number(document.getElementById('skuReturnBuf').value) || 0);
-    const adminPct = Math.max(0, Number(document.getElementById('skuAdminPct').value) || 0);
-    const xtraPct = Math.max(0, Number(document.getElementById('skuXtraPct').value) || 0);
-    const fixedFee = Math.max(0, Number(document.getElementById('skuFixedFee').value) || 0);
-    const voucher = Math.max(0, Number(document.getElementById('skuVoucher').value) || 0);
-    const targetProfit = Math.max(1000, Number(document.getElementById('skuTargetProfit').value) || 15000);
+    const p = readStep1Parameters();
+    const denom = 1 - p.totalFeePct / 100; // >= 0.15 since totalFeePct <= 85
+    const fixedCosts = p.hpp + p.packingCost + p.returnBuffer + p.fixedOrderFee + p.voucherSellerRp;
+    const desiredProfit = Math.max(1000, p.targetProfit);
+    const rawPrice = (fixedCosts + desiredProfit) / denom;
+    let rounded = Math.max(1000, Math.ceil(rawPrice / 1000) * 1000);
 
-    const totalPct = Math.min(65, adminPct + xtraPct);
-    const denom = Math.max(0.2, 1 - totalPct / 100);
-    const rawPrice = (hpp + packing + retBuf + fixedFee + voucher + targetProfit) / denom;
-    const rounded = Math.ceil(rawPrice / 1000) * 1000;
+    // Ensure rounding never drops profit below desired minimum (> 0 always)
+    let safety = 0;
+    while (
+      rounded - fixedCosts - Math.round(rounded * (p.totalFeePct / 100)) < Math.max(1, p.targetProfit) &&
+      safety < 50
+    ) {
+      rounded += 1000;
+      safety++;
+    }
 
-    document.getElementById('step1RecPrice').textContent = formatRp(rounded);
+    const recEl = document.getElementById('step1RecPrice');
+    if (recEl) recEl.textContent = formatRp(rounded);
     return rounded;
+  }
+
+  function validateStep1() {
+    const nameInp = document.getElementById('skuName');
+    const hppInp = document.getElementById('skuHpp');
+    const nameVal = (nameInp ? nameInp.value : '').trim();
+    const rawHpp = hppInp ? String(hppInp.value).trim() : '';
+    const hppNum = rawHpp === '' ? NaN : Number(rawHpp);
+
+    const nameMissing = !nameVal;
+    const hppMissing = !Number.isFinite(hppNum) || hppNum <= 0;
+
+    if (nameInp) nameInp.classList.toggle('input-error', nameMissing);
+    if (hppInp) hppInp.classList.toggle('input-error', hppMissing);
+
+    if (nameMissing || hppMissing) {
+      if (activeStep !== 1) {
+        activeStep = 1;
+        document.querySelectorAll('.step-tab').forEach((t) => {
+          t.classList.toggle('active', Number(t.dataset.step) === 1);
+        });
+        document.getElementById('wizStep1').classList.remove('hidden');
+        document.getElementById('wizStep2').classList.add('hidden');
+        document.getElementById('wizStep3').classList.add('hidden');
+      }
+      if (nameMissing && nameInp) nameInp.focus();
+      else if (hppMissing && hppInp) hppInp.focus();
+      showToast('Isi dulu Nama Produk dan Modal HPP di Langkah 1 ya.');
+      return false;
+    }
+    return true;
   }
 
   // Build Complete SKU Object
   function buildSkuObject(customSellingPrice) {
     const skuName = document.getElementById('skuName').value.trim() || 'Produk Utama Toko';
-    const platform = document.getElementById('skuPlatform').value;
-    const hpp = Math.max(0, Number(document.getElementById('skuHpp').value) || 0);
-    const packingCost = Math.max(0, Number(document.getElementById('skuPacking').value) || 0);
-    const returnBuffer = Math.max(0, Number(document.getElementById('skuReturnBuf').value) || 0);
-    const adminPct = Math.max(0, Number(document.getElementById('skuAdminPct').value) || 0);
-    const programXtraPct = Math.max(0, Number(document.getElementById('skuXtraPct').value) || 0);
-    const fixedOrderFee = Math.max(0, Number(document.getElementById('skuFixedFee').value) || 0);
-    const voucherSellerRp = Math.max(0, Number(document.getElementById('skuVoucher').value) || 0);
-    const targetProfit = Math.max(1000, Number(document.getElementById('skuTargetProfit').value) || 15000);
+    const platform = setSelectValueSafe('skuPlatform', document.getElementById('skuPlatform').value);
+    const p = readStep1Parameters();
 
     const recPrice = calcRecommendedPriceFromStep1();
-    const sellingPrice = Math.max(1000, Number(customSellingPrice) || recPrice);
-    const strikeDiscountPct = Number(document.getElementById('wizStrikePct').value) || 25;
+    const parsedCustom = Number(customSellingPrice);
+    const sellingPrice = Math.max(
+      1000,
+      Number.isFinite(parsedCustom) && parsedCustom >= 1000 ? parsedCustom : recPrice
+    );
+    const strikeDiscountPct = readNum('wizStrikePct', 25) || 25;
     const strikePrice = Math.ceil(sellingPrice / (1 - strikeDiscountPct / 100) / 1000) * 1000;
 
-    const totalFeePct = adminPct + programXtraPct;
+    const totalFeePct = p.totalFeePct;
     const marketplaceFeeRp = Math.round(sellingPrice * (totalFeePct / 100));
-    const baseUnitCost = hpp + packingCost + returnBuffer;
-    const profitBeforeAds = sellingPrice - baseUnitCost - marketplaceFeeRp - fixedOrderFee - voucherSellerRp;
+    const baseUnitCost = p.hpp + p.packingCost + p.returnBuffer;
+    const profitBeforeAds = sellingPrice - baseUnitCost - marketplaceFeeRp - p.fixedOrderFee - p.voucherSellerRp;
     const netMarginBeforeAdsPct = (profitBeforeAds / sellingPrice) * 100;
 
-    const adSharePct = Number(document.getElementById('wizAdShareSelect').value) || 40;
+    const adSharePct = readNum('wizAdShareSelect', 40) || 40;
     const maxCpaBreakEven = Math.max(0, profitBeforeAds);
     const healthyCpaTarget = profitBeforeAds > 0 ? Math.max(500, Math.round(profitBeforeAds * (adSharePct / 100))) : 0;
     const finalTakeHomePerOrder = profitBeforeAds - healthyCpaTarget;
@@ -169,14 +385,14 @@
     // 3 Bundle Packages
     const disc2 = Math.max(2000, Math.round((sellingPrice * 2 * 0.05) / 1000) * 1000);
     const b2Price = sellingPrice * 2 - disc2;
-    const b2Fee = Math.round(b2Price * (totalFeePct / 100)) + fixedOrderFee + voucherSellerRp;
-    const b2Cost = hpp * 2 + Math.round(packingCost * 1.35) + returnBuffer * 2 + b2Fee;
+    const b2Fee = Math.round(b2Price * (totalFeePct / 100)) + p.fixedOrderFee + p.voucherSellerRp;
+    const b2Cost = p.hpp * 2 + Math.round(p.packingCost * 1.35) + p.returnBuffer * 2 + b2Fee;
     const b2Net = b2Price - b2Cost;
 
     const disc3 = Math.max(5000, Math.round((sellingPrice * 3 * 0.08) / 1000) * 1000);
     const b3Price = sellingPrice * 3 - disc3;
-    const b3Fee = Math.round(b3Price * (totalFeePct / 100)) + fixedOrderFee + voucherSellerRp;
-    const b3Cost = hpp * 3 + Math.round(packingCost * 1.65) + returnBuffer * 3 + b3Fee;
+    const b3Fee = Math.round(b3Price * (totalFeePct / 100)) + p.fixedOrderFee + p.voucherSellerRp;
+    const b3Cost = p.hpp * 3 + Math.round(p.packingCost * 1.65) + p.returnBuffer * 3 + b3Fee;
     const b3Net = b3Price - b3Cost;
 
     const bundles = [
@@ -205,22 +421,25 @@
       createdAt: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }),
       skuName,
       platform,
-      hpp,
-      packingCost,
-      returnBuffer,
-      adminPct,
-      programXtraPct,
+      skuPlatform: platform,
+      hpp: p.hpp,
+      packingCost: p.packingCost,
+      returnBuffer: p.returnBuffer,
+      adminPct: p.adminPct,
+      programXtraPct: p.programXtraPct,
       totalFeePct,
-      fixedOrderFee,
-      voucherSellerRp,
-      targetProfit,
+      fixedOrderFee: p.fixedOrderFee,
+      voucherSellerRp: p.voucherSellerRp,
+      targetProfit: p.targetProfit,
       sellingPrice,
       strikeDiscountPct,
+      wizStrikePct: strikeDiscountPct,
       strikePrice,
       marketplaceFeeRp,
       profitBeforeAds,
       netMarginBeforeAdsPct,
       adSharePct,
+      wizAdShareSelect: adSharePct,
       maxCpaBreakEven,
       healthyCpaTarget,
       finalTakeHomePerOrder,
@@ -241,6 +460,7 @@
       btn.textContent = p.label;
       btn.addEventListener('click', () => {
         activePresetId = p.id;
+        currentSku = null;
         applyPresetToForm(p);
         renderPresetChips();
         showToast('Preset ' + p.label + ' dimuat');
@@ -251,8 +471,13 @@
 
   function applyPresetToForm(p) {
     if (!p) return;
+    const nameInp = document.getElementById('skuName');
+    const hppInp = document.getElementById('skuHpp');
+    if (nameInp) nameInp.classList.remove('input-error');
+    if (hppInp) hppInp.classList.remove('input-error');
+
     document.getElementById('skuName').value = p.skuName;
-    document.getElementById('skuPlatform').value = p.platform;
+    setSelectValueSafe('skuPlatform', p.platform);
     document.getElementById('skuHpp').value = p.hpp;
     document.getElementById('skuPacking').value = p.packingCost;
     document.getElementById('skuReturnBuf').value = p.returnBuffer;
@@ -262,12 +487,39 @@
     document.getElementById('skuVoucher').value = p.voucherSellerRp;
     document.getElementById('skuTargetProfit').value = p.targetNetProfit;
 
+    state.customSellPriceEdited = false;
     const rec = calcRecommendedPriceFromStep1();
     document.getElementById('wizSellPrice').value = rec;
     currentSku = buildSkuObject(rec);
   }
 
+  function syncSellPriceBeforeStep2Or3() {
+    const rec = calcRecommendedPriceFromStep1();
+    const sellInp = document.getElementById('wizSellPrice');
+    const curVal = readNum('wizSellPrice', 0);
+
+    if (!state.customSellPriceEdited || curVal < 1000) {
+      sellInp.value = rec;
+      state.customSellPriceEdited = false;
+      return rec;
+    }
+
+    // User customized wizSellPrice: preserve it unless Step 1 costs rose past break-even
+    const checkObj = buildSkuObject(curVal);
+    if (checkObj.profitBeforeAds <= 0) {
+      sellInp.value = rec;
+      state.customSellPriceEdited = false;
+      showToast('Harga tayang disesuaikan ke harga rekomendasi aman karena modal berubah melewati batas impas.');
+      return rec;
+    }
+    return curVal;
+  }
+
   function goToStep(stepNum) {
+    if (stepNum > 1 && !validateStep1()) {
+      return;
+    }
+
     activeStep = stepNum;
     document.querySelectorAll('.step-tab').forEach((t) => {
       t.classList.toggle('active', Number(t.dataset.step) === stepNum);
@@ -277,19 +529,17 @@
     document.getElementById('wizStep3').classList.toggle('hidden', stepNum !== 3);
 
     if (stepNum === 2) {
-      const rec = calcRecommendedPriceFromStep1();
-      const sellInp = document.getElementById('wizSellPrice');
-      if (!sellInp.value || Number(sellInp.value) < 1000) sellInp.value = rec;
+      syncSellPriceBeforeStep2Or3();
       renderStep2();
     } else if (stepNum === 3) {
-      const sellVal = Number(document.getElementById('wizSellPrice').value) || calcRecommendedPriceFromStep1();
+      const sellVal = syncSellPriceBeforeStep2Or3();
       currentSku = buildSkuObject(sellVal);
       renderStep3();
     }
   }
 
   function renderStep2() {
-    const sellVal = Number(document.getElementById('wizSellPrice').value) || calcRecommendedPriceFromStep1();
+    const sellVal = readNum('wizSellPrice', 0) >= 1000 ? readNum('wizSellPrice', 0) : calcRecommendedPriceFromStep1();
     currentSku = buildSkuObject(sellVal);
 
     document.getElementById('wizStrikeDisplay').textContent = formatRp(currentSku.strikePrice);
@@ -302,12 +552,12 @@
         (b) => `
       <div class="card-muted" style="padding: 12px 16px; display:flex; justify-content:space-between; align-items:center; gap:12px;">
         <div>
-          <div style="font-weight:700; font-size:13.5px;">${b.title}</div>
-          <div class="text-muted" style="font-size:12px;">${b.subtitle}</div>
+          <div style="font-weight:700; font-size:13.5px;">${escHtml(b.title)}</div>
+          <div class="text-muted" style="font-size:12px;">${escHtml(b.subtitle)}</div>
         </div>
         <div style="text-align:right; flex-shrink:0;">
-          <div class="num-mono" style="font-weight:700;">${formatRp(b.bundlePrice)}</div>
-          <div class="num-mono" style="font-size:12px; color:var(--color-profit);">Laba: ${formatRp(b.netProfit)}</div>
+          <div class="num-mono" style="font-weight:700;">${escHtml(formatRp(b.bundlePrice))}</div>
+          <div class="num-mono" style="font-size:12px; color:${b.netProfit > 0 ? 'var(--color-profit)' : 'var(--color-accent)'};">Laba: ${escHtml(formatRp(b.netProfit))}</div>
         </div>
       </div>`
       )
@@ -322,10 +572,10 @@
     const omzetPer100k = Math.round(100000 * currentSku.healthyRoas);
     document.getElementById('wizRoasHumanExplain').innerHTML =
       currentSku.profitBeforeAds > 0
-        ? `<strong>Bahasa gampangnya:</strong> Setiap saldo iklan <strong>Rp 100.000</strong> terpakai, iklan produk ini wajib menghasilkan omzet minimal <strong>${formatRp(
-            omzetPer100k
-          )}</strong> supaya kamu tetap mengantongi bersih <strong>${formatRp(currentSku.finalTakeHomePerOrder)}</strong> per barang.`
-        : `<strong>Peringatan:</strong> Harga tayang saat ini belum menutup modal + potongan admin. Naikkan harga jual di sebelah kiri terlebih dahulu.`;
+        ? `<strong>Bahasa gampangnya:</strong> Setiap saldo iklan <strong>Rp 100.000</strong> terpakai, iklan produk ini wajib menghasilkan omzet minimal <strong>${escHtml(
+            formatRp(omzetPer100k)
+          )}</strong> supaya kamu tetap mengantongi bersih <strong>${escHtml(formatRp(currentSku.finalTakeHomePerOrder))}</strong> per barang.`
+        : `<strong>Peringatan:</strong> Harga tayang saat ini belum menutup modal + potongan admin. Naikkan harga jual di sebelah kiri atau klik tombol <strong>Pakai Rekomendasi</strong>.`;
   }
 
   function renderStep3() {
@@ -348,8 +598,8 @@
       .map(
         ([l, r]) => `
       <div class="ledger-row">
-        <span>${l}</span>
-        <span class="num-mono" style="font-weight:600;">${r}</span>
+        <span>${escHtml(l)}</span>
+        <span class="num-mono" style="font-weight:600;">${escHtml(r)}</span>
       </div>`
       )
       .join('');
@@ -380,26 +630,26 @@
         (c) => `
       <div class="check-item">
         <span class="check-dot ${c.ok ? 'ok' : 'warn'}">${c.ok ? 'OK' : '!'}</span>
-        <span>${c.label}</span>
+        <span>${escHtml(c.label)}</span>
       </div>`
       )
       .join('');
   }
 
-  // 3. Flash Sale Stress Simulator
+  // 3. Flash Sale Stress Simulator (Zero-safe)
   function updateFlashSaleSim() {
-    const normalPrice = Math.max(1000, Number(document.getElementById('fsNormalPrice').value) || 89000);
-    const totalHpp = Math.max(0, Number(document.getElementById('fsTotalHpp').value) || 45000);
-    const extraDiscPct = Math.min(80, Math.max(0, Number(document.getElementById('fsExtraDiscPct').value) || 0));
-    const adminPct = Math.min(50, Math.max(0, Number(document.getElementById('fsAdminPct').value) || 13.5));
-    const affPct = Math.min(40, Math.max(0, Number(document.getElementById('fsAffPct').value) || 0));
-    const voucherRp = Math.max(0, Number(document.getElementById('fsVoucherRp').value) || 0);
-    const adPerOrder = Math.max(0, Number(document.getElementById('fsAdPerOrder').value) || 0);
-    const qty = Math.max(1, Number(document.getElementById('fsTargetQty').value) || 100);
+    const normalPrice = Math.max(0, readNum('fsNormalPrice', 85000));
+    const totalHpp = Math.max(0, readNum('fsTotalHpp', 0));
+    const extraDiscPct = Math.min(80, Math.max(0, readNum('fsExtraDiscPct', 0)));
+    const adminPct = Math.min(85, Math.max(0, readNum('fsAdminPct', 0)));
+    const affPct = Math.min(50, Math.max(0, readNum('fsAffPct', 0)));
+    const voucherRp = Math.max(0, readNum('fsVoucherRp', 0));
+    const adPerOrder = Math.max(0, readNum('fsAdPerOrder', 0));
+    const qty = Math.max(1, readNum('fsTargetQty', 100));
 
     const flashPrice = Math.round(normalPrice * (1 - extraDiscPct / 100));
     const buyerPaidAfterVoucher = Math.max(0, flashPrice - voucherRp);
-    const adminRp = Math.round(buyerPaidAfterVoucher * (adminPct / 100)) + 1250;
+    const adminRp = buyerPaidAfterVoucher > 0 ? Math.round(buyerPaidAfterVoucher * (adminPct / 100)) + 1250 : 0;
     const affRp = Math.round(buyerPaidAfterVoucher * (affPct / 100));
     const netUnit = buyerPaidAfterVoucher - totalHpp - adminRp - affRp - adPerOrder;
     const totalCampaign = netUnit * qty;
@@ -440,7 +690,7 @@
 
     document.getElementById('fsBreakdownRows').innerHTML = fsRows
       .map(
-        ([l, r]) => `<div class="ledger-row"><span>${l}</span><span class="num-mono" style="font-weight:600;">${r}</span></div>`
+        ([l, r]) => `<div class="ledger-row"><span>${escHtml(l)}</span><span class="num-mono" style="font-weight:600;">${escHtml(r)}</span></div>`
       )
       .join('');
 
@@ -473,6 +723,18 @@
     });
   }
 
+  function attachCardKeyboardOpen(card, item) {
+    card.setAttribute('role', 'button');
+    card.setAttribute('tabindex', '0');
+    card.addEventListener('keydown', (e) => {
+      if (e.target !== card) return;
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openLibModal(item);
+      }
+    });
+  }
+
   function renderLibraryGrid() {
     const grid = document.getElementById('libCardsGrid');
     const info = document.getElementById('libCountInfo');
@@ -498,14 +760,15 @@
       const isFav = state.favorites.includes(item.id);
       const card = document.createElement('article');
       card.className = 'lib-card';
+      const preview = item.formulaText.slice(0, 122) + (item.formulaText.length > 122 ? '...' : '');
       card.innerHTML = `
         <div>
           <div style="display:flex; justify-content:space-between; align-items:center; gap:6px; flex-wrap:wrap;">
-            <span class="badge">${item.shortCategory}</span>
-            <span class="badge badge-neutral">${item.niche}</span>
+            <span class="badge">${escHtml(item.shortCategory)}</span>
+            <span class="badge badge-neutral">${escHtml(item.niche)}</span>
           </div>
-          <h3 style="font-size:16.5px; font-weight:700; margin-top:12px;">${item.title}</h3>
-          <p class="text-sm text-muted" style="margin-top:8px;">${item.formulaText.slice(0, 122)}${item.formulaText.length > 122 ? '...' : ''}</p>
+          <h3 style="font-size:16.5px; font-weight:700; margin-top:12px;">${escHtml(item.title)}</h3>
+          <p class="text-sm text-muted" style="margin-top:8px;">${escHtml(preview)}</p>
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center; padding-top:10px; border-top:1px solid var(--color-hairline); font-size:13px; font-weight:700;">
           <span style="color:var(--color-accent);">Buka Rumus &amp; SOP</span>
@@ -513,6 +776,7 @@
         </div>
       `;
       card.addEventListener('click', () => openLibModal(item));
+      attachCardKeyboardOpen(card, item);
       grid.appendChild(card);
     });
   }
@@ -551,20 +815,40 @@
       card.className = 'lib-card';
       card.innerHTML = `
         <div>
-          <span class="badge">${item.shortCategory}</span>
-          <h3 style="font-size:16.5px; font-weight:700; margin-top:10px;">${item.title}</h3>
-          <p class="text-sm text-muted" style="margin-top:8px;">${item.formulaText}</p>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:6px; flex-wrap:wrap;">
+            <span class="badge">${escHtml(item.shortCategory)}</span>
+            <span class="badge badge-neutral">${escHtml(item.niche)}</span>
+          </div>
+          <h3 style="font-size:16.5px; font-weight:700; margin-top:10px;">${escHtml(item.title)}</h3>
+          <p class="text-sm text-muted" style="margin-top:8px;">${escHtml(item.formulaText)}</p>
         </div>
-        <div style="font-size:13px; font-weight:700; color:var(--color-accent);">Buka Detail</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding-top:10px; border-top:1px solid var(--color-hairline);">
+          <span style="font-size:13px; font-weight:700; color:var(--color-accent);">Buka Detail</span>
+          <button type="button" class="btn btn-ghost remove-fav-btn" style="padding:5px 10px; font-size:12px;">Hapus Favorit</button>
+        </div>
       `;
-      card.addEventListener('click', () => openLibModal(item));
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.remove-fav-btn')) return;
+        openLibModal(item);
+      });
+      card.querySelector('.remove-fav-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        state.favorites = state.favorites.filter((fid) => fid !== item.id);
+        saveState();
+        updateBadges();
+        renderFavoritesGrid();
+        renderLibraryGrid();
+        showToast('Dihapus dari Strategi Favorit');
+      });
+      attachCardKeyboardOpen(card, item);
       grid.appendChild(card);
     });
   }
 
   // Save & History
   function saveCurrentSku(silent) {
-    const sellVal = Number(document.getElementById('wizSellPrice').value) || calcRecommendedPriceFromStep1();
+    if (!silent && !validateStep1()) return;
+    const sellVal = readNum('wizSellPrice', 0) >= 1000 ? readNum('wizSellPrice', 0) : calcRecommendedPriceFromStep1();
     currentSku = buildSkuObject(sellVal);
     const copy = JSON.parse(JSON.stringify(currentSku));
     const idx = state.skus.findIndex((s) => s.id === copy.id);
@@ -585,6 +869,10 @@
 
   function renderHistoryList() {
     const wrap = document.getElementById('historyListContainer');
+    const clearBtn = document.getElementById('clearAllHistoryBtn');
+    if (clearBtn) {
+      clearBtn.classList.toggle('hidden', state.skus.length === 0);
+    }
     if (!wrap) return;
     if (state.skus.length === 0) {
       wrap.innerHTML = `<div class="card"><p class="text-sm text-muted">Belum ada produk yang disimpan. Hitung SKU pertamamu di menu Wizard Harga &amp; ROAS.</p></div>`;
@@ -595,13 +883,15 @@
       const div = document.createElement('div');
       div.className = 'card';
       div.style.padding = '20px 24px';
+      const platLabel = sku.skuPlatform || sku.platform || 'Marketplace';
+      const roasText = Number.isFinite(Number(sku.healthyRoas)) ? Number(sku.healthyRoas).toFixed(2) : '0.00';
       div.innerHTML = `
         <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:14px;">
           <div>
-            <span class="badge">${sku.platform}</span>
-            <span class="badge badge-profit" style="margin-left:6px;">ROAS Wajib >= ${sku.healthyRoas.toFixed(2)}x</span>
-            <h3 class="heading-card" style="margin-top:10px;">${sku.skuName}</h3>
-            <p class="text-sm text-muted" style="margin-top:4px;">Tayang ${formatRp(sku.sellingPrice)} • Laba Sebelum Iklan ${formatRp(sku.profitBeforeAds)}/pcs • Bersih Kantong ${formatRp(sku.finalTakeHomePerOrder)}/pcs</p>
+            <span class="badge">${escHtml(platLabel)}</span>
+            <span class="badge badge-profit" style="margin-left:6px;">ROAS Wajib &gt;= ${escHtml(roasText)}x</span>
+            <h3 class="heading-card" style="margin-top:10px;">${escHtml(sku.skuName)}</h3>
+            <p class="text-sm text-muted" style="margin-top:4px;">Tayang ${escHtml(formatRp(sku.sellingPrice))} • Laba Sebelum Iklan ${escHtml(formatRp(sku.profitBeforeAds))}/pcs • Bersih Kantong ${escHtml(formatRp(sku.finalTakeHomePerOrder))}/pcs</p>
           </div>
           <div style="display:flex; flex-wrap:wrap; gap:8px;">
             <button type="button" class="btn btn-primary open-sku-btn">Buka Audit</button>
@@ -612,16 +902,30 @@
       `;
       div.querySelector('.open-sku-btn').addEventListener('click', () => {
         currentSku = JSON.parse(JSON.stringify(sku));
-        document.getElementById('skuName').value = sku.skuName;
-        document.getElementById('skuHpp').value = sku.hpp;
-        document.getElementById('skuPacking').value = sku.packingCost;
-        document.getElementById('skuReturnBuf').value = sku.returnBuffer;
-        document.getElementById('skuAdminPct').value = sku.adminPct;
-        document.getElementById('skuXtraPct').value = sku.programXtraPct;
-        document.getElementById('skuFixedFee').value = sku.fixedOrderFee;
-        document.getElementById('skuVoucher').value = sku.voucherSellerRp;
-        document.getElementById('skuTargetProfit').value = sku.targetProfit;
+        activePresetId = '';
+        renderPresetChips();
+
+        document.getElementById('skuName').classList.remove('input-error');
+        document.getElementById('skuHpp').classList.remove('input-error');
+
+        document.getElementById('skuName').value = sku.skuName || '';
+        setSelectValueSafe('skuPlatform', sku.skuPlatform || sku.platform);
+        document.getElementById('skuHpp').value = sku.hpp ?? 0;
+        document.getElementById('skuPacking').value = sku.packingCost ?? 0;
+        document.getElementById('skuReturnBuf').value = sku.returnBuffer ?? 0;
+        document.getElementById('skuAdminPct').value = sku.adminPct ?? 0;
+        document.getElementById('skuXtraPct').value = sku.programXtraPct ?? 0;
+        document.getElementById('skuFixedFee').value = sku.fixedOrderFee ?? 0;
+        document.getElementById('skuVoucher').value = sku.voucherSellerRp ?? 0;
+        document.getElementById('skuTargetProfit').value = sku.targetProfit ?? 0;
+
+        setSelectValueSafe('wizStrikePct', sku.wizStrikePct ?? sku.strikeDiscountPct ?? 25, 25);
+        setSelectValueSafe('wizAdShareSelect', sku.wizAdShareSelect ?? sku.adSharePct ?? 40, 40);
         document.getElementById('wizSellPrice').value = sku.sellingPrice;
+        state.customSellPriceEdited = true;
+
+        calcRecommendedPriceFromStep1();
+        renderStep2();
         switchView('wizard');
         goToStep(3);
       });
@@ -630,10 +934,12 @@
         showToast('Lembar Audit PDF diunduh');
       });
       div.querySelector('.del-sku-btn').addEventListener('click', () => {
+        if (!window.confirm(`Hapus riwayat audit SKU "${sku.skuName}" dari daftar?`)) return;
         state.skus = state.skus.filter((s) => s.id !== sku.id);
         saveState();
         updateBadges();
         renderHistoryList();
+        showToast('Riwayat SKU dihapus');
       });
       wrap.appendChild(div);
     });
@@ -649,6 +955,9 @@
     document.querySelectorAll('.mob-nav-item').forEach((b) => {
       b.classList.toggle('active', b.dataset.view === viewName);
     });
+    closeMobileDrawer();
+    if (viewName === 'favorites') renderFavoritesGrid();
+    if (viewName === 'history') renderHistoryList();
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
 
@@ -666,6 +975,17 @@
     document.getElementById('setOwnerName').value = state.store.ownerName || '';
     document.getElementById('setStoreName').value = state.store.storeName || '';
     document.getElementById('setStoreEmail').value = state.store.email || '';
+  }
+
+  function performLogout() {
+    closeMobileDrawer();
+    state.store.loggedIn = false;
+    state.store.validHash = '';
+    saveState();
+    document.getElementById('appShell').classList.add('hidden');
+    document.getElementById('loginScreen').classList.remove('hidden');
+    document.getElementById('loginCode').value = '';
+    document.getElementById('loginError').classList.add('hidden');
   }
 
   function enterStudio() {
@@ -686,52 +1006,80 @@
   }
 
   function bindEvents() {
-    document.getElementById('fillDemoLoginBtn').addEventListener('click', () => {
-      document.getElementById('loginOwner').value = 'Hendra Wijaya';
-      document.getElementById('loginStore').value = 'Berkah Sandang Official';
-      document.getElementById('loginEmail').value = 'hendra@berkahsandang.id';
-      document.getElementById('loginCode').value = 'LABA-2026-PRO';
-    });
-
     document.getElementById('loginForm').addEventListener('submit', (e) => {
       e.preventDefault();
-      const ownerName = document.getElementById('loginOwner').value.trim();
-      const storeName = document.getElementById('loginStore').value.trim();
-      const email = document.getElementById('loginEmail').value.trim();
-      const code = document.getElementById('loginCode').value.trim().toUpperCase();
+      const rawOwner = document.getElementById('loginOwner').value.trim();
+      const rawStore = document.getElementById('loginStore').value.trim();
+      const rawEmail = document.getElementById('loginEmail').value.trim();
+      const rawCode = document.getElementById('loginCode').value;
       const errEl = document.getElementById('loginError');
 
-      if (code.length < 6) {
-        errEl.textContent = 'Masukkan kode lisensi pembelian yang valid (contoh demo: LABA-2026-PRO).';
+      const codeHash = hashAccessCode(rawCode);
+
+      if (codeHash === CREATOR_HASH) {
+        errEl.classList.add('hidden');
+        const ownerName = rawOwner || 'Nifari (Kreator Utama)';
+        const storeName = rawStore || 'Toko Resmi Nifari';
+        const email = rawEmail || 'creator@nifari.id';
+        state.store = {
+          ...state.store,
+          loggedIn: true,
+          ownerName,
+          storeName,
+          email,
+          validHash: codeHash
+        };
+        saveState();
+        enterStudio();
+        showToast('Selamat datang di LabaToko Studio, ' + storeName);
+        return;
+      }
+
+      if (!rawOwner || !rawStore || !rawEmail || !rawCode.trim()) {
+        errEl.textContent = 'Mohon lengkapi nama pemilik, nama toko online, email aktif, dan kode akses pembelian resmi.';
         errEl.classList.remove('hidden');
         return;
       }
+
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail)) {
+        errEl.textContent = 'Format alamat email belum tepat. Periksa kembali penulisan emailmu.';
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      if (codeHash !== BUYER_HASH) {
+        errEl.textContent = 'Kode akses pembelian tidak dikenali. Periksa kembali kode resmimu atau ambil akses di halaman utama.';
+        errEl.classList.remove('hidden');
+        return;
+      }
+
       errEl.classList.add('hidden');
       state.store = {
         ...state.store,
         loggedIn: true,
-        ownerName,
-        storeName,
-        email,
-        license: code
+        ownerName: rawOwner,
+        storeName: rawStore,
+        email: rawEmail,
+        validHash: codeHash
       };
       saveState();
       enterStudio();
-      showToast('Selamat datang di LabaToko Studio, ' + storeName);
+      showToast('Selamat datang di LabaToko Studio, ' + rawStore);
     });
 
-    document.getElementById('logoutBtn').addEventListener('click', () => {
-      state.store.loggedIn = false;
-      saveState();
-      document.getElementById('appShell').classList.add('hidden');
-      document.getElementById('loginScreen').classList.remove('hidden');
-    });
+    document.getElementById('logoutBtn').addEventListener('click', performLogout);
+    document.getElementById('settingsLogoutBtn').addEventListener('click', performLogout);
 
     const toggleTheme = () => applyTheme(state.store.theme === 'dark' ? 'light' : 'dark');
     document.getElementById('themeToggleBtn').addEventListener('click', toggleTheme);
     document.getElementById('mobileThemeBtn').addEventListener('click', toggleTheme);
     document.getElementById('settingsThemeBtn').addEventListener('click', toggleTheme);
-    document.getElementById('mobileSettingsBtn').addEventListener('click', () => switchView('settings'));
+
+    document.getElementById('mobileFavBtn').addEventListener('click', () => switchView('favorites'));
+    document.getElementById('settingsFavBtn').addEventListener('click', () => switchView('favorites'));
+    document.getElementById('mobileMenuBtn').addEventListener('click', openMobileDrawer);
+    document.getElementById('closeMobileDrawerBtn').addEventListener('click', closeMobileDrawer);
+    document.getElementById('mobileDrawerBackdrop').addEventListener('click', closeMobileDrawer);
 
     document.querySelectorAll('.nav-btn, .mob-nav-item').forEach((btn) => {
       btn.addEventListener('click', () => switchView(btn.dataset.view));
@@ -739,7 +1087,12 @@
     document.querySelectorAll('.jump-view-btn').forEach((btn) => {
       btn.addEventListener('click', () => switchView(btn.dataset.target));
     });
-    document.getElementById('heroStartWizardBtn').addEventListener('click', () => switchView('wizard'));
+    document.getElementById('heroStartWizardBtn').addEventListener('click', () => {
+      currentSku = null;
+      state.customSellPriceEdited = false;
+      switchView('wizard');
+      goToStep(1);
+    });
 
     // Quick Leak Scanner
     ['qHpp', 'qPrice', 'qAdminPct', 'qAdCpa'].forEach((id) => {
@@ -747,31 +1100,89 @@
     });
 
     document.getElementById('sendQuickToWizardBtn').addEventListener('click', () => {
-      const qHpp = Number(document.getElementById('qHpp').value) || 45000;
-      const qAdmin = Number(document.getElementById('qAdminPct').value) || 13.5;
-      document.getElementById('skuHpp').value = Math.max(1000, qHpp - 2200);
-      document.getElementById('skuPacking').value = 2200;
-      document.getElementById('skuAdminPct').value = Math.max(0, (qAdmin - 5).toFixed(1));
-      document.getElementById('skuXtraPct').value = 5.0;
-      const rec = calcRecommendedPriceFromStep1();
-      document.getElementById('wizSellPrice').value = rec;
+      const qHpp = Math.max(0, readNum('qHpp', 45000));
+      const qPrice = Math.max(1000, readNum('qPrice', 85000));
+      const qAdmin = Math.min(85, Math.max(0, readNum('qAdminPct', 13.5)));
+
+      activePresetId = '';
+      currentSku = null;
+      renderPresetChips();
+
+      const skuNameInp = document.getElementById('skuName');
+      const isPresetName = DATA.presets.some((pr) => pr.skuName === skuNameInp.value.trim());
+      if (!skuNameInp.value.trim() || isPresetName) {
+        skuNameInp.value = 'Produk Etalase Saat Ini';
+      }
+      skuNameInp.classList.remove('input-error');
+      document.getElementById('skuHpp').classList.remove('input-error');
+
+      document.getElementById('skuHpp').value = qHpp > 0 ? qHpp : 1000;
+      document.getElementById('skuPacking').value = 0;
+      document.getElementById('skuReturnBuf').value = 0;
+      document.getElementById('skuAdminPct').value = qAdmin;
+      document.getElementById('skuXtraPct').value = 0;
+      document.getElementById('skuFixedFee').value = 1250;
+      document.getElementById('skuVoucher').value = 0;
+
+      const feeRp = Math.round(qPrice * (qAdmin / 100)) + 1250;
+      const estProfit = Math.max(0, qPrice - qHpp - feeRp);
+      document.getElementById('skuTargetProfit').value = estProfit > 0 ? estProfit : 15000;
+
+      calcRecommendedPriceFromStep1();
+      document.getElementById('wizSellPrice').value = qPrice;
+      state.customSellPriceEdited = true;
+
       switchView('wizard');
       goToStep(1);
-      showToast('Data dipindahkan ke Wizard untuk dirancang harga sehatnya');
+      showToast('Data pemindai cepat dipindahkan utuh ke Wizard');
     });
 
-    // Wizard Step 1 live recommended price
+    // Wizard Step 1 live listeners
+    document.getElementById('skuName').addEventListener('input', (e) => {
+      if (e.target.value.trim()) e.target.classList.remove('input-error');
+    });
+
+    const handleStep1PlatformChange = () => {
+      if (currentSku) {
+        currentSku.platform = document.getElementById('skuPlatform').value;
+        currentSku.skuPlatform = currentSku.platform;
+      }
+    };
+    document.getElementById('skuPlatform').addEventListener('input', handleStep1PlatformChange);
+    document.getElementById('skuPlatform').addEventListener('change', handleStep1PlatformChange);
+
     ['skuHpp', 'skuPacking', 'skuReturnBuf', 'skuAdminPct', 'skuXtraPct', 'skuFixedFee', 'skuVoucher', 'skuTargetProfit'].forEach(
       (id) => {
-        document.getElementById(id).addEventListener('input', () => {
+        document.getElementById(id).addEventListener('input', (e) => {
+          if (id === 'skuHpp' && readNum('skuHpp', 0) > 0) {
+            e.target.classList.remove('input-error');
+          }
           const rec = calcRecommendedPriceFromStep1();
-          document.getElementById('wizSellPrice').value = rec;
+          if (!state.customSellPriceEdited) {
+            document.getElementById('wizSellPrice').value = rec;
+          }
         });
       }
     );
 
     // Wizard Step 2 live updates
-    ['wizSellPrice', 'wizStrikePct', 'wizAdShareSelect'].forEach((id) => {
+    document.getElementById('wizSellPrice').addEventListener('input', () => {
+      state.customSellPriceEdited = true;
+      renderStep2();
+    });
+    document.getElementById('wizSellPrice').addEventListener('change', () => {
+      state.customSellPriceEdited = true;
+      renderStep2();
+    });
+
+    document.getElementById('useRecPriceBtn').addEventListener('click', () => {
+      state.customSellPriceEdited = false;
+      document.getElementById('wizSellPrice').value = calcRecommendedPriceFromStep1();
+      renderStep2();
+      showToast('Harga tayang dikembalikan ke rekomendasi aman Langkah 1');
+    });
+
+    ['wizStrikePct', 'wizAdShareSelect'].forEach((id) => {
       document.getElementById(id).addEventListener('input', renderStep2);
       document.getElementById(id).addEventListener('change', renderStep2);
     });
@@ -781,7 +1192,6 @@
     });
 
     document.getElementById('toStep2Btn').addEventListener('click', () => {
-      document.getElementById('wizSellPrice').value = calcRecommendedPriceFromStep1();
       goToStep(2);
     });
     document.getElementById('backToStep1Btn').addEventListener('click', () => goToStep(1));
@@ -789,6 +1199,16 @@
     document.getElementById('backToStep2Btn').addEventListener('click', () => goToStep(2));
 
     document.getElementById('saveSkuBtn').addEventListener('click', () => saveCurrentSku(false));
+
+    document.getElementById('clearAllHistoryBtn').addEventListener('click', () => {
+      if (state.skus.length === 0) return;
+      if (!window.confirm('Yakin ingin menghapus seluruh riwayat audit SKU di perangkat ini?')) return;
+      state.skus = [];
+      saveState();
+      updateBadges();
+      renderHistoryList();
+      showToast('Seluruh riwayat SKU telah dibersihkan');
+    });
 
     document.getElementById('sendToFlashSaleBtn').addEventListener('click', () => {
       if (!currentSku) currentSku = buildSkuObject();
@@ -859,6 +1279,16 @@
       if (e.target.id === 'libModal') closeLibModal();
     });
 
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const modal = document.getElementById('libModal');
+        if (modal && modal.classList.contains('open')) {
+          closeLibModal();
+        }
+        closeMobileDrawer();
+      }
+    });
+
     document.getElementById('modalCopyBtn').addEventListener('click', () => {
       if (!activeModalItem) return;
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -888,16 +1318,27 @@
     // Profile & Backup
     document.getElementById('profileForm').addEventListener('submit', (e) => {
       e.preventDefault();
-      state.store.ownerName = document.getElementById('setOwnerName').value.trim();
-      state.store.storeName = document.getElementById('setStoreName').value.trim();
-      state.store.email = document.getElementById('setStoreEmail').value.trim();
+      state.store.ownerName = document.getElementById('setOwnerName').value.trim() || state.store.ownerName;
+      state.store.storeName = document.getElementById('setStoreName').value.trim() || state.store.storeName;
+      state.store.email = document.getElementById('setStoreEmail').value.trim() || state.store.email;
       saveState();
       updateBadges();
       showToast('Profil toko berhasil diperbarui');
     });
 
     document.getElementById('exportBackupBtn').addEventListener('click', () => {
-      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      const safeExport = {
+        store: {
+          ownerName: state.store.ownerName,
+          storeName: state.store.storeName,
+          email: state.store.email,
+          theme: state.store.theme
+        },
+        skus: state.skus,
+        favorites: state.favorites,
+        exportsCount: state.exportsCount
+      };
+      const blob = new Blob([JSON.stringify(safeExport, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -918,19 +1359,39 @@
       reader.onload = () => {
         try {
           const parsed = JSON.parse(String(reader.result || '{}'));
-          if (parsed && parsed.store) {
+          if (parsed && typeof parsed === 'object') {
+            const wasAuth = isValidSessionStore(state.store);
+            const preservedHash = wasAuth ? state.store.validHash : '';
+            const impStore = parsed.store && typeof parsed.store === 'object' ? parsed.store : {};
+
             state = {
-              store: { ...defaultStore, ...parsed.store, loggedIn: true },
+              store: {
+                ...defaultStore,
+                ownerName: String(impStore.ownerName || state.store.ownerName || ''),
+                storeName: String(impStore.storeName || state.store.storeName || ''),
+                email: String(impStore.email || state.store.email || ''),
+                theme: impStore.theme === 'dark' ? 'dark' : (state.store.theme || 'light'),
+                loggedIn: wasAuth,
+                validHash: preservedHash
+              },
               skus: Array.isArray(parsed.skus) ? parsed.skus : [],
               favorites: Array.isArray(parsed.favorites) ? parsed.favorites : [],
-              exportsCount: Number(parsed.exportsCount) || 0
+              exportsCount: Number.isFinite(Number(parsed.exportsCount)) ? Number(parsed.exportsCount) : state.exportsCount,
+              customSellPriceEdited: false
             };
             saveState();
-            enterStudio();
-            showToast('Cadangan data SKU berhasil dipulihkan');
+            applyTheme(state.store.theme);
+            if (wasAuth) {
+              enterStudio();
+              showToast('Cadangan data SKU berhasil dipulihkan');
+            } else {
+              showToast('Data dipulihkan. Silakan masuk dengan kode akses resmi terlebih dahulu.');
+            }
           }
         } catch (err) {
           showToast('File JSON tidak valid');
+        } finally {
+          e.target.value = '';
         }
       };
       reader.readAsText(file);
@@ -940,6 +1401,8 @@
   document.addEventListener('DOMContentLoaded', () => {
     bindEvents();
     applyTheme(state.store.theme || 'light');
-    if (state.store.loggedIn) enterStudio();
+    if (isValidSessionStore(state.store)) {
+      enterStudio();
+    }
   });
 })();

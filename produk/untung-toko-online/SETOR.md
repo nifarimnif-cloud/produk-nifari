@@ -14,7 +14,7 @@
 ## 2. Link Live (Cloudflare Pages)
 - **Link Landing Page (LP Jualan):** [https://nifari-untung-toko-lp.pages.dev](https://nifari-untung-toko-lp.pages.dev)
 - **Link Web App (Aplikasi Pembeli):** [https://nifari-untung-toko-app.pages.dev](https://nifari-untung-toko-app.pages.dev)
-  - *Cara masuk cepat untuk penguji:* Klik tombol **Isi Cepat Akun Contoh Pembeli** di halaman masuk (atau masukkan kode lisensi `LABA-2026-PRO`), lalu klik **Masuk ke LabaToko Studio**.
+  - *Cara masuk untuk pembeli & penguji:* Masukkan Kode Akses resmi yang diterima setelah konfirmasi pembelian pada layar masuk, lalu klik **Masuk ke LabaToko Studio** (belum punya kode dapat mencoba kalkulator di Landing Page terlebih dahulu).
 
 ---
 
@@ -42,7 +42,7 @@ Seluruh pengujian dijalankan menggunakan browser **Google Chrome asli** pada uku
 
 | Bagian yang Dites | Skenario Pengujian | Hasil |
 | :--- | :--- | :--- |
-| **Login Lisensi Pembeli** | Masuk memakai nama pemilik, nama toko online, email, & kode lisensi (`LABA-2026-PRO`) serta tombol isi cepat akun contoh | **Lulus** — Sesi tersimpan rapi di browser dan langsung membuka Beranda LabaToko Studio menyapa nama toko. |
+| **Login Lisensi Pembeli** | Masuk memakai nama pemilik, nama toko online, email, & kode akses resmi terverifikasi SHA-256 | **Lulus** — Validasi hash berjalan ketat tanpa bocoran kode di kode sumber, dan sesi tersimpan rapi menyapa nama toko. |
 | **Pemindai Kebocoran 30 Detik** | Ubah HPP, harga tayang saat ini, persen admin + Xtra, & biaya iklan per laku 1 pcs lalu kirim ke Wizard | **Lulus** — Potongan rupiah, sisa bersih per pesanan, serta ROAS impas terhitung seketika dan berpindah ke Wizard. |
 | **Wizard 3 Langkah (Harga, Bundel & ROAS)** | Pilih 1 dari 8 preset kategori toko → atur harga coret & porsi iklan → periksa 3 paket bundling & audit 8 titik | **Lulus** — Harga tayang aman, tampilan harga coret, 3 paket bundling (1, 2, 3 pcs), ROAS Impas vs ROAS Sehat, dan skor keamanan `100%` terhitung akurat. |
 | **Ekspor Audit Margin & ROAS (`.pdf`)** | Klik unduh Lembar Audit Margin & ROAS A4 | **Lulus** — Menghasilkan dokumen PDF A4 multi-bagian asli (`4,9 KB`, header `%PDF-1.4`) berisi rincian unit ekonomi, 3 bundel, & aturan ROAS. |

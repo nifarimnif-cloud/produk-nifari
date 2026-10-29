@@ -57,52 +57,56 @@
         <h2 class="display-lg" style="margin-top: 12px;">Masuk ke LabaToko</h2>
         <p class="text-sm text-muted" style="margin-top: 6px;">Masukkan identitas tokomu dan kode akses pembelian untuk mulai menghitung margin.</p>
 
-        <form id="loginForm" style="display: grid; gap: 15px; margin-top: 22px;">
+        <form id="loginForm" novalidate style="display: grid; gap: 15px; margin-top: 22px;">
           <div class="field-group">
             <label class="field-label" for="loginOwner">Nama Pemilik / Admin</label>
-            <input id="loginOwner" class="input" type="text" placeholder="Contoh: Hendra Wijaya" required />
+            <input id="loginOwner" class="input" type="text" placeholder="Contoh: Hendra Wijaya" />
           </div>
           <div class="field-group">
             <label class="field-label" for="loginStore">Nama Toko Online</label>
-            <input id="loginStore" class="input" type="text" placeholder="Contoh: Berkah Sandang Official" required />
+            <input id="loginStore" class="input" type="text" placeholder="Contoh: Berkah Sandang Official" />
           </div>
           <div class="field-group">
             <label class="field-label" for="loginEmail">Email Pembeli</label>
-            <input id="loginEmail" class="input" type="email" placeholder="hendra@tokoberkah.id" required />
+            <input id="loginEmail" class="input" type="email" placeholder="hendra@tokoberkah.id" />
           </div>
           <div class="field-group">
             <label class="field-label" for="loginCode">Kode Lisensi Akses</label>
-            <input id="loginCode" class="input" type="text" placeholder="Contoh: LABA-2026-PRO" required />
+            <input id="loginCode" class="input" type="text" placeholder="Masukkan kode akses pembelian resmi" autocomplete="off" />
           </div>
           <p id="loginError" class="text-sm hidden" style="padding: 10px 12px; background: var(--bg-accent-soft); color: var(--color-accent); border-radius: 8px;"></p>
 
           <button type="submit" class="btn btn-primary btn-block" style="padding: 13px 20px;">
             Masuk ke LabaToko Studio
           </button>
-          <button type="button" id="fillDemoLoginBtn" class="btn btn-secondary btn-block">
-            Isi Cepat Akun Contoh Pembeli
-          </button>
+          <a href="https://nifari-untung-toko-lp.pages.dev#demo-coba" class="btn btn-secondary btn-block">
+            Belum Punya Kode? Coba Hitung &amp; Ambil Akses Resmi &rarr;
+          </a>
         </form>
       </div>
     </div>
   </section>
 
   <!-- SHELL UTAMA STUDIO -->
+  <div id="mobileDrawerBackdrop" class="drawer-backdrop"></div>
   <div id="appShell" class="app-shell hidden">
-    <!-- Sidebar Desktop -->
-    <aside class="sidebar">
+    <!-- Sidebar Desktop & Mobile Drawer -->
+    <aside id="sidebarDrawer" class="sidebar">
       <div>
-        <div class="brand-mark">
-          <svg viewBox="0 0 36 36" fill="none" aria-hidden="true">
-            <rect x="4" y="5" width="28" height="26" rx="6" stroke="currentColor" stroke-width="2.3"/>
-            <rect x="10" y="20" width="4" height="6" rx="1" fill="#d9381e"/>
-            <rect x="16" y="15" width="4" height="11" rx="1" fill="currentColor"/>
-            <rect x="22" y="10" width="4" height="16" rx="1" fill="#137347"/>
-          </svg>
-          <div>
-            <div style="font-size: 17.5px; line-height: 1.15;">LabaToko</div>
-            <div class="text-caption text-muted" style="font-size: 10px;">AUDIT MARGIN &amp; IKLAN</div>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <div class="brand-mark">
+            <svg viewBox="0 0 36 36" fill="none" aria-hidden="true">
+              <rect x="4" y="5" width="28" height="26" rx="6" stroke="currentColor" stroke-width="2.3"/>
+              <rect x="10" y="20" width="4" height="6" rx="1" fill="#d9381e"/>
+              <rect x="16" y="15" width="4" height="11" rx="1" fill="currentColor"/>
+              <rect x="22" y="10" width="4" height="16" rx="1" fill="#137347"/>
+            </svg>
+            <div>
+              <div style="font-size: 17.5px; line-height: 1.15;">LabaToko</div>
+              <div class="text-caption text-muted" style="font-size: 10px;">AUDIT MARGIN &amp; IKLAN</div>
+            </div>
           </div>
+          <button id="closeMobileDrawerBtn" type="button" class="btn btn-ghost mobile-drawer-close" aria-label="Tutup Menu">&times;</button>
         </div>
 
         <nav class="nav-list" aria-label="Menu Utama">
@@ -170,18 +174,19 @@
     <div>
       <!-- Topbar Mobile -->
       <header class="topbar-mobile">
-        <div class="brand-mark" style="font-size: 16px; gap: 8px;">
-          <svg viewBox="0 0 36 36" fill="none" style="width: 26px; height: 26px;" aria-hidden="true">
+        <div class="brand-mark" style="font-size: 15.5px; gap: 7px;">
+          <svg viewBox="0 0 36 36" fill="none" style="width: 24px; height: 24px;" aria-hidden="true">
             <rect x="4" y="5" width="28" height="26" rx="6" stroke="currentColor" stroke-width="2.4"/>
             <rect x="10" y="20" width="4" height="6" rx="1" fill="#d9381e"/>
             <rect x="16" y="15" width="4" height="11" rx="1" fill="currentColor"/>
             <rect x="22" y="10" width="4" height="16" rx="1" fill="#137347"/>
           </svg>
-          <span>LabaToko Studio</span>
+          <span>LabaToko</span>
         </div>
-        <div style="display: flex; gap: 6px;">
-          <button id="mobileThemeBtn" type="button" class="btn btn-secondary" style="padding: 6px 10px; font-size: 12px;">Tema</button>
-          <button id="mobileSettingsBtn" type="button" class="btn btn-ghost" style="padding: 6px 10px; font-size: 12px;">Toko</button>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <button id="mobileFavBtn" type="button" class="btn btn-ghost" style="padding: 6px 9px; font-size: 12px;">Favorit</button>
+          <button id="mobileThemeBtn" type="button" class="btn btn-secondary" style="padding: 6px 9px; font-size: 12px;">Tema</button>
+          <button id="mobileMenuBtn" type="button" class="btn btn-secondary" style="padding: 6px 10px; font-size: 12px;" aria-label="Buka Menu Navigasi">&#9776; Menu</button>
         </div>
       </header>
 
@@ -221,7 +226,7 @@
             </div>
             <div class="stat-card">
               <div class="text-caption text-muted">Sisa Bersih Cek Cepat</div>
-              <div id="statQuickProfit" class="stat-value" style="color: var(--color-profit);">Rp 13.070</div>
+              <div id="statQuickProfit" class="stat-value" style="color: var(--color-profit);">Rp 13.275</div>
               <div class="text-sm text-muted" style="margin-top: 4px;">Per 1 pesanan selesai</div>
             </div>
           </div>
@@ -353,9 +358,10 @@
                   <label class="field-label" for="skuPlatform">Platform &amp; Status Toko</label>
                   <select id="skuPlatform" class="select">
                     <option value="Shopee Star & TikTok Shop">Shopee Star / Star+ &amp; TikTok Shop</option>
-                    <option value="TikTok Shop & Shopee Star">TikTok Shop Tokopedia</option>
+                    <option value="TikTok Shop & Shopee Star">TikTok Shop &amp; Shopee Star</option>
+                    <option value="Shopee Star & Tokopedia">Shopee Star &amp; Tokopedia</option>
                     <option value="Shopee Mall / Star+">Shopee Mall / Official Store</option>
-                    <option value="Shopee & Tokopedia">Tokopedia / Lazada Reguler</option>
+                    <option value="Shopee & Tokopedia">Shopee &amp; Tokopedia / Lazada Reguler</option>
                     <option value="Shopee & TikTok Shop">Semua Marketplace Gabungan</option>
                   </select>
                 </div>
@@ -379,11 +385,11 @@
               <div class="grid-4" style="margin-bottom: 16px;">
                 <div class="field-group">
                   <label class="field-label" for="skuAdminPct">Biaya Admin Kategori (%)</label>
-                  <input id="skuAdminPct" class="input num-mono" type="number" min="0" max="30" step="0.5" />
+                  <input id="skuAdminPct" class="input num-mono" type="number" min="0" max="85" step="0.5" />
                 </div>
                 <div class="field-group">
                   <label class="field-label" for="skuXtraPct">Gratis Ongkir / Promo Xtra (%)</label>
-                  <input id="skuXtraPct" class="input num-mono" type="number" min="0" max="25" step="0.5" />
+                  <input id="skuXtraPct" class="input num-mono" type="number" min="0" max="85" step="0.5" />
                 </div>
                 <div class="field-group">
                   <label class="field-label" for="skuFixedFee">Biaya Proses per Resi (Rp)</label>
@@ -395,15 +401,17 @@
                 </div>
               </div>
 
+              <p id="step1FeeWarn" class="text-sm hidden" style="margin-bottom: 14px; padding: 10px 12px; border-radius: 10px; background: var(--bg-accent-soft); color: var(--color-accent); font-weight: 600;"></p>
+
               <div class="card-profit" style="margin-bottom: 20px;">
                 <div class="grid-2" style="align-items: center;">
                   <div class="field-group">
                     <label class="field-label" for="skuTargetProfit">Target Laba Sebelum Iklan yang Diinginkan per Pcs (Rp)</label>
-                    <input id="skuTargetProfit" class="input num-mono" type="number" min="1000" step="1000" />
+                    <input id="skuTargetProfit" class="input num-mono" type="number" min="0" step="1000" />
                   </div>
                   <div>
                     <div class="text-caption">REKOMENDASI HARGA TAYANG AMAN OTOMATIS</div>
-                    <div id="step1RecPrice" class="display-lg num-mono" style="color: var(--color-profit); margin-top: 4px;">Rp 89.000</div>
+                    <div id="step1RecPrice" class="display-lg num-mono" style="color: var(--color-profit); margin-top: 4px;">Rp 85.000</div>
                     <p class="text-sm text-muted" style="margin-top: 2px;">Sudah menutup seluruh potongan persen platform + voucher + target untungmu.</p>
                   </div>
                 </div>
@@ -424,7 +432,10 @@
                 <h2 class="heading-card" style="margin-bottom: 14px;">Kunci Harga Tayang &amp; Harga Coret Etalase</h2>
                 <div class="grid-2" style="margin-bottom: 16px; align-items: end;">
                   <div class="field-group">
-                    <label class="field-label" for="wizSellPrice">Harga Tayang Pilihanmu (Rp)</label>
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+                      <label class="field-label" for="wizSellPrice">Harga Tayang Pilihanmu (Rp)</label>
+                      <button type="button" id="useRecPriceBtn" class="btn btn-ghost" style="padding: 2px 8px; font-size: 11.5px;">Pakai Rekomendasi</button>
+                    </div>
                     <input id="wizSellPrice" class="input num-mono" type="number" min="1000" step="500" />
                   </div>
                   <div class="field-group">
@@ -442,8 +453,8 @@
                 <div class="card-muted" style="margin-bottom: 18px;">
                   <div class="text-caption text-muted">TAMPILAN PSIKOLOGIS DI ETALASE PEMBELI</div>
                   <div style="display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-top: 8px;">
-                    <span id="wizStrikeDisplay" class="num-mono" style="text-decoration: line-through; color: var(--color-ink-soft); font-size: 18px;">Rp 119.000</span>
-                    <span id="wizSellDisplay" class="num-mono" style="font-size: 28px; font-weight: 700; color: var(--color-accent);">Rp 89.000</span>
+                    <span id="wizStrikeDisplay" class="num-mono" style="text-decoration: line-through; color: var(--color-ink-soft); font-size: 18px;">Rp 114.000</span>
+                    <span id="wizSellDisplay" class="num-mono" style="font-size: 28px; font-weight: 700; color: var(--color-accent);">Rp 85.000</span>
                     <span id="wizDiscBadge" class="badge">HEMAT 25%</span>
                   </div>
                 </div>
@@ -471,18 +482,18 @@
                     <div class="text-caption" style="color: var(--color-accent);">BATAS MATI (IMPAS 0 RUGI)</div>
                     <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px;">
                       <span>ROAS Impas Minimal:</span>
-                      <strong id="wizBreakRoas" class="num-mono" style="font-size: 22px;">3.80x</strong>
+                      <strong id="wizBreakRoas" class="num-mono" style="font-size: 22px;">3.77x</strong>
                     </div>
-                    <div class="text-sm" style="margin-top: 4px;">Maksimal biaya iklan per laku 1 pcs: <strong id="wizMaxCpa" class="num-mono">Rp 23.000</strong></div>
+                    <div class="text-sm" style="margin-top: 4px;">Maksimal biaya iklan per laku 1 pcs: <strong id="wizMaxCpa" class="num-mono">Rp 22.575</strong></div>
                   </div>
 
                   <div class="card-profit">
                     <div class="text-caption" style="color: var(--color-profit);">TARGET SEHAT WAJIB DICAPAI</div>
                     <div style="display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px;">
                       <span>ROAS Sehat Minimal:</span>
-                      <strong id="wizHealthyRoas" class="num-mono" style="font-size: 26px; color: var(--color-profit);">9.50x</strong>
+                      <strong id="wizHealthyRoas" class="num-mono" style="font-size: 26px; color: var(--color-profit);">9.41x</strong>
                     </div>
-                    <div class="text-sm" style="margin-top: 4px;">Target biaya iklan: <strong id="wizHealthyCpa" class="num-mono">Rp 9.200/order</strong> • Bersih kantong: <strong id="wizTakeHome" class="num-mono">Rp 13.800/order</strong></div>
+                    <div class="text-sm" style="margin-top: 4px;">Target biaya iklan: <strong id="wizHealthyCpa" class="num-mono">Rp 9.030/order</strong> • Bersih kantong: <strong id="wizTakeHome" class="num-mono">Rp 13.545/order</strong></div>
                   </div>
 
                   <div class="card-muted" style="padding: 16px;">
@@ -505,12 +516,12 @@
               <div class="card">
                 <span class="badge">RINGKASAN UNIT EKONOMI RESMI</span>
                 <h2 id="prevSkuTitle" class="heading-card" style="margin-top: 10px;">Nama SKU</h2>
-                <p id="prevSkuSub" class="text-sm text-muted" style="margin-top: 2px; margin-bottom: 16px;">Shopee Star • Harga Tayang Rp 89.000</p>
+                <p id="prevSkuSub" class="text-sm text-muted" style="margin-top: 2px; margin-bottom: 16px;">Shopee Star &amp; TikTok Shop • Harga Tayang Rp 85.000</p>
 
                 <div id="prevLedgerRows"></div>
                 <div id="prevLedgerTotal" class="ledger-total">
                   <span>Bersih ke Kantong (Setelah Iklan)</span>
-                  <span id="prevTakeHomeVal" class="num-mono">Rp 13.800</span>
+                  <span id="prevTakeHomeVal" class="num-mono">Rp 13.545</span>
                 </div>
 
                 <div style="margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap;">
@@ -588,11 +599,11 @@
                 <div class="grid-2" style="gap: 12px;">
                   <div class="field-group">
                     <label class="field-label" for="fsNormalPrice">Harga Tayang Normal (Rp)</label>
-                    <input id="fsNormalPrice" class="input num-mono" type="number" value="89000" />
+                    <input id="fsNormalPrice" class="input num-mono" type="number" min="0" step="1000" value="85000" />
                   </div>
                   <div class="field-group">
                     <label class="field-label" for="fsTotalHpp">HPP + Packing + Cadangan (Rp)</label>
-                    <input id="fsTotalHpp" class="input num-mono" type="number" value="46700" />
+                    <input id="fsTotalHpp" class="input num-mono" type="number" min="0" step="500" value="46700" />
                   </div>
                 </div>
                 <div class="grid-2" style="gap: 12px;">
@@ -679,10 +690,13 @@
 
         <!-- VIEW 5: RIWAYAT SKU -->
         <section id="view-history" class="view-panel">
-          <div style="margin-bottom: 20px;">
-            <span class="badge">BUKU BESAR PRODUK</span>
-            <h1 class="display-lg" style="margin-top: 8px;">Riwayat Audit SKU &amp; Rambu Iklan</h1>
-            <p class="text-sm text-muted" style="margin-top: 6px;">Daftar produk yang sudah kamu hitung struktur harganya beserta akses cepat unduh ulang PDF auditnya.</p>
+          <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px; margin-bottom: 20px;">
+            <div>
+              <span class="badge">BUKU BESAR PRODUK</span>
+              <h1 class="display-lg" style="margin-top: 8px;">Riwayat Audit SKU &amp; Rambu Iklan</h1>
+              <p class="text-sm text-muted" style="margin-top: 6px;">Daftar produk yang sudah kamu hitung struktur harganya beserta akses cepat unduh ulang PDF auditnya.</p>
+            </div>
+            <button type="button" id="clearAllHistoryBtn" class="btn btn-ghost">Bersihkan Semua Riwayat</button>
           </div>
           <div id="historyListContainer" style="display: grid; gap: 14px;"></div>
         </section>
@@ -729,7 +743,7 @@
                 <p class="text-sm text-muted" style="margin-bottom: 16px;">Seluruh data HPP dan riwayat perhitungan tersimpan privat di browser ini. Unduh cadangan JSON untuk memindahkannya ke komputer admin atau perangkat lain.</p>
                 <div style="display: grid; gap: 10px;">
                   <button type="button" id="exportBackupBtn" class="btn btn-secondary btn-block">Unduh Cadangan Data SKU (.JSON)</button>
-                  <label class="btn btn-ghost btn-block" style="cursor: pointer;">
+                  <label class="btn btn-ghost btn-block" for="importBackupInput" style="cursor: pointer;">
                     <span>Pulihkan dari File Cadangan (.JSON)</span>
                     <input id="importBackupInput" type="file" accept="application/json" style="display: none;" />
                   </label>
@@ -737,9 +751,13 @@
               </div>
 
               <div class="card-muted" style="padding: 16px;">
-                <div class="text-caption">TEMA RUANG KERJA</div>
-                <p class="text-sm text-muted" style="margin-top: 4px; margin-bottom: 10px;">Gunakan tema terang hangat di siang hari atau mode gelap saat evaluasi iklan malam hari.</p>
-                <button type="button" id="settingsThemeBtn" class="btn btn-secondary">Ganti Tema Terang / Gelap</button>
+                <div class="text-caption">TEMA &amp; AKSES AKUN TOKO</div>
+                <p class="text-sm text-muted" style="margin-top: 4px; margin-bottom: 12px;">Gunakan tema terang hangat di siang hari atau mode gelap saat evaluasi iklan malam hari.</p>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                  <button type="button" id="settingsThemeBtn" class="btn btn-secondary">Ganti Tema Terang / Gelap</button>
+                  <button type="button" id="settingsFavBtn" class="btn btn-secondary">Strategi Favorit</button>
+                  <button type="button" id="settingsLogoutBtn" class="btn btn-ghost" style="color: var(--color-accent); border-color: var(--color-accent);">Keluar Akun</button>
+                </div>
               </div>
             </div>
           </div>

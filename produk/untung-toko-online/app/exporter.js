@@ -29,28 +29,69 @@
     }, 350);
   }
 
-  function sanitizePdf(str) {
+  function normalizePdfAscii(str) {
     return String(str || '')
       .replace(/[\u2018\u2019]/g, "'")
       .replace(/[\u201C\u201D]/g, '"')
       .replace(/[\u2013\u2014]/g, '-')
       .replace(/\u2026/g, '...')
-      .replace(/[^\x20-\x7E]/g, ' ')
+      .replace(/[^\x20-\x7E]/g, ' ');
+  }
+
+  function sanitizePdf(str) {
+    return normalizePdfAscii(str)
       .replace(/\\/g, '\\\\')
       .replace(/\(/g, '\\(')
       .replace(/\)/g, '\\)');
   }
 
-  function wrapLines(text, maxChars) {
-    const words = String(text || '').replace(/\s+/g, ' ').trim().split(' ');
+  function estimatePdfWidth(str, fontSize, bold = false) {
+    const clean = normalizePdfAscii(str);
+    let units = 0;
+    for (let i = 0; i < clean.length; i++) {
+      const ch = clean[i];
+      if ('ilI.,:;\'!| '.includes(ch)) units += 0.29;
+      else if ('()[]-/'.includes(ch)) units += 0.35;
+      else if ('mw'.includes(ch)) units += 0.8;
+      else if ('MW'.includes(ch)) units += 0.9;
+      else if (ch >= 'A' && ch <= 'Z') units += 0.69;
+      else units += 0.56;
+    }
+    return units * fontSize * (bold ? 1.07 : 1.0);
+  }
+
+  function splitTokenByPdfWidth(token, maxWidthPt, fontSize, bold) {
+    if (estimatePdfWidth(token, fontSize, bold) <= maxWidthPt) return [token];
+    const parts = [];
+    let cur = '';
+    for (let i = 0; i < token.length; i++) {
+      const next = cur + token[i];
+      if (cur && estimatePdfWidth(next, fontSize, bold) > maxWidthPt) {
+        parts.push(cur);
+        cur = token[i];
+      } else {
+        cur = next;
+      }
+    }
+    if (cur) parts.push(cur);
+    return parts;
+  }
+
+  function wrapPdfByWidth(text, maxWidthPt, fontSize, bold = false) {
+    const rawWords = normalizePdfAscii(text).replace(/\s+/g, ' ').trim().split(' ');
+    const words = [];
+    for (const rw of rawWords) {
+      if (!rw) continue;
+      words.push(...splitTokenByPdfWidth(rw, maxWidthPt, fontSize, bold));
+    }
     const lines = [];
     let cur = '';
     for (const w of words) {
-      if (!w) continue;
-      if ((cur + ' ' + w).trim().length <= maxChars) {
-        cur = (cur + ' ' + w).trim();
+      const candidate = cur ? cur + ' ' + w : w;
+      if (!cur || estimatePdfWidth(candidate, fontSize, bold) <= maxWidthPt) {
+        cur = candidate;
       } else {
-        if (cur) lines.push(cur);
+        lines.push(cur);
         cur = w;
       }
     }
@@ -109,18 +150,34 @@
       if (cmds.length) pages.push(cmds);
       cmds = [];
       if (first) {
+        const subLines = wrapPdfByWidth(
+          'LabaToko Studio  |  Toko: ' + (store.storeName || 'Toko Online') + '  |  Platform: ' + sku.platform,
+          500,
+          9.6,
+          false
+        ).slice(0, 2);
+        const skuLines = wrapPdfByWidth('SKU Produk: ' + sku.skuName, 500, 9.5, true).slice(0, 2);
+        const headerBottom = 738;
         // Espresso Ink header (#141311 -> 0.078 0.075 0.067) + Vermilion bar (#D9381E -> 0.851 0.220 0.118)
-        cmds.push('0.078 0.075 0.067 rg 0 752 595 90 re f');
-        cmds.push('0.851 0.220 0.118 rg 0 748 595 4 re f');
+        cmds.push(`0.078 0.075 0.067 rg 0 ${headerBottom} 595 ${842 - headerBottom} re f`);
+        cmds.push(`0.851 0.220 0.118 rg 0 ${headerBottom - 4} 595 4 re f`);
         cmds.push('1 1 1 rg');
-        cmds.push(`BT /F2 16.5 Tf 44 806 Td (${sanitizePdf('LEMBAR AUDIT MARGIN SKU & RAMBU BATAS IKLAN')}) Tj ET`);
-        cmds.push(`BT /F1 10 Tf 44 786 Td (${sanitizePdf('LabaToko Studio  |  Toko: ' + (store.storeName || 'Toko Online') + '  |  Platform: ' + sku.platform)}) Tj ET`);
-        cmds.push(`BT /F1 9.5 Tf 44 768 Td (${sanitizePdf('SKU Produk: ' + sku.skuName)}) Tj ET`);
-        y = 722;
+        cmds.push(`BT /F2 16 Tf 44 812 Td (${sanitizePdf('LEMBAR AUDIT MARGIN SKU & RAMBU BATAS IKLAN')}) Tj ET`);
+        let hy = 793;
+        subLines.forEach((ln) => {
+          cmds.push(`BT /F1 9.6 Tf 44 ${hy} Td (${sanitizePdf(ln)}) Tj ET`);
+          hy -= 12.5;
+        });
+        skuLines.forEach((ln) => {
+          cmds.push(`BT /F2 9.5 Tf 44 ${hy} Td (${sanitizePdf(ln)}) Tj ET`);
+          hy -= 12.5;
+        });
+        y = 712;
       } else {
+        const contTitle = wrapPdfByWidth('LabaToko Studio - Lanjutan Audit SKU: ' + sku.skuName, 500, 10, true)[0];
         cmds.push('0.078 0.075 0.067 rg 0 804 595 38 re f');
         cmds.push('1 1 1 rg');
-        cmds.push(`BT /F2 10.5 Tf 44 818 Td (${sanitizePdf('LabaToko Studio — Lanjutan Audit SKU: ' + sku.skuName)}) Tj ET`);
+        cmds.push(`BT /F2 10 Tf 44 818 Td (${sanitizePdf(contTitle)}) Tj ET`);
         y = 780;
       }
       cmds.push('0.08 0.08 0.08 rg');
@@ -140,17 +197,29 @@
     }
 
     function addRow(left, right, bold = false) {
-      ensureSpace(18);
+      const fontSize = 9.6;
       const font = bold ? '/F2' : '/F1';
-      cmds.push(`BT ${font} 9.8 Tf 48 ${y} Td (${sanitizePdf(left)}) Tj ET`);
-      cmds.push(`BT ${font} 9.8 Tf 380 ${y} Td (${sanitizePdf(right)}) Tj ET`);
-      cmds.push('0.91 0.90 0.89 rg 48 ' + (y - 4) + ' 500 0.6 re f');
+      const rightStr = String(right || '');
+      const rightW = estimatePdfWidth(rightStr, fontSize, bold);
+      const rightX = Math.max(368, Math.round(545 - rightW));
+      const maxLeftWidth = Math.min(312, rightX - 60);
+      const leftLines = wrapPdfByWidth(left, maxLeftWidth, fontSize, bold);
+
+      ensureSpace(leftLines.length * 13 + 8);
+      cmds.push(`BT ${font} ${fontSize} Tf ${rightX} ${y} Td (${sanitizePdf(rightStr)}) Tj ET`);
+      leftLines.forEach((ln, idx) => {
+        const ly = y - idx * 13;
+        cmds.push(`BT ${font} ${fontSize} Tf 48 ${ly} Td (${sanitizePdf(ln)}) Tj ET`);
+      });
+
+      const bottomLineY = y - (leftLines.length - 1) * 13;
+      cmds.push('0.91 0.90 0.89 rg 48 ' + (bottomLineY - 5) + ' 497 0.6 re f');
       cmds.push('0.08 0.08 0.08 rg');
-      y -= 16;
+      y = bottomLineY - 17;
     }
 
     function addNote(text) {
-      const lines = wrapLines(text, 86);
+      const lines = wrapPdfByWidth(text, 496, 9.5, false);
       ensureSpace(lines.length * 13 + 8);
       lines.forEach((ln) => {
         cmds.push(`BT /F1 9.5 Tf 48 ${y} Td (${sanitizePdf(ln)}) Tj ET`);
@@ -172,9 +241,9 @@
     addRow('LABA KOTOR SEBELUM IKLAN (MARGIN RUANG IKLAN)', `${formatRp(sku.profitBeforeAds)} (${sku.netMarginBeforeAdsPct.toFixed(1)}%)`, true);
 
     addSection('2. STRATEGI HARGA CORET & 3 PAKET BUNDEL PENAIK OMZET');
-    addRow(`Harga Coret Etalase (Diskon Tampil ${sku.strikeDiscountPct}%)`, `${formatRp(sku.strikePrice)}  ->  Tayang ${formatRp(sku.sellingPrice)}`, true);
+    addRow(`Harga Coret Etalase (Diskon Tampil ${sku.strikeDiscountPct}%)`, `${formatRp(sku.strikePrice)} -> Tayang ${formatRp(sku.sellingPrice)}`, true);
     (sku.bundles || []).forEach((b) => {
-      addRow(`${b.title} (Harga Paket ${formatRp(b.bundlePrice)})`, `Untung Bersih Sebelum Iklan: ${formatRp(b.netProfit)}`);
+      addRow(`${b.title} - Harga Paket ${formatRp(b.bundlePrice)}`, `Laba Kotor: ${formatRp(b.netProfit)}`);
     });
 
     addSection('3. RAMBU BATAS AMAN IKLAN (SHOPEE ADS / GMV MAX TIKTOK)');
@@ -195,8 +264,63 @@
     return { blob, filename };
   }
 
+  function wrapCanvasText(ctx, text, maxWidth, maxLines) {
+    const rawWords = String(text || '').replace(/\s+/g, ' ').trim().split(' ');
+    const words = [];
+    rawWords.forEach((rw) => {
+      if (!rw) return;
+      if (ctx.measureText(rw).width <= maxWidth) {
+        words.push(rw);
+      } else {
+        let chunk = '';
+        for (let i = 0; i < rw.length; i++) {
+          const next = chunk + rw[i];
+          if (chunk && ctx.measureText(next).width > maxWidth) {
+            words.push(chunk);
+            chunk = rw[i];
+          } else {
+            chunk = next;
+          }
+        }
+        if (chunk) words.push(chunk);
+      }
+    });
+
+    const lines = [];
+    let cur = '';
+    for (const w of words) {
+      const candidate = cur ? cur + ' ' + w : w;
+      if (!cur || ctx.measureText(candidate).width <= maxWidth) {
+        cur = candidate;
+      } else {
+        lines.push(cur);
+        cur = w;
+      }
+    }
+    if (cur) lines.push(cur);
+    if (!lines.length) return [''];
+    if (maxLines && lines.length > maxLines) {
+      const sliced = lines.slice(0, maxLines);
+      let last = sliced[maxLines - 1];
+      while (last.length > 3 && ctx.measureText(last + '...').width > maxWidth) {
+        last = last.slice(0, -1);
+      }
+      sliced[maxLines - 1] = last + '...';
+      return sliced;
+    }
+    return lines;
+  }
+
   // 2. Kartu Rambu Harga & Batas Iklan Tim Admin (.PNG 1080x1350)
-  function exportAdminCardPng(sku, store) {
+  async function exportAdminCardPng(sku, store) {
+    if (document.fonts && document.fonts.ready) {
+      try {
+        await document.fonts.ready;
+      } catch (_e) {
+        // Proceed with fallback system fonts if font promise fails
+      }
+    }
+
     return new Promise((resolve) => {
       const canvas = document.createElement('canvas');
       canvas.width = 1080;
@@ -228,86 +352,116 @@
 
       // Espresso Header (#141311) + Vermilion Accent Strip (#D9381E)
       ctx.fillStyle = '#141311';
-      ctx.fillRect(0, 0, 1080, 270);
+      ctx.fillRect(0, 0, 1080, 278);
       ctx.fillStyle = '#D9381E';
-      ctx.fillRect(0, 270, 1080, 10);
+      ctx.fillRect(0, 278, 1080, 10);
 
-      rrect(64, 48, 430, 42, 8, '#D9381E', null);
+      rrect(64, 42, 434, 42, 8, '#D9381E', null);
       ctx.fillStyle = '#FFFFFF';
       ctx.font = '700 20px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText('KARTU RAMBU HARGA & IKLAN TIM ADMIN', 84, 76);
+      ctx.fillText('KARTU RAMBU HARGA & IKLAN TIM ADMIN', 84, 70, 394);
 
       ctx.fillStyle = '#FFFFFF';
-      ctx.font = '700 38px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText(String(sku.skuName || '').slice(0, 40), 64, 148);
+      ctx.font = '700 34px "Plus Jakarta Sans", sans-serif';
+      const titleLines = wrapCanvasText(ctx, String(sku.skuName || 'SKU Produk Toko'), 952, 2);
+      if (titleLines.length === 1) {
+        ctx.fillText(titleLines[0], 64, 140, 952);
+      } else {
+        ctx.font = '700 30px "Plus Jakarta Sans", sans-serif';
+        ctx.fillText(titleLines[0], 64, 126, 952);
+        ctx.fillText(titleLines[1], 64, 162, 952);
+      }
 
       ctx.fillStyle = '#D6D3CD';
-      ctx.font = '500 23px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText(`${store.storeName || 'Toko Online'}  •  ${sku.platform}`, 64, 202);
-      ctx.fillText(`HPP + Packing + Cadangan: ${formatRp(sku.hpp + sku.packingCost + sku.returnBuffer)}`, 64, 240);
+      ctx.font = '500 22px "Plus Jakarta Sans", sans-serif';
+      const storeLine = wrapCanvasText(ctx, `${store.storeName || 'Toko Online'}  •  ${sku.platform}`, 952, 1)[0];
+      ctx.fillText(storeLine, 64, 210, 952);
+      ctx.fillText(`HPP + Packing + Cadangan: ${formatRp(sku.hpp + sku.packingCost + sku.returnBuffer)}`, 64, 248, 952);
 
       // Card 1: Harga Tayang & Harga Coret
       rrect(64, 316, 952, 240, 24, '#FFFFFF', '#E2DFD9');
       ctx.fillStyle = '#6E6A63';
       ctx.font = '700 19px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText('PATOKAN HARGA ETALASE & VOUCHER MAKSIMAL', 96, 362);
+      ctx.fillText('PATOKAN HARGA ETALASE & VOUCHER MAKSIMAL', 96, 362, 888);
 
       ctx.fillStyle = '#141311';
-      ctx.font = '800 52px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText(formatRp(sku.sellingPrice), 96, 434);
+      ctx.font = '800 50px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText(formatRp(sku.sellingPrice), 96, 432, 888);
 
       ctx.fillStyle = '#D9381E';
       ctx.font = '700 24px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText(`Harga Coret: ${formatRp(sku.strikePrice)} (Diskon ${sku.strikeDiscountPct}%)`, 96, 482);
+      ctx.fillText(`Harga Coret: ${formatRp(sku.strikePrice)} (Diskon ${sku.strikeDiscountPct}%)`, 96, 480, 888);
 
       ctx.fillStyle = '#137347';
-      ctx.font = '700 24px "Plus Jakarta Sans", sans-serif';
+      ctx.font = '700 23px "Plus Jakarta Sans", sans-serif';
       ctx.fillText(
         `Sisa Laba Sebelum Iklan: ${formatRp(sku.profitBeforeAds)}/pcs  •  Batas Voucher: ${formatRp(sku.voucherSellerRp)}`,
         96,
-        524
+        524,
+        888
       );
 
       // Card 2: Rambu Batas Aman Iklan
-      rrect(64, 584, 952, 300, 24, '#FCECE9', '#D9381E');
+      rrect(64, 582, 952, 298, 24, '#FCECE9', '#D9381E');
       ctx.fillStyle = '#D9381E';
       ctx.font = '700 20px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText('RAMBU WAJIB TIM IKLAN (JANGAN LEWATI BATAS INI)', 96, 632);
+      ctx.fillText('RAMBU WAJIB TIM IKLAN (JANGAN LEWATI BATAS INI)', 96, 628, 888);
 
       ctx.fillStyle = '#141311';
-      ctx.font = '800 44px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText(`ROAS Sehat Minimal: ${sku.healthyRoas.toFixed(2)}x`, 96, 698);
+      ctx.font = '800 42px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText(`ROAS Sehat Minimal: ${sku.healthyRoas.toFixed(2)}x`, 96, 692, 888);
 
-      ctx.font = '700 25px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText(`• ROAS Impas (Batas 0 Rugi): ${sku.breakEvenRoas.toFixed(2)}x`, 96, 752);
-      ctx.fillText(`• Maksimal Biaya Iklan / Pesanan (Impas): ${formatRp(sku.maxCpaBreakEven)}`, 96, 794);
+      ctx.font = '700 24px "Plus Jakarta Sans", sans-serif';
+      ctx.fillText(`• ROAS Impas (Batas 0 Rugi): ${sku.breakEvenRoas.toFixed(2)}x`, 96, 746, 888);
+      ctx.fillText(`• Maksimal Biaya Iklan / Pesanan (Impas): ${formatRp(sku.maxCpaBreakEven)}`, 96, 788, 888);
       ctx.fillStyle = '#137347';
       ctx.fillText(
         `• Target Iklan Sehat: ${formatRp(sku.healthyCpaTarget)}/order  ->  Bersih Kantong: ${formatRp(sku.finalTakeHomePerOrder)}`,
         96,
-        838
+        832,
+        888
       );
 
-      // Card 3: Paket Bundling Penaik Keranjang
-      rrect(64, 912, 952, 330, 24, '#FFFFFF', '#E2DFD9');
+      // Card 3: Paket Bundling Penaik Keranjang (Stacked 2-line rows so left & right never collide)
+      rrect(64, 906, 952, 344, 24, '#FFFFFF', '#E2DFD9');
       ctx.fillStyle = '#6E6A63';
       ctx.font = '700 19px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText('REKOMENDASI HARGA PAKET BUNDEL (HEMAT ONGKIR & KEMASAN)', 96, 958);
+      ctx.fillText('REKOMENDASI HARGA PAKET BUNDEL (HEMAT ONGKIR & KEMASAN)', 96, 950, 888);
 
-      let by = 1014;
-      (sku.bundles || []).forEach((b) => {
+      (sku.bundles || []).forEach((b, idx) => {
+        const by = 998 + idx * 84;
+        ctx.textAlign = 'left';
         ctx.fillStyle = '#141311';
-        ctx.font = '700 25px "Plus Jakarta Sans", sans-serif';
-        ctx.fillText(`${b.title}: ${formatRp(b.bundlePrice)}`, 96, by);
-        ctx.fillStyle = '#137347';
         ctx.font = '700 23px "Plus Jakarta Sans", sans-serif';
-        ctx.fillText(`Laba Kotor Paket: ${formatRp(b.netProfit)}`, 620, by);
-        by += 68;
+        const bTitle = wrapCanvasText(ctx, b.title, 610, 1)[0];
+        ctx.fillText(bTitle, 96, by, 610);
+
+        ctx.textAlign = 'right';
+        ctx.font = '800 24px "JetBrains Mono", monospace';
+        ctx.fillText(formatRp(b.bundlePrice), 984, by, 260);
+
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#6E6A63';
+        ctx.font = '500 18px "Plus Jakarta Sans", sans-serif';
+        const bSub = wrapCanvasText(ctx, b.subtitle || '', 510, 1)[0];
+        ctx.fillText(bSub, 96, by + 29, 510);
+
+        ctx.textAlign = 'right';
+        ctx.fillStyle = b.netProfit > 0 ? '#137347' : '#D9381E';
+        ctx.font = '700 20px "Plus Jakarta Sans", sans-serif';
+        ctx.fillText(`Laba Kotor Paket: ${formatRp(b.netProfit)}`, 984, by + 29, 360);
+
+        ctx.textAlign = 'left';
+        if (idx < (sku.bundles || []).length - 1) {
+          ctx.fillStyle = '#ECEAE4';
+          ctx.fillRect(96, by + 44, 888, 1.5);
+        }
       });
 
+      ctx.textAlign = 'left';
       ctx.fillStyle = '#6E6A63';
       ctx.font = '600 20px "Plus Jakarta Sans", sans-serif';
-      ctx.fillText('Dicetak dari LabaToko Studio — Kalkulator Untung Toko Online & Batas Aman Iklan', 64, 1300);
+      ctx.fillText('Dicetak dari LabaToko Studio — Kalkulator Untung Toko Online & Batas Aman Iklan', 64, 1302, 952);
 
       canvas.toBlob((blob) => {
         const filename = `Rambu-Admin-${slugify(sku.skuName)}.png`;
