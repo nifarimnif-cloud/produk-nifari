@@ -35,9 +35,10 @@ Di Cloudflare Pages kita cukup memasang pengaturan `_headers` (`Cross-Origin-Ope
 
 Supaya browser **tidak berat atau kehabisan RAM** saat membuka video 10–30 menit, alurnya dibagi menjadi 5 tahap hemat memori:
 
-#### Tahap 1 — Input Video Tanpa Makan RAM
-- **Jalur utama (paling stabil & instan): Upload / Pilih File Video Lokal** (`.mp4`, `.mov`, `.webm`). Browser membaca file langsung dari penyimpanan memakai *file pointer* (`Blob` / `URL.createObjectURL` + pembacaan per potong), **bukan** menyalin seluruh file 1 GB ke dalam RAM.
-- **Jalur tambahan: Link Video Langsung (Direct `.mp4` URL)** untuk file yang tersimpan di tautan langsung yang mengizinkan akses browser. *(Untuk video dari YouTube, karena YouTube memblokir pengunduhan otomatis dari browser maupun server cloud, di dalam app disediakan panduan/alat bantu praktis cara simpan videonya dulu ke perangkat dalam 1 menit sebelum dimasukkan ke Klip Auto — jujur dan tidak gampang rusak seperti `yt-dlp` lama).*
+#### Tahap 1 — Input Video Lokal & Pengunduh Link YouTube Bawaan
+- **Jalur Cepat Link YouTube (`_worker.js` + `youtube-downloader.js`):** Pembeli cukup menempelkan link YouTube (`watch?v=`, `youtu.be/`, `shorts/`, `live/`) untuk melihat thumbnail, durasi, pilihan kualitas MP4 (`360p Cepat`, `480p`, `720p HD`, `1080p Full HD`), serta menarik transkrip kata otomatis langsung dari YouTube. Pembeli dapat memilih **Simpan Video YouTube (.MP4)** ke perangkat (penggabungan lossless H.264 + AAC di browser memakai `Mediabunny`) atau **Muat ke Studio & Potong Klip 9:16**.
+- **Jalur File Video Lokal (`.mp4`, `.mov`, `.webm`, `.mkv`):** Browser membaca file langsung dari penyimpanan memakai *file pointer* (`BlobSource` + pembacaan per potong), **bukan** menyalin seluruh file bergiga-giga ke dalam RAM.
+- **Penjernih Vokal Podcast 48 kHz Stereo (`audio-processor.js`):** Dilengkapi dekoder cadangan Web Audio API otomatis, penyeimbang mic sebelah (mono kiri/kanan ke stereo penuh), peredam dengung 85 Hz, *vocal presence* 3.1 kHz, kompresor dinamis, pengatur volume 0%–200% dengan pembatas lembut (*soft limiter*), serta contoh rekaman 2 pembicara berbahasa Indonesia asli.
 
 #### Tahap 2 — Ambil Suara Ringan dari Video Panjang
 - Untuk dianalisis AI, kita tidak perlu mengirim gambar video bergiga-giga — cukup suaranya saja.

@@ -29,9 +29,9 @@
         </div>
 
         <ul class="login-lime-points">
-          <li>Jalan 100% langsung di browser tanpa instal FFmpeg atau Node</li>
+          <li>Tempel link YouTube langsung untuk unduh MP4 atau potong klip 9:16</li>
           <li>Pilih 5–10 momen terbaik otomatis lengkap skor & judul atas</li>
-          <li>Kunci wajah di tengah + 6 gaya caption menyala per kata</li>
+          <li>Penjernih suara podcast 48 kHz + 6 gaya caption menyala per kata</li>
         </ul>
       </div>
 
@@ -178,15 +178,18 @@
                 Selamat berkarya, Kreator
               </h1>
               <p>
-                Masukkan rekaman podcast atau webinar panjang, pilih momen paling memikat, lalu unduh klip MP4 vertikal lengkap caption sinkron per kata.
+                Tempel link YouTube atau pilih file rekaman podcast panjang, kurasi momen paling memikat, lalu unduh klip MP4 vertikal lengkap suara jernih &amp; caption per kata.
               </p>
             </div>
             <div class="btn-row">
               <button type="button" class="btn btn-ink" id="dash-btn-open-wizard">
                 Mulai Potong Video Baru
               </button>
+              <button type="button" class="btn btn-secondary" id="dash-btn-youtube" style="background:#ffffff;color:#14140f;border-color:#14140f;">
+                Tempel Link YouTube
+              </button>
               <button type="button" class="btn btn-secondary" id="dash-btn-quick-sample" style="background:#ffffff;color:#14140f;border-color:#14140f;">
-                Muat Video Contoh 16 dtk
+                Muat Video Contoh 20 dtk
               </button>
             </div>
           </div>
@@ -229,8 +232,8 @@
 
               <div class="quick-step-row">
                 <div>
-                  <strong>01 · Pilih Video atau Coba Contoh</strong>
-                  <div class="muted-copy" style="font-size:13px;">MP4/MOV/WEBM lokal, transkrip Whisper, SRT, atau Gemini.</div>
+                  <strong>01 · Tempel Link YouTube atau Pilih File</strong>
+                  <div class="muted-copy" style="font-size:13px;">Unduh MP4 dari link YouTube, file lokal, Whisper, SRT, atau Gemini.</div>
                 </div>
                 <button type="button" class="underline-link" data-jump-step="1">Buka</button>
               </div>
@@ -299,21 +302,85 @@
 
           <!-- LANGKAH 1: PILIH VIDEO & TRANSKRIP -->
           <div class="panel active" id="panel-step-1">
+            <!-- KARTU UNDUH & IMPOR DARI LINK YOUTUBE -->
+            <div class="white-card yt-import-card">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                <span class="eyebrow">Jalur Cepat · Link Video YouTube</span>
+                <span class="pill-tag lime">Unduh MP4 + Transkrip Otomatis</span>
+              </div>
+              <h2 class="section-heading" style="margin:6px 0 8px;">Ambil atau Unduh Video Langsung dari Link YouTube</h2>
+              <p class="muted-copy">
+                Tempelkan link podcast, kajian, wawancara, atau Shorts dari YouTube. Kamu bisa langsung menyimpan file .MP4 utuh ke perangkatmu, atau langsung memuatnya ke Studio untuk dipotong jadi klip 9:16 lengkap subtitle otomatis.
+              </p>
+
+              <div class="yt-input-row">
+                <input
+                  type="url"
+                  id="yt-url-input"
+                  placeholder="Tempel link YouTube di sini (contoh: https://www.youtube.com/watch?v=... atau https://youtu.be/...)"
+                  autocomplete="off"
+                  aria-label="Alamat Link Video YouTube"
+                />
+                <button type="button" class="btn btn-primary" id="btn-yt-fetch">
+                  Cek Link YouTube
+                </button>
+              </div>
+
+              <div class="status-bar" id="yt-status">
+                <div class="status-bar-text" id="yt-status-text">Memeriksa link YouTube...</div>
+                <div class="progress-track">
+                  <div class="progress-fill" id="yt-progress-fill"></div>
+                </div>
+              </div>
+
+              <div class="yt-preview-card" id="yt-preview-card">
+                <div class="yt-thumb-wrap">
+                  <img id="yt-thumb" alt="Pratinjau Video YouTube" />
+                  <span class="yt-duration-badge" id="yt-duration-badge">00:00</span>
+                </div>
+
+                <div>
+                  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+                    <span class="pill-tag" id="yt-channel-pill">Channel</span>
+                    <span class="pill-tag lime" id="yt-caption-pill">Subtitle Otomatis</span>
+                  </div>
+                  <h3 class="card-subheading" id="yt-title" style="margin-bottom:12px;">Judul Video YouTube</h3>
+
+                  <div class="field" style="margin-bottom:14px;">
+                    <label for="yt-quality-select">Pilih Kualitas Video MP4 (Gambar + Suara Jernih)</label>
+                    <select id="yt-quality-select"></select>
+                  </div>
+
+                  <div class="btn-row">
+                    <button type="button" class="btn btn-primary" id="btn-yt-import-studio">
+                      Muat ke Studio &amp; Potong Klip 9:16
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="btn-yt-download-mp4">
+                      Simpan Video YouTube (.MP4)
+                    </button>
+                    <button type="button" class="btn btn-ghost btn-sm" id="btn-yt-cancel" style="display:none;">
+                      Batalkan Unduhan
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div class="parchment-card">
-              <span class="eyebrow">Langkah 01 · Sumber Rekaman</span>
-              <h2 class="section-heading" style="margin:6px 0 8px;">Masukkan Rekaman Video Panjang</h2>
+              <span class="eyebrow">Langkah 01 · File dari Perangkat</span>
+              <h2 class="section-heading" style="margin:6px 0 8px;">Atau Pilih File Rekaman Video Lokal</h2>
               <p class="muted-copy">
                 Pilih file podcast, kajian, kelas online, atau webinar dari perangkatmu. File dibaca langsung di browser tanpa mengunggah video bergiga-giga ke server.
               </p>
 
               <div class="dropzone" id="dropzone">
-                <h3>Tarik & lepas file video ke sini, atau klik pilih file</h3>
+                <h3>Tarik &amp; lepas file video ke sini, atau klik pilih file</h3>
                 <p>Mendukung format .MP4, .MOV, .WEBM, dan .MKV (lancar untuk durasi 10–30 menit)</p>
                 <input type="file" id="video-file-input" accept="video/*,.mp4,.mov,.webm,.mkv" hidden />
                 <div class="btn-row">
                   <button type="button" class="btn btn-primary" id="btn-pick-file">Pilih File Video</button>
                   <button type="button" class="btn btn-secondary" id="btn-load-sample">
-                    Coba Video Contoh 2 Pembicara (16 dtk)
+                    Coba Video Contoh 2 Pembicara (20 dtk)
                   </button>
                 </div>
               </div>
@@ -423,6 +490,15 @@
                     <input type="range" id="slider-clip-end" min="1" max="60" step="0.1" value="15" aria-label="Geser Titik Selesai" />
                   </div>
                 </div>
+
+                <div class="step2-audio-bar">
+                  <button type="button" class="btn btn-secondary btn-sm" id="btn-step2-play-audio">
+                    Dengarkan Suara Momen Ini
+                  </button>
+                  <span class="muted-copy" id="step2-audio-time" style="font-size:13px;">
+                    Pastikan awal &amp; akhir kalimat terdengar pas sebelum lanjut ke Langkah 3
+                  </span>
+                </div>
               </div>
 
               <div class="field">
@@ -465,12 +541,15 @@
                   </div>
                   <canvas id="preview-canvas" width="360" height="640"></canvas>
                   <div class="preview-controls">
-                    <button type="button" class="btn btn-primary btn-sm" id="btn-toggle-play" style="width:100%;">
+                    <button type="button" class="btn btn-primary btn-sm" id="btn-toggle-play" style="flex:1;">
                       Putar Preview
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-toggle-mute">
+                      Suara: Aktif
                     </button>
                   </div>
                 </div>
-                <video id="hidden-preview-video" playsinline preload="auto" style="display:none;"></video>
+                <video id="hidden-preview-video" class="offscreen-media-player" playsinline preload="auto"></video>
               </div>
 
               <!-- Kolom Kanan: Kontrol Gaya, Wajah Tengah, Hook, Watermark & Render -->
@@ -509,6 +588,33 @@
                   <button type="button" class="btn btn-secondary btn-sm" id="btn-scan-face-preview">
                     Pindai Posisi Wajah untuk Preview
                   </button>
+                </div>
+
+                <div class="parchment-card">
+                  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
+                    <span class="eyebrow">Kejernihan &amp; Volume Audio</span>
+                    <span class="pill-tag lime" id="audio-volume-label">Volume: 100%</span>
+                  </div>
+                  <h2 class="card-subheading" style="margin:4px 0 12px;">Penjernih Suara Podcast &amp; Pengatur Volume</h2>
+
+                  <div class="field">
+                    <label for="audio-volume-range">Tingkat Volume Suara Klip (0% – 200%)</label>
+                    <input type="range" id="audio-volume-range" min="0" max="200" step="5" value="100" />
+                  </div>
+
+                  <div class="toggle-row" style="margin-bottom:10px;">
+                    <span>Jernihkan Vokal &amp; Angkat Suara Pelan Otomatis (Anti-Dengung 85 Hz)</span>
+                    <input type="checkbox" id="voice-boost-checkbox" checked style="width:18px;height:18px;" />
+                  </div>
+
+                  <div class="toggle-row">
+                    <span>Seimbangkan Rekaman Mic Sebelah ke Stereo Kiri &amp; Kanan</span>
+                    <input type="checkbox" id="mono-stereo-checkbox" checked style="width:18px;height:18px;" />
+                  </div>
+
+                  <p class="muted-copy" style="font-size:12.5px;margin-top:10px;">
+                    Diterapkan langsung pada pemutar preview maupun hasil ekspor MP4 (48 kHz Stereo AAC jernih).
+                  </p>
                 </div>
 
                 <div class="parchment-card">

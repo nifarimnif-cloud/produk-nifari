@@ -17,6 +17,11 @@ import {
   syncClipWordsWithWhisper,
   transcribeAndPickWithWhisperWeb
 } from './engine/transcriber-moments.js';
+import {
+  downloadYoutubeAsMp4File,
+  fetchYoutubeVideoInfo,
+  formatBytesReadable
+} from './engine/youtube-downloader.js';
 import { CREATOR_CATEGORIES, CREATOR_LIBRARY_ITEMS } from './data/creator-library.js';
 
 const KEYS = {
@@ -113,6 +118,7 @@ const state = {
   favorites: loadJson(KEYS.FAVORITES, []),
 
   activeView: 'dashboard',
+  activeStep: 1,
   libCategory: 'Semua Kategori',
   libNiche: 'Semua',
   libQuery: '',
@@ -139,6 +145,13 @@ const state = {
   watermarkPos: 'top-right',
   watermarkImage: null,
   resolution: '720p',
+  voiceBoost: true,
+  volumeGain: 1.0,
+  monoToStereo: true,
+  previewMuted: false,
+  ytInfo: null,
+  ytCachedDownload: null,
+  ytAbortController: null,
   renderAbortController: null
 };
 
@@ -177,6 +190,7 @@ const el = {
   // Dashboard
   dashGreeting: document.getElementById('dash-greeting'),
   dashBtnOpenWizard: document.getElementById('dash-btn-open-wizard'),
+  dashBtnYoutube: document.getElementById('dash-btn-youtube'),
   dashBtnQuickSample: document.getElementById('dash-btn-quick-sample'),
   statRenderedCount: document.getElementById('stat-rendered-count'),
   statMomentsCount: document.getElementById('stat-moments-count'),
@@ -197,6 +211,22 @@ const el = {
     3: document.getElementById('panel-step-3')
   },
   globalError: document.getElementById('global-error'),
+  ytUrlInput: document.getElementById('yt-url-input'),
+  btnYtFetch: document.getElementById('btn-yt-fetch'),
+  ytStatus: document.getElementById('yt-status'),
+  ytStatusText: document.getElementById('yt-status-text'),
+  ytProgressFill: document.getElementById('yt-progress-fill'),
+  ytPreviewCard: document.getElementById('yt-preview-card'),
+  ytThumb: document.getElementById('yt-thumb'),
+  ytDurationBadge: document.getElementById('yt-duration-badge'),
+  ytChannelPill: document.getElementById('yt-channel-pill'),
+  ytCaptionPill: document.getElementById('yt-caption-pill'),
+  ytTitle: document.getElementById('yt-title'),
+  ytQualitySelect: document.getElementById('yt-quality-select'),
+  btnYtImportStudio: document.getElementById('btn-yt-import-studio'),
+  btnYtDownloadMp4: document.getElementById('btn-yt-download-mp4'),
+  btnYtCancel: document.getElementById('btn-yt-cancel'),
+
   dropzone: document.getElementById('dropzone'),
   fileInput: document.getElementById('video-file-input'),
   btnPickFile: document.getElementById('btn-pick-file'),
@@ -220,6 +250,8 @@ const el = {
   clipEndInput: document.getElementById('clip-end-input'),
   sliderClipStart: document.getElementById('slider-clip-start'),
   sliderClipEnd: document.getElementById('slider-clip-end'),
+  btnStep2PlayAudio: document.getElementById('btn-step2-play-audio'),
+  step2AudioTime: document.getElementById('step2-audio-time'),
   clipTranscriptInput: document.getElementById('clip-transcript-input'),
   step2Status: document.getElementById('step2-status'),
   step2StatusText: document.getElementById('step2-status-text'),
@@ -230,12 +262,17 @@ const el = {
   previewCanvas: document.getElementById('preview-canvas'),
   hiddenVideo: document.getElementById('hidden-preview-video'),
   btnTogglePlay: document.getElementById('btn-toggle-play'),
+  btnToggleMute: document.getElementById('btn-toggle-mute'),
   previewTimeLabel: document.getElementById('preview-time-label'),
   presetGrid: document.getElementById('preset-grid'),
   frameModeSelect: document.getElementById('frame-mode-select'),
   autoFaceCheckbox: document.getElementById('auto-face-checkbox'),
   manualOffsetRange: document.getElementById('manual-offset-range'),
   btnScanFacePreview: document.getElementById('btn-scan-face-preview'),
+  audioVolumeRange: document.getElementById('audio-volume-range'),
+  audioVolumeLabel: document.getElementById('audio-volume-label'),
+  voiceBoostCheckbox: document.getElementById('voice-boost-checkbox'),
+  monoStereoCheckbox: document.getElementById('mono-stereo-checkbox'),
   hookTitleInput: document.getElementById('hook-title-input'),
   hookStyleSelect: document.getElementById('hook-style-select'),
   watermarkTextInput: document.getElementById('watermark-text-input'),
@@ -666,9 +703,10 @@ function updateClipDurationBadge() {
 function switchStep(stepNum) {
   showError('');
   if (stepNum > 1 && !state.file) {
-    showError('Pilih file video dulu atau klik tombol "Coba Video Contoh 2 Pembicara" di Langkah 1.');
+    showError('Pilih file video, tempel link YouTube, atau klik tombol "Coba Video Contoh 2 Pembicara" di Langkah 1.');
     return;
   }
+  state.activeStep = stepNum;
   for (const tab of el.stepTabs) {
     const s = Number(tab.dataset.step);
     tab.classList.toggle('active', s === stepNum);
@@ -676,12 +714,11 @@ function switchStep(stepNum) {
   for (const [k, panel] of Object.entries(el.panels)) {
     panel.classList.toggle('active', Number(k) === stepNum);
   }
+  el.hiddenVideo.pause();
+  updatePlayButtonText();
   if (stepNum === 3) {
     syncPreviewToStart();
     renderPreviewOnce();
-  } else {
-    el.hiddenVideo.pause();
-    updatePlayButtonText();
   }
 }
 
@@ -813,6 +850,208 @@ async function handleSelectedVideoFile(file, prebuiltMoments = null) {
   }
 }
 
+let previewAudioGraph = null;
+
+function syncPreviewAudioGraphParams() {
+  if (el.btnToggleMute) {
+    el.btnToggleMute.textContent = state.previewMuted ? 'Suara: Bisu' : 'Suara: Aktif';
+  }
+  if (el.audioVolumeLabel) {
+    el.audioVolumeLabel.textContent = `Volume: ${Math.round(state.volumeGain * 100)}%`;
+  }
+  if (!previewAudioGraph) {
+    el.hiddenVideo.muted = state.previewMuted;
+    el.hiddenVideo.volume = state.previewMuted ? 0 : Math.max(0, Math.min(1, state.volumeGain));
+    return;
+  }
+  const { hp, presence, comp, gain } = previewAudioGraph;
+  hp.frequency.value = state.voiceBoost ? 85 : 20;
+  presence.gain.value = state.voiceBoost ? 2.8 : 0;
+  comp.ratio.value = state.voiceBoost ? 3.0 : 1.0;
+  const boostLift = state.voiceBoost ? 1.12 : 1.0;
+  gain.gain.value = state.previewMuted ? 0 : Math.max(0, state.volumeGain * boostLift);
+}
+
+function ensurePreviewAudioGraph() {
+  el.hiddenVideo.muted = false;
+  el.hiddenVideo.volume = 1;
+  if (previewAudioGraph) {
+    if (previewAudioGraph.ctx.state === 'suspended') {
+      previewAudioGraph.ctx.resume().catch(() => {});
+    }
+    syncPreviewAudioGraphParams();
+    return;
+  }
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx) return;
+  try {
+    const ctx = new AudioCtx();
+    const source = ctx.createMediaElementSource(el.hiddenVideo);
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    const presence = ctx.createBiquadFilter();
+    presence.type = 'peaking';
+    presence.frequency.value = 3100;
+    presence.Q.value = 1.05;
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -20;
+    comp.knee.value = 18;
+    comp.ratio.value = 3.0;
+    const gain = ctx.createGain();
+
+    source.connect(hp);
+    hp.connect(presence);
+    presence.connect(comp);
+    comp.connect(gain);
+    gain.connect(ctx.destination);
+
+    previewAudioGraph = { ctx, source, hp, presence, comp, gain };
+    syncPreviewAudioGraphParams();
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+  } catch {
+    syncPreviewAudioGraphParams();
+  }
+}
+
+async function handleFetchYoutubeInfo() {
+  const rawUrl = el.ytUrlInput?.value?.trim() || '';
+  if (!rawUrl) {
+    showError('Tempelkan link video YouTube terlebih dahulu pada kolom Link YouTube.');
+    el.ytUrlInput?.focus();
+    return;
+  }
+
+  showError('');
+  el.btnYtFetch.disabled = true;
+  el.ytPreviewCard.classList.remove('visible');
+  setStatusBar(
+    el.ytStatus,
+    el.ytStatusText,
+    el.ytProgressFill,
+    true,
+    'Memeriksa link & mengambil daftar kualitas MP4 dari YouTube...',
+    32
+  );
+
+  try {
+    const info = await fetchYoutubeVideoInfo(rawUrl);
+    state.ytInfo = info;
+
+    el.ytThumb.onerror = () => {
+      el.ytThumb.src =
+        'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="480" height="270" viewBox="0 0 480 270"><rect width="480" height="270" fill="%2314140f"/><polygon points="215,105 275,135 215,165" fill="%23beff50"/></svg>';
+    };
+    el.ytThumb.src = info.thumbnailUrl;
+    el.ytDurationBadge.textContent = formatDuration(info.durationSec);
+    el.ytChannelPill.textContent = info.author || 'YouTube';
+
+    if (info.captionMeta?.available) {
+      el.ytCaptionPill.textContent = `Subtitle Otomatis Siap (${info.captionMeta.wordCount} kata)`;
+      el.ytCaptionPill.className = 'pill-tag lime';
+    } else {
+      el.ytCaptionPill.textContent = 'Tanpa Subtitle Bawaan (Bisa Pakai Whisper/Gemini)';
+      el.ytCaptionPill.className = 'pill-tag';
+    }
+
+    el.ytTitle.textContent = info.title;
+    el.ytQualitySelect.innerHTML = info.qualities
+      .map((q) => {
+        const sizeLabel = q.totalBytes > 0 ? ` — sekitar ${formatBytesReadable(q.totalBytes)}` : '';
+        return `<option value="${escHtml(q.id)}" ${q.recommended ? 'selected' : ''}>${escHtml(q.label)}${escHtml(sizeLabel)}</option>`;
+      })
+      .join('');
+
+    setStatusBar(el.ytStatus, el.ytStatusText, el.ytProgressFill, false);
+    el.ytPreviewCard.classList.add('visible');
+    showToast('Video YouTube ditemukan! Pilih Simpan MP4 atau Muat ke Studio.');
+  } catch (err) {
+    setStatusBar(el.ytStatus, el.ytStatusText, el.ytProgressFill, false);
+    showError(err.message || 'Gagal mengambil informasi video YouTube.');
+  } finally {
+    el.btnYtFetch.disabled = false;
+  }
+}
+
+async function runYoutubeDownloadAction(mode) {
+  if (!state.ytInfo) return;
+  showError('');
+
+  const selectedQualityId = el.ytQualitySelect.value;
+  el.btnYtImportStudio.disabled = true;
+  el.btnYtDownloadMp4.disabled = true;
+  el.btnYtFetch.disabled = true;
+  el.btnYtCancel.style.display = 'inline-flex';
+
+  const abortCtrl = new AbortController();
+  state.ytAbortController = abortCtrl;
+
+  try {
+    let downloaded = null;
+    if (
+      state.ytCachedDownload &&
+      state.ytCachedDownload.videoId === state.ytInfo.videoId &&
+      state.ytCachedDownload.qualityId === selectedQualityId
+    ) {
+      downloaded = state.ytCachedDownload;
+    } else {
+      const res = await downloadYoutubeAsMp4File({
+        info: state.ytInfo,
+        qualityId: selectedQualityId,
+        signal: abortCtrl.signal,
+        onProgress: ({ phase, percent }) => {
+          setStatusBar(el.ytStatus, el.ytStatusText, el.ytProgressFill, true, phase, percent);
+        }
+      });
+      downloaded = {
+        videoId: state.ytInfo.videoId,
+        qualityId: selectedQualityId,
+        file: res.file,
+        moments: res.moments
+      };
+      state.ytCachedDownload = downloaded;
+    }
+
+    setStatusBar(el.ytStatus, el.ytStatusText, el.ytProgressFill, false);
+
+    if (mode === 'save') {
+      const dlUrl = URL.createObjectURL(downloaded.file);
+      const a = document.createElement('a');
+      a.href = dlUrl;
+      a.download = downloaded.file.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(dlUrl), 4000);
+      showToast('File MP4 YouTube berhasil disimpan ke perangkatmu!');
+    } else {
+      await handleSelectedVideoFile(
+        downloaded.file,
+        downloaded.moments && downloaded.moments.length > 0 ? downloaded.moments : null
+      );
+      if (downloaded.moments && downloaded.moments.length > 0) {
+        showToast('Video & transkrip YouTube dimuat! Pilih momen di Langkah 2.');
+      } else {
+        showToast('Video YouTube dimuat! Gunakan Whisper/Gemini atau lanjut potong.');
+      }
+    }
+  } catch (err) {
+    setStatusBar(el.ytStatus, el.ytStatusText, el.ytProgressFill, false);
+    if (err?.name !== 'AbortError') {
+      showError(err.message || 'Gagal mengunduh video dari YouTube.');
+    } else {
+      showToast('Unduhan video YouTube dibatalkan.');
+    }
+  } finally {
+    el.btnYtImportStudio.disabled = false;
+    el.btnYtDownloadMp4.disabled = false;
+    el.btnYtFetch.disabled = false;
+    el.btnYtCancel.style.display = 'none';
+    state.ytAbortController = null;
+  }
+}
+
 async function triggerSampleVideoFromAnywhere() {
   switchView('wizard');
   switchStep(1);
@@ -823,7 +1062,7 @@ async function triggerSampleVideoFromAnywhere() {
     el.step1StatusText,
     el.step1ProgressFill,
     true,
-    'Membuat video contoh podcast 2 pembicara (16 detik)...',
+    'Menyiapkan video contoh podcast 2 pembicara bersuara asli (20 detik)...',
     15
   );
   try {
@@ -833,11 +1072,12 @@ async function triggerSampleVideoFromAnywhere() {
         el.step1StatusText,
         el.step1ProgressFill,
         true,
-        `Menyiapkan video contoh (${pct}%)...`,
+        `Menyiapkan video contoh bersuara jernih (${pct}%)...`,
         pct
       );
     });
     await handleSelectedVideoFile(file, moments);
+    showToast('Video contoh 2 pembicara bersuara jernih siap diputar!');
   } catch (err) {
     setStatusBar(el.step1Status, el.step1StatusText, el.step1ProgressFill, false);
     showError(err.message || 'Gagal menyiapkan video contoh.');
@@ -854,7 +1094,15 @@ function syncPreviewToStart() {
 }
 
 function updatePlayButtonText() {
-  el.btnTogglePlay.textContent = el.hiddenVideo.paused ? 'Putar Preview' : 'Jeda Preview';
+  const isPlaying = !el.hiddenVideo.paused && !el.hiddenVideo.ended;
+  el.btnTogglePlay.textContent = isPlaying ? 'Jeda Preview' : 'Putar Preview';
+  if (el.btnStep2PlayAudio) {
+    el.btnStep2PlayAudio.textContent =
+      isPlaying && state.activeStep === 2 ? 'Hentikan Suara' : 'Dengarkan Suara Momen Ini';
+  }
+  if (!isPlaying && el.step2AudioTime && state.activeStep === 2) {
+    el.step2AudioTime.textContent = `Rentang aktif: ${formatDuration(state.startSec)} – ${formatDuration(state.endSec)} (${Math.max(0.5, state.endSec - state.startSec).toFixed(1)} dtk)`;
+  }
 }
 
 function renderPreviewOnce() {
@@ -893,7 +1141,14 @@ function previewAnimationLoop() {
     if (el.hiddenVideo.currentTime >= state.endSec) {
       el.hiddenVideo.currentTime = state.startSec;
     }
-    renderPreviewOnce();
+    if (state.activeStep === 2 && el.step2AudioTime) {
+      const cur = Math.max(0, el.hiddenVideo.currentTime - state.startSec);
+      const tot = Math.max(0.5, state.endSec - state.startSec);
+      el.step2AudioTime.textContent = `Memutar suara momen: ${cur.toFixed(1)} dtk / ${tot.toFixed(1)} dtk`;
+    }
+    if (state.activeStep === 3) {
+      renderPreviewOnce();
+    }
   }
   requestAnimationFrame(previewAnimationLoop);
 }
@@ -952,6 +1207,11 @@ function bindEvents() {
 
   // Dashboard Shortcuts
   el.dashBtnOpenWizard.addEventListener('click', () => switchView('wizard'));
+  el.dashBtnYoutube?.addEventListener('click', () => {
+    switchView('wizard');
+    switchStep(1);
+    setTimeout(() => el.ytUrlInput?.focus(), 60);
+  });
   el.dashBtnQuickSample.addEventListener('click', () => triggerSampleVideoFromAnywhere());
   el.wizTopSampleBtn.addEventListener('click', () => triggerSampleVideoFromAnywhere());
   el.dashSeeAllHistory.addEventListener('click', () => switchView('history'));
@@ -1108,6 +1368,20 @@ function bindEvents() {
   for (const tab of el.stepTabs) {
     tab.addEventListener('click', () => switchStep(Number(tab.dataset.step)));
   }
+
+  // Link YouTube: Cek Info, Simpan MP4, atau Muat ke Studio
+  el.btnYtFetch?.addEventListener('click', () => handleFetchYoutubeInfo());
+  el.ytUrlInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleFetchYoutubeInfo();
+    }
+  });
+  el.btnYtImportStudio?.addEventListener('click', () => runYoutubeDownloadAction('import'));
+  el.btnYtDownloadMp4?.addEventListener('click', () => runYoutubeDownloadAction('save'));
+  el.btnYtCancel?.addEventListener('click', () => {
+    if (state.ytAbortController) state.ytAbortController.abort();
+  });
 
   el.btnPickFile.addEventListener('click', () => el.fileInput.click());
   el.fileInput.addEventListener('change', (e) => {
@@ -1277,6 +1551,19 @@ function bindEvents() {
 
   el.btnGoStep3.addEventListener('click', () => switchStep(3));
 
+  el.btnStep2PlayAudio?.addEventListener('click', () => {
+    if (!state.file) return;
+    ensurePreviewAudioGraph();
+    if (el.hiddenVideo.paused) {
+      state.previewMuted = false;
+      syncPreviewAudioGraphParams();
+      el.hiddenVideo.currentTime = state.startSec;
+      el.hiddenVideo.play().catch(() => {});
+    } else {
+      el.hiddenVideo.pause();
+    }
+  });
+
   el.hiddenVideo.addEventListener('loadeddata', () => renderPreviewOnce());
   el.hiddenVideo.addEventListener('seeked', () => renderPreviewOnce());
   el.hiddenVideo.addEventListener('play', updatePlayButtonText);
@@ -1284,6 +1571,7 @@ function bindEvents() {
 
   el.btnTogglePlay.addEventListener('click', () => {
     if (!state.file) return;
+    ensurePreviewAudioGraph();
     if (el.hiddenVideo.paused) {
       if (el.hiddenVideo.currentTime < state.startSec || el.hiddenVideo.currentTime >= state.endSec) {
         el.hiddenVideo.currentTime = state.startSec;
@@ -1292,6 +1580,30 @@ function bindEvents() {
     } else {
       el.hiddenVideo.pause();
     }
+  });
+
+  el.btnToggleMute?.addEventListener('click', () => {
+    state.previewMuted = !state.previewMuted;
+    ensurePreviewAudioGraph();
+    syncPreviewAudioGraphParams();
+  });
+
+  el.audioVolumeRange?.addEventListener('input', () => {
+    const pct = Number(el.audioVolumeRange.value);
+    state.volumeGain = Math.max(0, Math.min(2, pct / 100));
+    if (state.volumeGain > 0 && state.previewMuted) {
+      state.previewMuted = false;
+    }
+    syncPreviewAudioGraphParams();
+  });
+
+  el.voiceBoostCheckbox?.addEventListener('change', () => {
+    state.voiceBoost = Boolean(el.voiceBoostCheckbox.checked);
+    syncPreviewAudioGraphParams();
+  });
+
+  el.monoStereoCheckbox?.addEventListener('change', () => {
+    state.monoToStereo = Boolean(el.monoStereoCheckbox.checked);
   });
 
   el.frameModeSelect.addEventListener('change', () => {
@@ -1398,6 +1710,9 @@ function bindEvents() {
         watermarkText: state.watermarkText,
         watermarkPos: state.watermarkPos,
         watermarkOpacity: 0.88,
+        voiceBoost: state.voiceBoost,
+        volumeGain: state.volumeGain,
+        monoToStereo: state.monoToStereo,
         signal: abortController.signal,
         onProgress: ({ phase, percent }) => {
           setStatusBar(el.renderStatus, el.renderStatusText, el.renderProgressFill, true, phase, percent);

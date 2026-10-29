@@ -41,6 +41,9 @@ export async function renderClipToMp4({
   watermarkText = '',
   watermarkPos = 'top-right',
   watermarkOpacity = 0.85,
+  voiceBoost = true,
+  volumeGain = 1.0,
+  monoToStereo = true,
   signal = null,
   onProgress = null
 }) {
@@ -98,14 +101,20 @@ export async function renderClipToMp4({
 
     checkAbort();
 
-    // 2. Siapkan potongan suara jernih [startSec, endSec]
+    // 2. Siapkan potongan suara jernih 48 kHz Stereo [startSec, endSec]
     if (onProgress) {
       onProgress({
-        phase: 'Menyiapkan jalur suara jernih...',
+        phase: voiceBoost
+          ? 'Menjernihkan vokal & menormalkan jalur suara 48 kHz...'
+          : 'Menyiapkan jalur suara klip 48 kHz...',
         percent: 20
       });
     }
-    const clipAudioBuffer = await extractClipAudioBuffer(file, startSec, endSec);
+    const clipAudioBuffer = await extractClipAudioBuffer(file, startSec, endSec, {
+      voiceBoost,
+      volumeGain,
+      monoToStereo
+    });
     checkAbort();
 
     // 3. Siapkan kanvas komposisi 9:16 & Muxer Output MP4
