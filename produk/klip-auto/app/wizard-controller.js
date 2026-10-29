@@ -17,10 +17,12 @@ import {
   syncClipWordsWithWhisper,
   transcribeAndPickWithWhisperWeb
 } from './engine/transcriber-moments.js';
+import { runAutonomousClipAgent } from './engine/ai-clip-agent.js';
 import {
   downloadYoutubeAsMp4File,
   fetchYoutubeVideoInfo,
-  formatBytesReadable
+  formatBytesReadable,
+  saveYoutubeMp4ToDevice
 } from './engine/youtube-downloader.js';
 import { CREATOR_CATEGORIES, CREATOR_LIBRARY_ITEMS } from './data/creator-library.js';
 
@@ -152,6 +154,12 @@ const state = {
   ytInfo: null,
   ytCachedDownload: null,
   ytAbortController: null,
+  agentAutoRun: true,
+  agentClipCount: 3,
+  agentRunning: false,
+  agentAbortController: null,
+  agentRenderedClips: [],
+  agentLogs: [],
   renderAbortController: null
 };
 
@@ -226,6 +234,25 @@ const el = {
   btnYtImportStudio: document.getElementById('btn-yt-import-studio'),
   btnYtDownloadMp4: document.getElementById('btn-yt-download-mp4'),
   btnYtCancel: document.getElementById('btn-yt-cancel'),
+  ytPostDownloadHint: document.getElementById('yt-post-download-hint'),
+
+  aiAgentCard: document.getElementById('ai-agent-card'),
+  agentStatePill: document.getElementById('agent-state-pill'),
+  agentAutoRunCheckbox: document.getElementById('agent-auto-run-checkbox'),
+  agentClipCountSelect: document.getElementById('agent-clip-count-select'),
+  btnRunAiAgent: document.getElementById('btn-run-ai-agent'),
+  btnStopAiAgent: document.getElementById('btn-stop-ai-agent'),
+  agentTracker: document.getElementById('agent-tracker'),
+  agentStageChips: Array.from(document.querySelectorAll('.agent-stage-chip')),
+  agentStageTitle: document.getElementById('agent-stage-title'),
+  agentPctBadge: document.getElementById('agent-pct-badge'),
+  agentStageDetail: document.getElementById('agent-stage-detail'),
+  agentProgressFill: document.getElementById('agent-progress-fill'),
+  agentLogList: document.getElementById('agent-log-list'),
+  agentResultsWrap: document.getElementById('agent-results-wrap'),
+  agentResultsBadge: document.getElementById('agent-results-badge'),
+  agentResultsGrid: document.getElementById('agent-results-grid'),
+  btnDownloadAllAgent: document.getElementById('btn-download-all-agent'),
 
   dropzone: document.getElementById('dropzone'),
   fileInput: document.getElementById('video-file-input'),
@@ -793,8 +820,226 @@ function applyMomentSelection(moment) {
   renderMomentsCards();
 }
 
-async function handleSelectedVideoFile(file, prebuiltMoments = null) {
+function revokeAgentRenderedClips() {
+  if (Array.isArray(state.agentRenderedClips)) {
+    for (const c of state.agentRenderedClips) {
+      if (c?.objectUrl) {
+        try {
+          URL.revokeObjectURL(c.objectUrl);
+        } catch {}
+      }
+    }
+  }
+  state.agentRenderedClips = [];
+  if (el.agentResultsGrid) el.agentResultsGrid.innerHTML = '';
+  el.agentResultsWrap?.classList.remove('visible');
+}
+
+function updateAgentStageUi(stageIndex, title, detail, percent) {
+  el.agentTracker?.classList.add('visible');
+  for (const chip of el.agentStageChips) {
+    const idx = Number(chip.dataset.agentStage);
+    chip.classList.toggle('done', idx < stageIndex);
+    chip.classList.toggle('active', idx === stageIndex);
+  }
+  if (el.agentStageTitle) el.agentStageTitle.textContent = title;
+  if (el.agentStageDetail) el.agentStageDetail.textContent = detail;
+  const clamped = Math.max(0, Math.min(100, Math.round(percent || 0)));
+  if (el.agentPctBadge) el.agentPctBadge.textContent = `${clamped}%`;
+  if (el.agentProgressFill) el.agentProgressFill.style.width = `${clamped}%`;
+}
+
+function appendAgentLog(text) {
+  state.agentLogs.push(text);
+  if (state.agentLogs.length > 10) {
+    state.agentLogs = state.agentLogs.slice(-10);
+  }
+  if (!el.agentLogList) return;
+  el.agentLogList.innerHTML = state.agentLogs
+    .map(
+      (line) => `
+      <div class="agent-log-line">
+        <span class="agent-log-dot">&rsaquo;</span>
+        <span>${escHtml(line)}</span>
+      </div>
+    `
+    )
+    .join('');
+}
+
+function appendAgentClipCard(clip, totalExpected) {
+  if (!el.agentResultsGrid || !el.agentResultsWrap) return;
+  el.agentResultsWrap.classList.add('visible');
+  if (el.agentResultsBadge) {
+    el.agentResultsBadge.textContent = `Hasil AI Agent: ${state.agentRenderedClips.length}/${totalExpected} Klip Selesai`;
+  }
+
+  const sizeMb = (clip.sizeBytes / (1024 * 1024)).toFixed(2);
+  const card = document.createElement('article');
+  card.className = 'agent-clip-card';
+  card.innerHTML = `
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+        <span class="pill-tag lime">Klip #${clip.index} · Skor ${clip.score}/100</span>
+        <span class="pill-tag">${formatDuration(clip.startSec)} – ${formatDuration(clip.endSec)}</span>
+      </div>
+      <h4>${escHtml(clip.hookTitle)}</h4>
+      <p class="muted-copy" style="font-size:12.5px;margin:4px 0 10px;">
+        ${clip.width}×${clip.height} (9:16) · ${clip.durationSec.toFixed(1)} dtk · ${sizeMb} MB · Suara 48 kHz
+      </p>
+      <video src="${clip.objectUrl}" controls playsinline preload="metadata"></video>
+    </div>
+    <div class="btn-row">
+      <a class="btn btn-primary btn-sm" href="${clip.objectUrl}" download="${escHtml(clip.fileName)}" style="flex:1;">
+        Simpan Klip MP4
+      </a>
+      <button type="button" class="btn btn-secondary btn-sm btn-edit-agent-clip" data-clip-id="${escHtml(clip.id)}">
+        Edit di Studio
+      </button>
+    </div>
+  `;
+
+  card.querySelector('.btn-edit-agent-clip')?.addEventListener('click', () => {
+    applyMomentSelection(clip.moment);
+    if (Array.isArray(clip.cameraTrack) && clip.cameraTrack.length > 0) {
+      state.previewCameraTrack = clip.cameraTrack;
+    }
+    switchStep(3);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    showToast(`Klip #${clip.index} dibuka di Studio 9:16!`);
+  });
+
+  el.agentResultsGrid.appendChild(card);
+}
+
+async function startAiClipAgent(prebuiltMoments = null) {
+  if (!state.file || !state.mediaInfo) {
+    showError('Pilih atau masukkan file video terlebih dahulu agar AI Agent dapat memotongnya.');
+    return;
+  }
+
+  if (state.agentAbortController) {
+    state.agentAbortController.abort();
+  }
+
   showError('');
+  revokeAgentRenderedClips();
+  state.agentLogs = [];
+  if (el.agentLogList) el.agentLogList.innerHTML = '';
+
+  const abortCtrl = new AbortController();
+  state.agentAbortController = abortCtrl;
+  state.agentRunning = true;
+
+  if (el.btnRunAiAgent) el.btnRunAiAgent.disabled = true;
+  if (el.btnStopAiAgent) el.btnStopAiAgent.style.display = 'inline-flex';
+  if (el.agentStatePill) {
+    el.agentStatePill.textContent = 'AI Agent Sedang Bekerja...';
+    el.agentStatePill.className = 'pill-tag lime';
+  }
+
+  const clipCount = Number(el.agentClipCountSelect?.value || state.agentClipCount || 3);
+  state.agentClipCount = clipCount;
+
+  appendAgentLog(`Memulai AI Agent untuk file "${state.file.name}" (target ${clipCount} klip 9:16)...`);
+
+  try {
+    const res = await runAutonomousClipAgent({
+      file: state.file,
+      mediaInfo: state.mediaInfo,
+      prebuiltMoments:
+        Array.isArray(prebuiltMoments) && prebuiltMoments.length > 0
+          ? prebuiltMoments
+          : state.moments.length > 0
+          ? state.moments
+          : null,
+      geminiApiKey: el.geminiKeyInput?.value || '',
+      clipCount,
+      presetId: state.presetId,
+      frameMode: state.frameMode,
+      autoFaceCenter: state.autoFaceCenter,
+      hookStyle: state.hookStyle,
+      watermarkImage: state.watermarkImage,
+      watermarkText: state.watermarkText,
+      watermarkPos: state.watermarkPos,
+      resolution: state.resolution,
+      voiceBoost: state.voiceBoost,
+      volumeGain: state.volumeGain,
+      monoToStereo: state.monoToStereo,
+      signal: abortCtrl.signal,
+      onStage: ({ stageIndex, stageTitle, detail, percent }) => {
+        updateAgentStageUi(stageIndex, stageTitle, detail, percent);
+      },
+      onLog: (msg) => {
+        appendAgentLog(msg);
+      },
+      onMomentsReady: (moments) => {
+        if (Array.isArray(moments) && moments.length > 0) {
+          state.moments = moments;
+          applyMomentSelection(moments[0]);
+          refreshDashboardAndBadges();
+        }
+      },
+      onClipRendered: (clipArtifact, _idx, total) => {
+        state.agentRenderedClips.push(clipArtifact);
+        appendAgentClipCard(clipArtifact, total);
+
+        // Simpan juga ke Riwayat Render pembeli
+        const prevHook = state.hookTitle;
+        const prevStart = state.startSec;
+        const prevEnd = state.endSec;
+        state.hookTitle = clipArtifact.hookTitle;
+        state.startSec = clipArtifact.startSec;
+        state.endSec = clipArtifact.endSec;
+        recordRenderedHistory({
+          durationSec: clipArtifact.durationSec,
+          width: clipArtifact.width,
+          height: clipArtifact.height,
+          sizeBytes: clipArtifact.sizeBytes
+        });
+        state.hookTitle = prevHook;
+        state.startSec = prevStart;
+        state.endSec = prevEnd;
+      }
+    });
+
+    if (el.agentStatePill) {
+      el.agentStatePill.textContent = `${res.clips.length} Klip Selesai Otomatis`;
+    }
+    for (const chip of el.agentStageChips) {
+      chip.classList.remove('active');
+      chip.classList.add('done');
+    }
+    showToast(`AI Agent selesai membuat ${res.clips.length} klip MP4 9:16 siap unggah!`);
+  } catch (err) {
+    if (err?.name === 'AbortError') {
+      appendAgentLog('Proses AI Agent dihentikan oleh pengguna.');
+      if (el.agentStatePill) {
+        el.agentStatePill.textContent = 'AI Agent Dihentikan';
+        el.agentStatePill.className = 'pill-tag';
+      }
+      showToast('AI Agent dihentikan.');
+    } else {
+      appendAgentLog(`Kendala: ${err.message || 'Gagal menyelesaikan pemotongan otomatis.'}`);
+      if (el.agentStatePill) {
+        el.agentStatePill.textContent = 'Perlu Perhatian';
+        el.agentStatePill.className = 'pill-tag';
+      }
+      showError(err.message || 'AI Agent mengalami kendala saat memproses video.');
+    }
+  } finally {
+    state.agentRunning = false;
+    state.agentAbortController = null;
+    if (el.btnRunAiAgent) el.btnRunAiAgent.disabled = !state.file;
+    if (el.btnStopAiAgent) el.btnStopAiAgent.style.display = 'none';
+  }
+}
+
+async function handleSelectedVideoFile(file, prebuiltMoments = null, options = {}) {
+  showError('');
+  if (state.agentAbortController) {
+    state.agentAbortController.abort();
+  }
   setStatusBar(el.step1Status, el.step1StatusText, el.step1ProgressFill, true, 'Membaca informasi video...', 35);
 
   try {
@@ -826,13 +1071,11 @@ async function handleSelectedVideoFile(file, prebuiltMoments = null) {
     el.btnAnalyzeGemini.disabled = false;
     el.btnAnalyzeWhisper.disabled = false;
     el.btnPickSrt.disabled = false;
+    if (el.btnRunAiAgent) el.btnRunAiAgent.disabled = false;
 
     if (prebuiltMoments && prebuiltMoments.length > 0) {
       state.moments = prebuiltMoments;
       applyMomentSelection(prebuiltMoments[0]);
-      refreshDashboardAndBadges();
-      setStatusBar(el.step1Status, el.step1StatusText, el.step1ProgressFill, false);
-      switchStep(2);
     } else {
       state.moments = [];
       state.selectedMomentId = null;
@@ -841,8 +1084,20 @@ async function handleSelectedVideoFile(file, prebuiltMoments = null) {
       state.words = buildWordsFromTextAndWindow(defaultCaption, state.startSec, state.endSec);
       rebuildPhrases();
       renderMomentsCards();
-      refreshDashboardAndBadges();
-      setStatusBar(el.step1Status, el.step1StatusText, el.step1ProgressFill, false);
+    }
+
+    refreshDashboardAndBadges();
+    setStatusBar(el.step1Status, el.step1StatusText, el.step1ProgressFill, false);
+
+    const shouldRunAgent = Boolean(options.forceRunAgent || state.agentAutoRun);
+    if (shouldRunAgent) {
+      switchStep(1);
+      setTimeout(() => {
+        el.aiAgentCard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 60);
+      await startAiClipAgent(prebuiltMoments);
+    } else if (prebuiltMoments && prebuiltMoments.length > 0) {
+      switchStep(2);
     }
   } catch (err) {
     setStatusBar(el.step1Status, el.step1StatusText, el.step1ProgressFill, false);
@@ -944,7 +1199,7 @@ async function handleFetchYoutubeInfo() {
         'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="480" height="270" viewBox="0 0 480 270"><rect width="480" height="270" fill="%2314140f"/><polygon points="215,105 275,135 215,165" fill="%23beff50"/></svg>';
     };
     el.ytThumb.src = info.thumbnailUrl;
-    el.ytDurationBadge.textContent = formatDuration(info.durationSec);
+    el.ytDurationBadge.textContent = info.durationSec > 0 ? formatDuration(info.durationSec) : 'MP4 Siap';
     el.ytChannelPill.textContent = info.author || 'YouTube';
 
     if (info.captionMeta?.available) {
@@ -955,7 +1210,11 @@ async function handleFetchYoutubeInfo() {
       el.ytCaptionPill.className = 'pill-tag';
     }
 
-    el.ytTitle.textContent = info.title;
+    el.ytTitle.textContent =
+      String(info.title || '')
+        .replace(/\p{Extended_Pictographic}|\uFE0F|\u203C|\u2049/gu, '')
+        .replace(/\s+/g, ' ')
+        .trim() || info.title;
     el.ytQualitySelect.innerHTML = info.qualities
       .map((q) => {
         const sizeLabel = q.totalBytes > 0 ? ` — sekitar ${formatBytesReadable(q.totalBytes)}` : '';
@@ -977,6 +1236,7 @@ async function handleFetchYoutubeInfo() {
 async function runYoutubeDownloadAction(mode) {
   if (!state.ytInfo) return;
   showError('');
+  if (el.ytPostDownloadHint) el.ytPostDownloadHint.style.display = 'none';
 
   const selectedQualityId = el.ytQualitySelect.value;
   el.btnYtImportStudio.disabled = true;
@@ -988,6 +1248,22 @@ async function runYoutubeDownloadAction(mode) {
   state.ytAbortController = abortCtrl;
 
   try {
+    if (mode === 'save') {
+      const saved = await saveYoutubeMp4ToDevice({
+        info: state.ytInfo,
+        qualityId: selectedQualityId,
+        signal: abortCtrl.signal,
+        onProgress: ({ phase, percent }) => {
+          setStatusBar(el.ytStatus, el.ytStatusText, el.ytProgressFill, true, phase, percent);
+        }
+      });
+
+      setStatusBar(el.ytStatus, el.ytStatusText, el.ytProgressFill, false);
+      if (el.ytPostDownloadHint) el.ytPostDownloadHint.style.display = 'block';
+      showToast(`Unduhan "${saved.fileName}" dimulai! Masukkan videonya setelah selesai untuk dipotong AI Agent.`);
+      return;
+    }
+
     let downloaded = null;
     if (
       state.ytCachedDownload &&
@@ -1015,27 +1291,11 @@ async function runYoutubeDownloadAction(mode) {
 
     setStatusBar(el.ytStatus, el.ytStatusText, el.ytProgressFill, false);
 
-    if (mode === 'save') {
-      const dlUrl = URL.createObjectURL(downloaded.file);
-      const a = document.createElement('a');
-      a.href = dlUrl;
-      a.download = downloaded.file.name;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(dlUrl), 4000);
-      showToast('File MP4 YouTube berhasil disimpan ke perangkatmu!');
-    } else {
-      await handleSelectedVideoFile(
-        downloaded.file,
-        downloaded.moments && downloaded.moments.length > 0 ? downloaded.moments : null
-      );
-      if (downloaded.moments && downloaded.moments.length > 0) {
-        showToast('Video & transkrip YouTube dimuat! Pilih momen di Langkah 2.');
-      } else {
-        showToast('Video YouTube dimuat! Gunakan Whisper/Gemini atau lanjut potong.');
-      }
-    }
+    await handleSelectedVideoFile(
+      downloaded.file,
+      downloaded.moments && downloaded.moments.length > 0 ? downloaded.moments : null,
+      { forceRunAgent: true }
+    );
   } catch (err) {
     setStatusBar(el.ytStatus, el.ytStatusText, el.ytProgressFill, false);
     if (err?.name !== 'AbortError') {
@@ -1386,7 +1646,10 @@ function bindEvents() {
   el.btnPickFile.addEventListener('click', () => el.fileInput.click());
   el.fileInput.addEventListener('change', (e) => {
     const f = e.target.files?.[0];
-    if (f) handleSelectedVideoFile(f);
+    if (f) {
+      el.fileInput.value = '';
+      handleSelectedVideoFile(f);
+    }
   });
 
   el.dropzone.addEventListener('dragover', (e) => {
@@ -1399,6 +1662,46 @@ function bindEvents() {
     el.dropzone.classList.remove('dragover');
     const f = e.dataTransfer?.files?.[0];
     if (f) handleSelectedVideoFile(f);
+  });
+
+  // Kontrol AI Agent Pemotong Klip Otomatis
+  el.agentAutoRunCheckbox?.addEventListener('change', () => {
+    state.agentAutoRun = Boolean(el.agentAutoRunCheckbox.checked);
+    if (el.agentStatePill && !state.agentRunning) {
+      el.agentStatePill.textContent = state.agentAutoRun
+        ? 'AI Agent Aktif Otomatis'
+        : 'Mode Manual (Klik untuk Jalankan)';
+      el.agentStatePill.className = state.agentAutoRun ? 'pill-tag lime' : 'pill-tag';
+    }
+  });
+
+  el.agentClipCountSelect?.addEventListener('change', () => {
+    state.agentClipCount = Number(el.agentClipCountSelect.value || 3);
+  });
+
+  el.btnRunAiAgent?.addEventListener('click', () => {
+    startAiClipAgent();
+  });
+
+  el.btnStopAiAgent?.addEventListener('click', () => {
+    if (state.agentAbortController) {
+      state.agentAbortController.abort();
+    }
+  });
+
+  el.btnDownloadAllAgent?.addEventListener('click', () => {
+    if (!state.agentRenderedClips.length) return;
+    state.agentRenderedClips.forEach((clip, idx) => {
+      setTimeout(() => {
+        const a = document.createElement('a');
+        a.href = clip.objectUrl;
+        a.download = clip.fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }, idx * 450);
+    });
+    showToast(`Mengunduh ${state.agentRenderedClips.length} klip MP4 ke perangkatmu...`);
   });
 
   el.btnLoadSample.addEventListener('click', () => triggerSampleVideoFromAnywhere());

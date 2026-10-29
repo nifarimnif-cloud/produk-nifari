@@ -29,8 +29,8 @@
         </div>
 
         <ul class="login-lime-points">
-          <li>Tempel link YouTube langsung untuk unduh MP4 atau potong klip 9:16</li>
-          <li>Pilih 5–10 momen terbaik otomatis lengkap skor & judul atas</li>
+          <li>Unduh video .MP4 dari link YouTube bebas blokir lengkap transkrip otomatis</li>
+          <li>AI Agent otomatis memilih momen viral, mengunci wajah 9:16 &amp; merender klip MP4</li>
           <li>Penjernih suara podcast 48 kHz + 6 gaya caption menyala per kata</li>
         </ul>
       </div>
@@ -353,7 +353,7 @@
 
                   <div class="btn-row">
                     <button type="button" class="btn btn-primary" id="btn-yt-import-studio">
-                      Muat ke Studio &amp; Potong Klip 9:16
+                      Muat &amp; Potong Otomatis (AI Agent)
                     </button>
                     <button type="button" class="btn btn-secondary" id="btn-yt-download-mp4">
                       Simpan Video YouTube (.MP4)
@@ -362,20 +362,23 @@
                       Batalkan Unduhan
                     </button>
                   </div>
+                  <p class="muted-copy" id="yt-post-download-hint" style="display:none;font-size:13px;margin-top:10px;">
+                    Unduhan .MP4 sedang berjalan di browsermu. Setelah tersimpan, masukkan file video tersebut ke kotak di bawah agar AI Agent langsung memotong klipnya secara otomatis.
+                  </p>
                 </div>
               </div>
             </div>
 
             <div class="parchment-card">
-              <span class="eyebrow">Langkah 01 · File dari Perangkat</span>
-              <h2 class="section-heading" style="margin:6px 0 8px;">Atau Pilih File Rekaman Video Lokal</h2>
+              <span class="eyebrow">Langkah 01 · Masukkan Video Unduhan / Lokal</span>
+              <h2 class="section-heading" style="margin:6px 0 8px;">Masukkan Video Hasil Unduhan atau Rekaman Lokal</h2>
               <p class="muted-copy">
-                Pilih file podcast, kajian, kelas online, atau webinar dari perangkatmu. File dibaca langsung di browser tanpa mengunggah video bergiga-giga ke server.
+                Tarik video .MP4 yang baru kamu unduh dari YouTube atau rekaman podcast/kajian dari perangkatmu. Begitu video masuk, AI Agent otomatis memotongnya menjadi klip vertikal 9:16 siap unggah.
               </p>
 
               <div class="dropzone" id="dropzone">
                 <h3>Tarik &amp; lepas file video ke sini, atau klik pilih file</h3>
-                <p>Mendukung format .MP4, .MOV, .WEBM, dan .MKV (lancar untuk durasi 10–30 menit)</p>
+                <p>Mendukung format .MP4, .MOV, .WEBM, dan .MKV (otomatis mengenali transkrip video YouTube yang baru diunduh)</p>
                 <input type="file" id="video-file-input" accept="video/*,.mp4,.mov,.webm,.mkv" hidden />
                 <div class="btn-row">
                   <button type="button" class="btn btn-primary" id="btn-pick-file">Pilih File Video</button>
@@ -387,8 +390,8 @@
 
               <div class="file-summary" id="file-summary">
                 <span id="file-summary-text">Belum ada video dipilih</span>
-                <button type="button" class="btn btn-primary btn-sm" id="btn-skip-to-step2">
-                  Lanjut Atur Titik Potong
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-skip-to-step2">
+                  Atur Titik Potong Manual
                 </button>
               </div>
 
@@ -397,6 +400,85 @@
                 <div class="progress-track">
                   <div class="progress-fill" id="step1-progress-fill"></div>
                 </div>
+              </div>
+            </div>
+
+            <!-- KARTU KOMANDO AI AGENT PEMOTONG KLIP OTOMATIS -->
+            <div class="white-card agent-command-card" id="ai-agent-card">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                <span class="eyebrow">Mesin Otonom · End-to-End</span>
+                <span class="pill-tag lime" id="agent-state-pill">AI Agent Aktif Otomatis</span>
+              </div>
+              <h2 class="section-heading" style="margin:6px 0 8px;">AI Agent Pemotong Klip 9:16 Otomatis</h2>
+              <p class="muted-copy">
+                Begitu video dimasukkan, AI Agent bekerja sendiri dari awal sampai akhir: mencocokkan transkrip kata, memilih momen skor tertinggi, mengunci fokus wajah di tengah 9:16, menjernihkan vokal 48 kHz, hingga merender file .MP4 siap tayang.
+              </p>
+
+              <div class="agent-controls-grid">
+                <div class="toggle-row" style="margin-bottom:0;">
+                  <span>Jalankan AI Agent otomatis saat video dimasukkan</span>
+                  <input type="checkbox" id="agent-auto-run-checkbox" checked style="width:18px;height:18px;" />
+                </div>
+
+                <div class="field" style="margin-bottom:0;">
+                  <label for="agent-clip-count-select">Jumlah Klip Otomatis yang Dirender AI Agent</label>
+                  <select id="agent-clip-count-select">
+                    <option value="1">1 Klip Terbaik (Super Cepat)</option>
+                    <option value="2">2 Klip Terbaik Otomatis</option>
+                    <option value="3" selected>3 Klip Terbaik Otomatis (Rekomendasi)</option>
+                    <option value="5">5 Klip Terbaik Sekaligus</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="btn-row" style="margin-top:16px;">
+                <button type="button" class="btn btn-primary" id="btn-run-ai-agent" disabled>
+                  Jalankan AI Agent Auto-Clip Sekarang
+                </button>
+                <button type="button" class="btn btn-secondary" id="btn-stop-ai-agent" style="display:none;">
+                  Hentikan AI Agent
+                </button>
+              </div>
+
+              <!-- Pelacak 4 Tahap & Log Kerja AI Agent -->
+              <div class="agent-tracker" id="agent-tracker">
+                <div class="agent-stages-bar" id="agent-stages-bar">
+                  <div class="agent-stage-chip" data-agent-stage="1">01 · Pindai Transkrip</div>
+                  <div class="agent-stage-chip" data-agent-stage="2">02 · Kurasi Momen</div>
+                  <div class="agent-stage-chip" data-agent-stage="3">03 · Wajah &amp; Vokal</div>
+                  <div class="agent-stage-chip" data-agent-stage="4">04 · Render MP4</div>
+                </div>
+
+                <div class="agent-progress-panel">
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px;">
+                    <strong id="agent-stage-title" style="font-size:14.5px;">Menyiapkan AI Agent...</strong>
+                    <span class="pill-tag lime" id="agent-pct-badge">0%</span>
+                  </div>
+                  <div class="muted-copy" id="agent-stage-detail" style="font-size:13.5px;margin-bottom:10px;">
+                    Menunggu instruksi pemotongan...
+                  </div>
+                  <div class="progress-track">
+                    <div class="progress-fill" id="agent-progress-fill"></div>
+                  </div>
+                </div>
+
+                <div class="agent-log-box" id="agent-log-list" aria-live="polite"></div>
+              </div>
+
+              <!-- Galeri Hasil Klip 9:16 yang Selesai Dirender AI Agent -->
+              <div class="agent-results-wrap" id="agent-results-wrap">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:14px;">
+                  <div>
+                    <span class="pill-tag lime" id="agent-results-badge">Hasil Potongan AI Agent</span>
+                    <h3 class="card-subheading" style="margin-top:8px;">Klip Vertikal 9:16 Siap Diputar &amp; Diunduh</h3>
+                  </div>
+                  <div class="btn-row">
+                    <button type="button" class="btn btn-primary btn-sm" id="btn-download-all-agent">
+                      Simpan Semua Klip (.MP4)
+                    </button>
+                  </div>
+                </div>
+                <div class="agent-results-grid" id="agent-results-grid"></div>
               </div>
             </div>
 
