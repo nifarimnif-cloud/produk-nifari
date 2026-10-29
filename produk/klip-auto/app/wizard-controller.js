@@ -37,6 +37,8 @@ const KEYS = {
 
 const LICENSE_SALT = 'nifari-lic-2026::';
 const CREATOR_MASTER_HASH = '1934419b428fd7cc0efb2496131e297396dc4050b597d024fe94091652033488';
+const DEV_OWNER_HASH = 'e83aedda04be15580107bd1a3dfca9bb36b86683a98cb95bb83298914ab5d0d3';
+const CREATOR_MASTER_HASHES = new Set([CREATOR_MASTER_HASH, DEV_OWNER_HASH]);
 const OFFICIAL_BUYER_HASH = '4a7bbc7ef6f92c8973ccfb2cdf5adc141b494a9a48cb3622d5511b04e8bc1e7b';
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DEFAULT_CAPTION_PLACEHOLDER =
@@ -117,7 +119,7 @@ function loadValidatedSession() {
   if (
     saved &&
     typeof saved === 'object' &&
-    (saved.codeHash === CREATOR_MASTER_HASH || saved.codeHash === OFFICIAL_BUYER_HASH)
+    (CREATOR_MASTER_HASHES.has(saved.codeHash) || saved.codeHash === OFFICIAL_BUYER_HASH)
   ) {
     return saved;
   }
@@ -1657,7 +1659,7 @@ function bindEvents() {
       inputEl?.focus();
     };
 
-    if (codeHash === CREATOR_MASTER_HASH) {
+    if (CREATOR_MASTER_HASHES.has(codeHash)) {
       const creatorName = rawName || 'Nifari (Kreator Utama)';
       const creatorEmail = rawEmail || 'creator@nifari.id';
       state.user = {
