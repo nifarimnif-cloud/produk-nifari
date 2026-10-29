@@ -24,6 +24,110 @@ const STORAGE = {
   THEME: 'tarifkarya_theme_v1'
 };
 
+const LICENSE_SALT = 'nifari-lic-2026::';
+const CREATOR_MASTER_HASH = '1934419b428fd7cc0efb2496131e297396dc4050b597d024fe94091652033488';
+const OFFICIAL_BUYER_HASH = 'd3e951adfa061f1bf2d2d3f40806fb7bcb10dbcf94ad8c48ac7ad87d8a7a7843';
+
+const DEFAULT_PROJECT_TITLES = {
+  'sosmed-konten': 'Pengelolaan Konten Instagram & Reels Bulanan',
+  'edit-video-pendek': 'Produksi & Edit Video Pendek Reels / TikTok',
+  'desain-grafis': 'Desain Identitas Logo, Kemasan & Materi Promo',
+  'landing-page-web': 'Pembuatan Landing Page & Website UMKM',
+  'foto-produk': 'Sesi Foto & Video Katalog Produk UMKM',
+  'copywriting-artikel': 'Penulisan Copywriting Iklan, Skrip & Artikel SEO',
+  'manajemen-iklan': 'Pemasangan & Optimasi Kampanye Meta / TikTok Ads',
+  'admin-asisten-virtual': 'Pengelolaan Data, Rekap Laporan & Asisten Virtual'
+};
+
+function sha256Hex(input) {
+  const bytes = new TextEncoder().encode(String(input));
+  const K = [
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+  ];
+  let h0 = 0x6a09e667;
+  let h1 = 0xbb67ae85;
+  let h2 = 0x3c6ef372;
+  let h3 = 0xa54ff53a;
+  let h4 = 0x510e527f;
+  let h5 = 0x9b05688c;
+  let h6 = 0x1f83d9ab;
+  let h7 = 0x5be0cd19;
+
+  const bitLen = bytes.length * 8;
+  const padLen = ((bytes.length + 9 + 63) >> 6) << 6;
+  const buf = new Uint8Array(padLen);
+  buf.set(bytes);
+  buf[bytes.length] = 0x80;
+  const dv = new DataView(buf.buffer);
+  dv.setUint32(padLen - 8, Math.floor(bitLen / 0x100000000), false);
+  dv.setUint32(padLen - 4, bitLen >>> 0, false);
+
+  const w = new Uint32Array(64);
+  const rotr = (x, n) => (x >>> n) | (x << (32 - n));
+
+  for (let off = 0; off < padLen; off += 64) {
+    for (let i = 0; i < 16; i++) w[i] = dv.getUint32(off + i * 4, false);
+    for (let i = 16; i < 64; i++) {
+      const s0 = rotr(w[i - 15], 7) ^ rotr(w[i - 15], 18) ^ (w[i - 15] >>> 3);
+      const s1 = rotr(w[i - 2], 17) ^ rotr(w[i - 2], 19) ^ (w[i - 2] >>> 10);
+      w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
+    }
+    let a = h0;
+    let b = h1;
+    let c = h2;
+    let d = h3;
+    let e = h4;
+    let f = h5;
+    let g = h6;
+    let h = h7;
+    for (let i = 0; i < 64; i++) {
+      const S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
+      const ch = (e & f) ^ (~e & g);
+      const t1 = (h + S1 + ch + K[i] + w[i]) >>> 0;
+      const S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
+      const maj = (a & b) ^ (a & c) ^ (b & c);
+      const t2 = (S0 + maj) >>> 0;
+      h = g;
+      g = f;
+      f = e;
+      e = (d + t1) >>> 0;
+      d = c;
+      c = b;
+      b = a;
+      a = (t1 + t2) >>> 0;
+    }
+    h0 = (h0 + a) >>> 0;
+    h1 = (h1 + b) >>> 0;
+    h2 = (h2 + c) >>> 0;
+    h3 = (h3 + d) >>> 0;
+    h4 = (h4 + e) >>> 0;
+    h5 = (h5 + f) >>> 0;
+    h6 = (h6 + g) >>> 0;
+    h7 = (h7 + h) >>> 0;
+  }
+
+  return [h0, h1, h2, h3, h4, h5, h6, h7].map((v) => v.toString(16).padStart(8, '0')).join('');
+}
+
+function hashAccessCode(code) {
+  return sha256Hex(LICENSE_SALT + String(code ?? '').trim().toUpperCase());
+}
+
+function isValidSession(user) {
+  return Boolean(
+    user &&
+      typeof user === 'object' &&
+      (user.validHash === CREATOR_MASTER_HASH || user.validHash === OFFICIAL_BUYER_HASH)
+  );
+}
+
 function readStore(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
@@ -35,6 +139,13 @@ function readStore(key, fallback) {
 
 function writeStore(key, val) {
   localStorage.setItem(key, JSON.stringify(val));
+}
+
+function loadVerifiedUser() {
+  const saved = readStore(STORAGE.USER, null);
+  if (isValidSession(saved)) return saved;
+  localStorage.removeItem(STORAGE.USER);
+  return null;
 }
 
 function esc(s) {
@@ -76,12 +187,19 @@ function showToast(msg) {
 
 const clonePreset = (p) => JSON.parse(JSON.stringify(p));
 
+function isDefaultProjectTitle(value) {
+  const clean = String(value ?? '').trim();
+  if (!clean) return true;
+  if (Object.values(DEFAULT_PROJECT_TITLES).includes(clean)) return true;
+  return SERVICE_PRESETS.some((s) => s.name === clean);
+}
+
 const state = {
-  user: readStore(STORAGE.USER, null),
+  user: loadVerifiedUser(),
   settings: readStore(STORAGE.SETTINGS, {
     studioName: 'Karya Visual Studio',
     creatorName: 'Dimas Prakoso',
-    contactPhone: '0812-8899-4421',
+    contactPhone: '0812-XXXX-XXXX',
     bankInfo: 'BCA 8410-2291-88 a.n. Dimas Prakoso'
   }),
   history: readStore(STORAGE.HISTORY, []),
@@ -94,9 +212,10 @@ const state = {
   addons: clonePreset(SERVICE_PRESETS[0].addons),
   selectedAddonIndexes: [],
   selectedTierIdx: 1,
+  hasCustomStep2Edits: false,
 
   clientName: 'Kopi Senja Nusantara',
-  projectName: 'Pengelolaan Konten Instagram & Reels Bulanan',
+  projectName: DEFAULT_PROJECT_TITLES[SERVICE_PRESETS[0].id],
   turnaround: SERVICE_PRESETS[0].defaultTurnaround,
   dpPercent: SERVICE_PRESETS[0].defaultDp,
   revisionLimit: SERVICE_PRESETS[0].defaultRevisions,
@@ -120,12 +239,12 @@ const el = {
   loginEmail: document.getElementById('login-email'),
   loginCode: document.getElementById('login-code'),
   loginError: document.getElementById('login-error'),
-  btnDemoLogin: document.getElementById('btn-demo-login'),
 
   appShell: document.getElementById('app-shell'),
   sidebar: document.getElementById('sidebar'),
   sidebarBackdrop: document.getElementById('sidebar-backdrop'),
   btnOpenDrawer: document.getElementById('btn-open-drawer'),
+  btnCloseDrawer: document.getElementById('btn-close-drawer'),
   btnThemeToggle: document.getElementById('btn-theme-toggle'),
   btnThemeMobile: document.getElementById('btn-theme-mobile'),
   btnLogout: document.getElementById('btn-logout'),
@@ -218,7 +337,7 @@ function applyTheme(theme) {
 }
 
 function syncSessionUi() {
-  if (state.user) {
+  if (isValidSession(state.user)) {
     el.loginScreen.style.display = 'none';
     el.appShell.classList.add('active');
     const greetName = state.settings.creatorName || state.user.name;
@@ -226,6 +345,8 @@ function syncSessionUi() {
     recomputeRateCalculator();
     refreshCountersAndRecent();
   } else {
+    state.user = null;
+    localStorage.removeItem(STORAGE.USER);
     el.loginScreen.style.display = 'flex';
     el.appShell.classList.remove('active');
   }
@@ -263,9 +384,24 @@ function switchView(view) {
 
 /* ================= KALKULATOR TARIF IDEAL BERANDA ================= */
 function recomputeRateCalculator() {
-  const income = Math.max(500000, Number(el.calcIncomeInput.value) || 8000000);
-  const cost = Math.max(0, Number(el.calcCostInput.value) || 500000);
-  const hours = Math.max(10, Number(el.calcHoursInput.value) || 100);
+  const rawIncome = el.calcIncomeInput.value.trim();
+  const rawCost = el.calcCostInput.value.trim();
+  const rawHours = el.calcHoursInput.value.trim();
+
+  const parsedIncome =
+    rawIncome !== '' && Number.isFinite(Number(rawIncome)) ? Number(rawIncome) : 8000000;
+  const parsedCost =
+    rawCost !== '' && Number.isFinite(Number(rawCost)) ? Number(rawCost) : 500000;
+  const parsedHours =
+    rawHours !== '' && Number.isFinite(Number(rawHours)) ? Number(rawHours) : 100;
+
+  if (rawIncome !== '' && parsedIncome < 0) el.calcIncomeInput.value = '0';
+  if (rawCost !== '' && parsedCost < 0) el.calcCostInput.value = '0';
+  if (rawHours !== '' && parsedHours < 1) el.calcHoursInput.value = '1';
+
+  const income = Math.max(0, parsedIncome);
+  const cost = Math.max(0, parsedCost);
+  const hours = Math.max(1, parsedHours);
 
   const hourly = Math.ceil((income + cost) / hours / 5000) * 5000;
   const populer = Math.ceil((hourly * 20) / 50000) * 50000;
@@ -321,7 +457,7 @@ function refreshCountersAndRecent() {
 }
 
 /* ================= WIZARD 3 LANGKAH ================= */
-function switchWizardStep(step) {
+function activateWizardStepDom(step) {
   state.wizStep = step;
   for (const pill of el.stepPills) {
     pill.classList.toggle('active', Number(pill.dataset.step) === step);
@@ -338,21 +474,95 @@ function switchWizardStep(step) {
   }
 }
 
+function validateStep1Inputs() {
+  const cName = el.inpClientName.value.trim();
+  const pName = el.inpProjectName.value.trim();
+  state.clientName = cName;
+  state.projectName = pName;
+
+  el.inpClientName.classList.toggle('field-invalid', !cName);
+  el.inpProjectName.classList.toggle('field-invalid', !pName);
+
+  if (!cName || !pName) {
+    activateWizardStepDom(1);
+    (!cName ? el.inpClientName : el.inpProjectName).focus();
+    showToast('Isi dulu Nama Klien dan Nama Proyek di Langkah 1 ya.');
+    return false;
+  }
+  return true;
+}
+
+function validateStep2SelectedTier() {
+  const chosenIdx = Number.isInteger(state.selectedTierIdx) ? state.selectedTierIdx : 1;
+  const chosen = state.tiers[chosenIdx];
+  const validPrice = chosen && Number.isFinite(Number(chosen.price)) && Number(chosen.price) > 0;
+  const nonEmptyItems = Array.isArray(chosen?.items)
+    ? chosen.items.filter((x) => String(x).trim().length > 0)
+    : [];
+  const validItems = nonEmptyItems.length > 0;
+
+  if (!validPrice || !validItems) {
+    activateWizardStepDom(2);
+    const priceInput = el.tiersEditorContainer.querySelector(`.inp-tier-price[data-tidx="${chosenIdx}"]`);
+    const itemsInput = el.tiersEditorContainer.querySelector(`.inp-tier-items[data-tidx="${chosenIdx}"]`);
+    if (!validPrice && priceInput) {
+      priceInput.classList.add('field-invalid');
+      priceInput.focus();
+      showToast('Isi dulu harga paket yang dipilih (lebih dari Rp 0) di Langkah 2 ya.');
+    } else if (!validItems && itemsInput) {
+      itemsInput.classList.add('field-invalid');
+      itemsInput.focus();
+      showToast('Isi minimal 1 rincian fasilitas pada paket yang dipilih di Langkah 2 ya.');
+    } else {
+      showToast('Pastikan paket yang dipilih punya harga di atas Rp 0 dan rincian item ya.');
+    }
+    return false;
+  }
+  return true;
+}
+
+function switchWizardStep(step, { force = false } = {}) {
+  if (!force) {
+    if (step >= 2 && !validateStep1Inputs()) return false;
+    if (step === 3 && !validateStep2SelectedTier()) return false;
+  }
+  activateWizardStepDom(step);
+  return true;
+}
+
 function getActiveServiceObj() {
   return SERVICE_PRESETS.find((s) => s.id === state.serviceId) || SERVICE_PRESETS[0];
 }
 
-function selectServicePreset(presetId) {
+function selectServicePreset(presetId, { skipConfirm = false } = {}) {
   const found = SERVICE_PRESETS.find((s) => s.id === presetId);
   if (!found) return;
+
+  if (!skipConfirm && state.hasCustomStep2Edits) {
+    const ok = window.confirm(
+      'Ganti bidang jasa akan memuat ulang paket harga sesuai bidang baru. Lanjutkan?'
+    );
+    if (!ok) return;
+  }
+
+  const shouldUpdateProjectTitle = isDefaultProjectTitle(el.inpProjectName.value);
+
   state.serviceId = found.id;
   state.tiers = clonePreset(found.tiers);
   state.addons = clonePreset(found.addons);
   state.selectedAddonIndexes = [];
   state.selectedTierIdx = 1;
+  state.hasCustomStep2Edits = false;
   state.turnaround = found.defaultTurnaround;
   state.dpPercent = found.defaultDp;
   state.revisionLimit = found.defaultRevisions;
+
+  if (shouldUpdateProjectTitle) {
+    const nextProjectTitle = DEFAULT_PROJECT_TITLES[found.id] || found.name;
+    state.projectName = nextProjectTitle;
+    el.inpProjectName.value = nextProjectTitle;
+    el.inpProjectName.classList.remove('field-invalid');
+  }
 
   el.inpTurnaround.value = state.turnaround;
   el.inpDpPercent.value = String(state.dpPercent);
@@ -395,18 +605,18 @@ function renderTiersEditor() {
             </div>
 
             <div class="field">
-              <label>Harga Paket (Rp)</label>
-              <input type="number" class="inp-tier-price" data-tidx="${idx}" value="${t.price}" step="50000" />
+              <label for="inp-tier-price-${idx}">Harga Paket (Rp)</label>
+              <input type="number" id="inp-tier-price-${idx}" min="0" class="inp-tier-price" data-tidx="${idx}" value="${t.price}" step="50000" />
             </div>
 
             <div class="field">
-              <label>Estimasi Waktu Selesai</label>
-              <input type="text" class="inp-tier-days" data-tidx="${idx}" value="${esc(t.days)}" />
+              <label for="inp-tier-days-${idx}">Estimasi Waktu Selesai</label>
+              <input type="text" id="inp-tier-days-${idx}" class="inp-tier-days" data-tidx="${idx}" value="${esc(t.days)}" />
             </div>
 
             <div class="field" style="margin-bottom:0;">
-              <label>Rincian Item (1 baris = 1 fasilitas)</label>
-              <textarea class="inp-tier-items" data-tidx="${idx}" rows="4">${esc((t.items || []).join('\n'))}</textarea>
+              <label for="inp-tier-items-${idx}">Rincian Item (1 baris = 1 fasilitas)</label>
+              <textarea id="inp-tier-items-${idx}" class="inp-tier-items" data-tidx="${idx}" rows="4">${esc((t.items || []).join('\n'))}</textarea>
             </div>
           </div>
         </div>
@@ -424,7 +634,12 @@ function renderTiersEditor() {
   for (const inp of el.tiersEditorContainer.querySelectorAll('.inp-tier-price')) {
     inp.addEventListener('input', () => {
       const idx = Number(inp.dataset.tidx);
-      state.tiers[idx].price = Math.max(0, Number(inp.value) || 0);
+      const raw = inp.value.trim();
+      const parsed = raw !== '' && Number.isFinite(Number(raw)) ? Number(raw) : 0;
+      if (raw !== '' && parsed < 0) inp.value = '0';
+      state.tiers[idx].price = Math.max(0, parsed);
+      state.hasCustomStep2Edits = true;
+      if (state.tiers[idx].price > 0) inp.classList.remove('field-invalid');
     });
   }
 
@@ -432,6 +647,7 @@ function renderTiersEditor() {
     inp.addEventListener('input', () => {
       const idx = Number(inp.dataset.tidx);
       state.tiers[idx].days = inp.value;
+      state.hasCustomStep2Edits = true;
     });
   }
 
@@ -442,6 +658,8 @@ function renderTiersEditor() {
         .split('\n')
         .map((x) => x.trim())
         .filter(Boolean);
+      state.hasCustomStep2Edits = true;
+      if (state.tiers[idx].items.length > 0) ta.classList.remove('field-invalid');
     });
   }
 }
@@ -451,9 +669,9 @@ function renderAddonsList() {
     .map((ad, idx) => {
       const checked = state.selectedAddonIndexes.includes(idx) ? 'checked' : '';
       return `
-        <label style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-subtle);cursor:pointer;font-size:13.5px;">
+        <label for="chk-addon-${idx}" style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-subtle);cursor:pointer;font-size:13.5px;">
           <span style="display:flex;align-items:center;gap:8px;">
-            <input type="checkbox" class="chk-addon" data-aidx="${idx}" ${checked} />
+            <input type="checkbox" id="chk-addon-${idx}" class="chk-addon" data-aidx="${idx}" ${checked} />
             <span>${esc(ad.name)}</span>
           </span>
           <strong>${formatRp(ad.price)}</strong>
@@ -470,6 +688,7 @@ function renderAddonsList() {
       } else {
         state.selectedAddonIndexes = state.selectedAddonIndexes.filter((x) => x !== idx);
       }
+      state.hasCustomStep2Edits = true;
     });
   }
 }
@@ -477,7 +696,14 @@ function renderAddonsList() {
 function buildCurrentDocumentPayload() {
   const srv = getActiveServiceObj();
   const stampNum = String(Date.now()).slice(-5);
+  const chosen = state.tiers[state.selectedTierIdx] || state.tiers[1] || state.tiers[0];
   const selectedAddons = state.selectedAddonIndexes.map((i) => state.addons[i]).filter(Boolean);
+  const addonTotal = selectedAddons.reduce((sum, ad) => sum + (Number(ad.price) || 0), 0);
+  const basePrice = Number(chosen?.price) || 0;
+  const grandTotal = basePrice + addonTotal;
+  const dpPercent = Number(state.dpPercent) || 50;
+  const dpAmount = Math.round((grandTotal * dpPercent) / 100);
+  const finalAmount = Math.max(0, grandTotal - dpAmount);
 
   return {
     studioName: state.settings.studioName || 'Karya Visual Studio',
@@ -485,15 +711,19 @@ function buildCurrentDocumentPayload() {
     contactPhone: state.settings.contactPhone || '-',
     bankInfo: state.settings.bankInfo || '-',
     serviceName: srv.name,
-    clientName: state.clientName || 'Calon Klien',
-    projectName: state.projectName || srv.name,
+    clientName: state.clientName.trim() || 'Calon Klien',
+    projectName: state.projectName.trim() || srv.name,
     turnaround: state.turnaround || srv.defaultTurnaround,
-    dpPercent: Number(state.dpPercent) || 50,
-    revisionLimit: state.revisionLimit || '2x Revisi Minor',
+    dpPercent,
+    revisionLimit: state.revisionLimit || srv.defaultRevisions || '2x Revisi Minor',
     customClause: state.customClause,
     tiers: state.tiers,
     selectedTierIdx: state.selectedTierIdx,
     selectedAddons,
+    addonTotal,
+    grandTotal,
+    dpAmount,
+    finalAmount,
     dateLabel: todayLabel(),
     docNumber: `TK-PROP/${new Date().getFullYear()}/${stampNum}`,
     invoiceNumber: `INV/${new Date().getFullYear()}/${stampNum}`
@@ -503,10 +733,27 @@ function buildCurrentDocumentPayload() {
 function renderPaperPreview() {
   const d = buildCurrentDocumentPayload();
   const chosen = d.tiers[d.selectedTierIdx] || d.tiers[1];
-  const addonSum = d.selectedAddons.reduce((a, b) => a + (Number(b.price) || 0), 0);
-  const grandTotal = chosen.price + addonSum;
-  const dpNominal = Math.round((grandTotal * d.dpPercent) / 100);
-  const remNominal = Math.max(0, grandTotal - dpNominal);
+
+  const addonRowsHtml =
+    d.selectedAddons.length > 0
+      ? `
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12.5px;color:#3a3636;">
+        <span>Harga Paket Utama (${esc(chosen.tier)}):</span>
+        <span>${formatRp(chosen.price)}</span>
+      </div>
+      ${d.selectedAddons
+        .map(
+          (ad) => `
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12.5px;color:#3a3636;">
+          <span>+ Add-On: ${esc(ad.name)}</span>
+          <span>${formatRp(ad.price)}</span>
+        </div>
+      `
+        )
+        .join('')}
+      <div style="border-top:1px dashed #b8b8b8;margin:6px 0;"></div>
+    `
+      : '';
 
   el.livePaperPreview.innerHTML = `
     <div class="paper-head">
@@ -552,17 +799,18 @@ function renderPaperPreview() {
       .join('')}
 
     <div style="background:#eaeaea;border:1px solid #201d1d;border-radius:2px;padding:12px 14px;margin-top:14px;font-size:13.5px;">
+      ${addonRowsHtml}
       <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-        <span>Total Nilai Paket Terpilih ${addonSum > 0 ? '(+ Add-On)' : ''}:</span>
-        <strong>${formatRp(grandTotal)}</strong>
+        <span>Total Nilai Proyek ${d.addonTotal > 0 ? '(Paket + Add-On)' : 'Terpilih'}:</span>
+        <strong>${formatRp(d.grandTotal)}</strong>
       </div>
       <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
         <span>Tagihan Awal (DP ${d.dpPercent}% Pengunci Jadwal):</span>
-        <strong>${formatRp(dpNominal)}</strong>
+        <strong>${formatRp(d.dpAmount)}</strong>
       </div>
       <div style="display:flex;justify-content:space-between;">
         <span>Sisa Pelunasan Sebelum File Final (${100 - d.dpPercent}%):</span>
-        <strong>${formatRp(remNominal)}</strong>
+        <strong>${formatRp(d.finalAmount)}</strong>
       </div>
       <div style="margin-top:8px;padding-top:8px;border-top:1px solid #b8b8b8;font-family:var(--font-mono);font-size:11.5px;">
         REKENING RESMI: ${esc(d.bankInfo)}
@@ -582,8 +830,6 @@ function renderWizardAll() {
 function recordDocumentHistory(docTypeLabel) {
   const d = buildCurrentDocumentPayload();
   const chosen = d.tiers[d.selectedTierIdx] || d.tiers[1];
-  const addonSum = d.selectedAddons.reduce((a, b) => a + (Number(b.price) || 0), 0);
-  const grandTotal = chosen.price + addonSum;
 
   const entry = {
     id: `doc-${Date.now()}`,
@@ -592,22 +838,78 @@ function recordDocumentHistory(docTypeLabel) {
     serviceId: state.serviceId,
     serviceName: d.serviceName,
     chosenTier: chosen.tier,
-    totalPrice: grandTotal,
+    totalPrice: d.grandTotal,
     docType: docTypeLabel,
-    dateLabel: d.dateLabel
+    dateLabel: d.dateLabel,
+    snapshot: {
+      serviceId: state.serviceId,
+      clientName: state.clientName,
+      projectName: state.projectName,
+      turnaround: state.turnaround,
+      dpPercent: state.dpPercent,
+      revisionLimit: state.revisionLimit,
+      customClause: state.customClause,
+      tiers: clonePreset(state.tiers),
+      addons: clonePreset(state.addons),
+      selectedTierIdx: state.selectedTierIdx,
+      selectedAddonIndexes: [...state.selectedAddonIndexes]
+    }
   };
 
-  // Cegah duplikat beruntun untuk klien & jenis file yang sama
+  // Perbarui arsip jika klien, proyek, paket & jenis dokumen sama persis
   const dupIdx = state.history.findIndex(
-    (x) => x.clientName === entry.clientName && x.chosenTier === entry.chosenTier && x.docType === entry.docType
+    (x) =>
+      x.clientName === entry.clientName &&
+      x.projectName === entry.projectName &&
+      x.chosenTier === entry.chosenTier &&
+      x.docType === entry.docType
   );
   if (dupIdx >= 0) {
-    state.history[dupIdx] = entry;
-  } else {
-    state.history.unshift(entry);
+    state.history.splice(dupIdx, 1);
   }
+  state.history.unshift(entry);
   writeStore(STORAGE.HISTORY, state.history);
   refreshCountersAndRecent();
+}
+
+function restoreHistoryEntry(h) {
+  if (h.snapshot && Array.isArray(h.snapshot.tiers)) {
+    const snap = h.snapshot;
+    const srv = SERVICE_PRESETS.find((s) => s.id === snap.serviceId) || SERVICE_PRESETS[0];
+    state.serviceId = srv.id;
+    state.tiers = clonePreset(snap.tiers);
+    state.addons = Array.isArray(snap.addons) ? clonePreset(snap.addons) : clonePreset(srv.addons);
+    state.selectedTierIdx = Number.isInteger(snap.selectedTierIdx) ? snap.selectedTierIdx : 1;
+    state.selectedAddonIndexes = Array.isArray(snap.selectedAddonIndexes)
+      ? [...snap.selectedAddonIndexes]
+      : [];
+    state.clientName = snap.clientName || h.clientName || '';
+    state.projectName = snap.projectName || h.projectName || '';
+    state.turnaround = snap.turnaround || srv.defaultTurnaround;
+    state.dpPercent = Number(snap.dpPercent) || srv.defaultDp || 50;
+    state.revisionLimit = snap.revisionLimit || srv.defaultRevisions;
+    state.customClause = typeof snap.customClause === 'string' ? snap.customClause : state.customClause;
+    state.hasCustomStep2Edits = true;
+
+    el.inpClientName.value = state.clientName;
+    el.inpProjectName.value = state.projectName;
+    el.inpTurnaround.value = state.turnaround;
+    el.inpDpPercent.value = String(state.dpPercent);
+    el.inpRevisionLimit.value = state.revisionLimit;
+    el.inpCustomClause.value = state.customClause;
+    el.inpClientName.classList.remove('field-invalid');
+    el.inpProjectName.classList.remove('field-invalid');
+  } else {
+    selectServicePreset(h.serviceId, { skipConfirm: true });
+    state.clientName = h.clientName || '';
+    state.projectName = h.projectName || '';
+    el.inpClientName.value = state.clientName;
+    el.inpProjectName.value = state.projectName;
+  }
+
+  switchView('wizard');
+  switchWizardStep(3, { force: true });
+  showToast('Seluruh rincian paket & harga klien dimuat kembali ke Wizard!');
 }
 
 /* ================= PENANGKIS NAWAR WA ================= */
@@ -616,13 +918,16 @@ function refreshWaReplyView() {
   const chosen = d.tiers[d.selectedTierIdx] || d.tiers[1];
   const scenario =
     WA_OBJECTION_SCENARIOS.find((s) => s.id === state.waScenarioId) || WA_OBJECTION_SCENARIOS[0];
+  const addonLabel =
+    d.selectedAddons.length > 0 ? ` + ${d.selectedAddons.map((a) => a.name).join(', ')}` : '';
+  const pkgFullLabel = `${chosen.tier}${addonLabel}`;
 
-  el.waContextSummary.textContent = `${d.studioName} · Klien: ${d.clientName} · ${chosen.tier} (${formatRp(chosen.price)}) · DP ${d.dpPercent}%`;
+  el.waContextSummary.textContent = `${d.studioName} · Klien: ${d.clientName} · ${pkgFullLabel} (${formatRp(d.grandTotal)}) · DP ${d.dpPercent}% (${formatRp(d.dpAmount)})`;
   el.waOutputText.value = scenario.buildReply({
     studio: d.studioName,
     client: d.clientName,
-    pkgName: `${chosen.tier} (${d.serviceName})`,
-    priceRp: formatRp(chosen.price),
+    pkgName: `${pkgFullLabel} (${d.serviceName})`,
+    priceRp: formatRp(d.grandTotal),
     dpPct: d.dpPercent,
     bankInfo: d.bankInfo
   });
@@ -676,7 +981,7 @@ function getFilteredLibrary() {
   });
 }
 
-function buildLibCardHtml(item) {
+function buildLibCardHtml(item, { showRemoveFav = false } = {}) {
   const fav = state.favorites.includes(item.id);
   return `
     <article class="lib-tile">
@@ -688,9 +993,16 @@ function buildLibCardHtml(item) {
         <h3 class="card-title" style="font-size:16.5px;margin-bottom:6px;">${esc(item.title)}</h3>
         <p class="muted-copy" style="font-size:13.5px;">${esc(item.summary)}</p>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid var(--border-subtle);">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding-top:10px;border-top:1px solid var(--border-subtle);">
         <span class="mono-stamp" style="color:var(--text-muted);">${fav ? 'FAVORIT TERSIMPAN' : 'SIAP PAKAI'}</span>
-        <button type="button" class="text-link btn-lib-detail" data-id="${esc(item.id)}">Lihat Detail</button>
+        <div style="display:flex;align-items:center;gap:8px;">
+          ${
+            showRemoveFav
+              ? `<button type="button" class="btn btn-ghost btn-sm btn-remove-fav" data-id="${esc(item.id)}" style="padding:4px 8px;font-size:11.5px;">Hapus</button>`
+              : ''
+          }
+          <button type="button" class="text-link btn-lib-detail" data-id="${esc(item.id)}">Lihat Detail</button>
+        </div>
       </div>
     </article>
   `;
@@ -699,6 +1011,17 @@ function buildLibCardHtml(item) {
 function bindLibDetailTriggers(container) {
   for (const b of container.querySelectorAll('.btn-lib-detail')) {
     b.addEventListener('click', () => openLibModal(b.dataset.id));
+  }
+  for (const rm of container.querySelectorAll('.btn-remove-fav')) {
+    rm.addEventListener('click', () => {
+      const targetId = rm.dataset.id;
+      state.favorites = state.favorites.filter((fid) => fid !== targetId);
+      writeStore(STORAGE.FAVORITES, state.favorites);
+      refreshCountersAndRecent();
+      if (state.activeView === 'favorites') renderFavoritesGrid();
+      if (state.activeView === 'library') renderLibraryGrid();
+      showToast('Dihapus dari Koleksi Favorit.');
+    });
   }
 }
 
@@ -709,7 +1032,7 @@ function renderLibraryGrid() {
     el.libraryGrid.innerHTML = `<div class="tile-card" style="grid-column:1/-1;"><p class="muted-copy">Tidak ada item yang cocok. Coba pilih Semua Kategori.</p></div>`;
     return;
   }
-  el.libraryGrid.innerHTML = list.map(buildLibCardHtml).join('');
+  el.libraryGrid.innerHTML = list.map((item) => buildLibCardHtml(item)).join('');
   bindLibDetailTriggers(el.libraryGrid);
 }
 
@@ -725,7 +1048,7 @@ function renderFavoritesGrid() {
     document.getElementById('btn-fav-open-lib')?.addEventListener('click', () => switchView('library'));
     return;
   }
-  el.favoritesGrid.innerHTML = list.map(buildLibCardHtml).join('');
+  el.favoritesGrid.innerHTML = list.map((item) => buildLibCardHtml(item, { showRemoveFav: true })).join('');
   bindLibDetailTriggers(el.favoritesGrid);
 }
 
@@ -778,9 +1101,14 @@ function renderHistoryList() {
             ${esc(h.serviceName)} · ${esc(h.chosenTier)} (${formatRp(h.totalPrice)}) · Tanggal ${esc(h.dateLabel)}
           </p>
         </div>
-        <button type="button" class="btn btn-ghost btn-sm btn-reopen-hist" data-id="${esc(h.id)}">
-          Buka di Wizard
-        </button>
+        <div class="btn-row">
+          <button type="button" class="btn btn-ghost btn-sm btn-reopen-hist" data-id="${esc(h.id)}">
+            Buka di Wizard
+          </button>
+          <button type="button" class="btn btn-ghost btn-sm btn-del-hist" data-id="${esc(h.id)}">
+            Hapus
+          </button>
+        </div>
       </div>
     `
     )
@@ -790,14 +1118,20 @@ function renderHistoryList() {
     b.addEventListener('click', () => {
       const h = state.history.find((x) => x.id === b.dataset.id);
       if (!h) return;
-      selectServicePreset(h.serviceId);
-      state.clientName = h.clientName;
-      state.projectName = h.projectName;
-      el.inpClientName.value = h.clientName;
-      el.inpProjectName.value = h.projectName;
-      switchView('wizard');
-      switchWizardStep(3);
-      showToast('Data klien dimuat kembali ke pratinjau Wizard!');
+      restoreHistoryEntry(h);
+    });
+  }
+
+  for (const dBtn of el.historyContainer.querySelectorAll('.btn-del-hist')) {
+    dBtn.addEventListener('click', () => {
+      const h = state.history.find((x) => x.id === dBtn.dataset.id);
+      if (!h) return;
+      if (!window.confirm(`Hapus arsip "${h.clientName} — ${h.docType}" dari riwayat?`)) return;
+      state.history = state.history.filter((x) => x.id !== h.id);
+      writeStore(STORAGE.HISTORY, state.history);
+      renderHistoryList();
+      refreshCountersAndRecent();
+      showToast('Arsip dokumen dihapus dari riwayat.');
     });
   }
 }
@@ -809,34 +1143,71 @@ function populateSettingsFields() {
   el.setBank.value = state.settings.bankInfo || '';
 }
 
+function syncInitialFormValues() {
+  el.inpClientName.value = state.clientName;
+  el.inpProjectName.value = state.projectName;
+  el.inpTurnaround.value = state.turnaround;
+  el.inpDpPercent.value = String(state.dpPercent);
+  el.inpRevisionLimit.value = state.revisionLimit;
+  el.inpCustomClause.value = state.customClause;
+  recomputeRateCalculator();
+}
+
 /* ================= BINDING EVENT LENGKAP ================= */
 function bindAllEvents() {
-  el.btnDemoLogin.addEventListener('click', () => {
-    el.loginName.value = 'Dimas Prakoso — Karya Visual Studio';
-    el.loginEmail.value = 'dimas@karyavisual.id';
-    el.loginCode.value = 'FREELANCE-2026-PRO';
-    el.loginError.style.display = 'none';
-  });
-
   el.loginForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    const name = el.loginName.value.trim();
-    const email = el.loginEmail.value.trim();
-    const code = el.loginCode.value.trim().toUpperCase();
-    if (!name || !email || code.length < 6) {
-      el.loginError.textContent = 'Mohon lengkapi nama, email, dan kode lisensi yang valid.';
-      el.loginError.style.display = 'block';
-      return;
+    const rawName = el.loginName.value.trim();
+    const rawEmail = el.loginEmail.value.trim();
+    const rawCode = el.loginCode.value.trim().toUpperCase();
+    const digest = rawCode ? hashAccessCode(rawCode) : '';
+    const isCreator = digest === CREATOR_MASTER_HASH;
+
+    if (!isCreator) {
+      if (!rawName) {
+        el.loginError.textContent = 'Isi dulu nama usaha atau nama penyedia jasamu ya.';
+        el.loginError.style.display = 'block';
+        el.loginName.focus();
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail)) {
+        el.loginError.textContent = 'Masukkan alamat email yang benar (contoh: nama@email.com).';
+        el.loginError.style.display = 'block';
+        el.loginEmail.focus();
+        return;
+      }
+      if (digest !== OFFICIAL_BUYER_HASH) {
+        el.loginError.textContent =
+          'Kode akses tidak sesuai. Pastikan kamu memasukkan kode resmi dari bukti pembelian ya.';
+        el.loginError.style.display = 'block';
+        el.loginCode.focus();
+        return;
+      }
     }
-    state.user = { name, email, code };
+
+    const finalName = rawName || 'Nifari — Studio Kreator';
+    const finalEmail = rawEmail || 'creator@nifari.id';
+
+    el.loginError.style.display = 'none';
+    el.loginCode.value = '';
+
+    state.user = {
+      name: finalName,
+      email: finalEmail,
+      validHash: digest,
+      role: isCreator ? 'creator' : 'buyer'
+    };
     writeStore(STORAGE.USER, state.user);
 
-    if (!localStorage.getItem(STORAGE.SETTINGS)) {
-      const parts = name.split('—').map((s) => s.trim());
-      state.settings.creatorName = parts[0] || name;
-      state.settings.studioName = parts[1] || `${parts[0]} Studio`;
-      writeStore(STORAGE.SETTINGS, state.settings);
+    const parts = finalName.split(/[—–-]/).map((s) => s.trim()).filter(Boolean);
+    state.settings.creatorName = parts[0] || finalName;
+    state.settings.studioName = parts[1] || `${parts[0] || 'Karya'} Studio`;
+    if (!state.settings.bankInfo || state.settings.bankInfo.includes('Dimas Prakoso')) {
+      state.settings.bankInfo = `BCA 8410-2291-88 a.n. ${state.settings.creatorName}`;
     }
+    writeStore(STORAGE.SETTINGS, state.settings);
+    populateSettingsFields();
+
     syncSessionUi();
     showToast('Selamat datang di TarifKarya Studio!');
   });
@@ -858,7 +1229,15 @@ function bindAllEvents() {
     el.sidebar.classList.add('open');
     el.sidebarBackdrop.classList.add('open');
   });
+  el.btnCloseDrawer?.addEventListener('click', closeDrawer);
   el.sidebarBackdrop.addEventListener('click', closeDrawer);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (el.libModal.classList.contains('open')) closeLibModal();
+      if (el.sidebar.classList.contains('open')) closeDrawer();
+    }
+  });
 
   for (const b of el.navBtns) {
     b.addEventListener('click', () => switchView(b.dataset.view));
@@ -880,6 +1259,7 @@ function bindAllEvents() {
     state.tiers[0].price = Math.round((pop * 0.58) / 25000) * 25000;
     state.tiers[1].price = pop;
     state.tiers[2].price = Math.round((pop * 1.72) / 50000) * 50000;
+    state.hasCustomStep2Edits = true;
     switchView('wizard');
     switchWizardStep(2);
     showToast('Patokan harga aman berhasil diterapkan ke 3 Paket Wizard!');
@@ -890,15 +1270,17 @@ function bindAllEvents() {
     pill.addEventListener('click', () => switchWizardStep(Number(pill.dataset.step)));
   }
   document.getElementById('btn-to-step-2').addEventListener('click', () => switchWizardStep(2));
-  document.getElementById('btn-back-step-1').addEventListener('click', () => switchWizardStep(1));
+  document.getElementById('btn-back-step-1').addEventListener('click', () => switchWizardStep(1, { force: true }));
   document.getElementById('btn-to-step-3').addEventListener('click', () => switchWizardStep(3));
   document.getElementById('btn-back-step-2').addEventListener('click', () => switchWizardStep(2));
 
   el.inpClientName.addEventListener('input', () => {
     state.clientName = el.inpClientName.value;
+    if (el.inpClientName.value.trim()) el.inpClientName.classList.remove('field-invalid');
   });
   el.inpProjectName.addEventListener('input', () => {
     state.projectName = el.inpProjectName.value;
+    if (el.inpProjectName.value.trim()) el.inpProjectName.classList.remove('field-invalid');
   });
   el.inpTurnaround.addEventListener('input', () => {
     state.turnaround = el.inpTurnaround.value;
@@ -911,6 +1293,7 @@ function bindAllEvents() {
   });
   el.inpCustomClause.addEventListener('input', () => {
     state.customClause = el.inpCustomClause.value;
+    state.hasCustomStep2Edits = true;
   });
 
   document.getElementById('btn-pick-clause-lib').addEventListener('click', () => {
@@ -921,6 +1304,7 @@ function bindAllEvents() {
 
   // 4 Tombol Ekspor File Asli
   document.getElementById('btn-dl-ratecard-png').addEventListener('click', async () => {
+    if (!validateStep1Inputs() || !validateStep2SelectedTier()) return;
     const d = buildCurrentDocumentPayload();
     const blob = await exportRateCardPng(d);
     triggerDownloadBlob(blob, `RateCard-${d.studioName.replace(/\s+/g, '-')}.png`);
@@ -929,6 +1313,7 @@ function bindAllEvents() {
   });
 
   document.getElementById('btn-dl-proposal-pdf').addEventListener('click', () => {
+    if (!validateStep1Inputs() || !validateStep2SelectedTier()) return;
     const d = buildCurrentDocumentPayload();
     const blob = exportProposalPdf(d);
     triggerDownloadBlob(blob, `Proposal-${d.clientName.replace(/\s+/g, '-')}.pdf`);
@@ -937,6 +1322,7 @@ function bindAllEvents() {
   });
 
   document.getElementById('btn-dl-invoice-pdf').addEventListener('click', () => {
+    if (!validateStep1Inputs() || !validateStep2SelectedTier()) return;
     const d = buildCurrentDocumentPayload();
     const blob = exportInvoicePdf(d);
     triggerDownloadBlob(blob, `Invoice-${d.clientName.replace(/\s+/g, '-')}.pdf`);
@@ -945,6 +1331,7 @@ function bindAllEvents() {
   });
 
   document.getElementById('btn-dl-spk-docx').addEventListener('click', () => {
+    if (!validateStep1Inputs() || !validateStep2SelectedTier()) return;
     const d = buildCurrentDocumentPayload();
     const blob = exportAgreementDocx(d);
     triggerDownloadBlob(blob, `Kesepakatan-Kerja-${d.clientName.replace(/\s+/g, '-')}.docx`);
@@ -955,7 +1342,11 @@ function bindAllEvents() {
   document.getElementById('btn-copy-ai-prompt').addEventListener('click', async () => {
     const d = buildCurrentDocumentPayload();
     const chosen = d.tiers[d.selectedTierIdx] || d.tiers[1];
-    const prompt = `Saya dari ${d.studioName} akan mengirimkan proposal jasa "${d.serviceName}" (${chosen.tier} senilai ${formatRp(chosen.price)}) kepada calon klien bernama "${d.clientName}" untuk kebutuhan "${d.projectName}". Buatkan 3 poin pengantar singkat dalam bahasa Indonesia sehari-hari yang sopan, meyakinkan, dan menjelaskan mengapa paket ini menghemat waktu serta menguntungkan bisnis mereka dibanding mengerjakan sendiri.`;
+    const addonNote =
+      d.selectedAddons.length > 0
+        ? ` ditambah add-on (${d.selectedAddons.map((a) => a.name).join(', ')})`
+        : '';
+    const prompt = `Saya dari ${d.studioName} akan mengirimkan proposal jasa "${d.serviceName}" (${chosen.tier}${addonNote}, total nilai proyek ${formatRp(d.grandTotal)}, DP ${d.dpPercent}% sebesar ${formatRp(d.dpAmount)}) kepada calon klien bernama "${d.clientName}" untuk kebutuhan "${d.projectName}". Buatkan 3 poin pengantar singkat dalam bahasa Indonesia sehari-hari yang sopan, meyakinkan, dan menjelaskan mengapa paket ini menghemat waktu serta menguntungkan bisnis mereka dibanding mengerjakan sendiri.`;
     try {
       await navigator.clipboard.writeText(prompt);
     } catch {}
@@ -1016,10 +1407,11 @@ function bindAllEvents() {
     } catch {}
     if (item.category === 'Klausul Anti-Revisi Bocor') {
       state.customClause = item.example;
+      state.hasCustomStep2Edits = true;
       el.inpCustomClause.value = item.example;
       closeLibModal();
       switchView('wizard');
-      switchWizardStep(2);
+      switchWizardStep(2, { force: true });
       showToast('Klausul dipasang ke Wizard & disalin!');
     } else {
       closeLibModal();
@@ -1029,6 +1421,11 @@ function bindAllEvents() {
 
   // Riwayat & Pengaturan
   document.getElementById('btn-clear-history').addEventListener('click', () => {
+    if (state.history.length === 0) {
+      showToast('Riwayat dokumen sudah kosong.');
+      return;
+    }
+    if (!window.confirm('Bersihkan seluruh riwayat dokumen klien di perangkat ini?')) return;
     state.history = [];
     writeStore(STORAGE.HISTORY, state.history);
     renderHistoryList();
@@ -1071,11 +1468,21 @@ function bindAllEvents() {
   el.btnImportBackup.addEventListener('click', () => el.inpImportBackup.click());
   el.inpImportBackup.addEventListener('change', async (e) => {
     const f = e.target.files?.[0];
+    e.target.value = '';
     if (!f) return;
+    if (!isValidSession(state.user)) {
+      showToast('Masuk dulu dengan kode akses resmi sebelum memulihkan cadangan.');
+      return;
+    }
     try {
       const parsed = JSON.parse(await f.text());
-      if (parsed.settings) {
-        state.settings = parsed.settings;
+      if (parsed.settings && typeof parsed.settings === 'object') {
+        state.settings = {
+          studioName: String(parsed.settings.studioName || state.settings.studioName || 'Karya Visual Studio'),
+          creatorName: String(parsed.settings.creatorName || state.settings.creatorName || 'Penyedia Jasa'),
+          contactPhone: String(parsed.settings.contactPhone || state.settings.contactPhone || '-'),
+          bankInfo: String(parsed.settings.bankInfo || state.settings.bankInfo || '-')
+        };
         writeStore(STORAGE.SETTINGS, state.settings);
       }
       if (Array.isArray(parsed.favorites)) {
@@ -1096,6 +1503,7 @@ function bindAllEvents() {
 }
 
 applyTheme(localStorage.getItem(STORAGE.THEME) || 'light');
+syncInitialFormValues();
 initLibraryFilters();
 renderWizardAll();
 bindAllEvents();

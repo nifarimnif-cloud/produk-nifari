@@ -64,28 +64,28 @@
           Masukkan nama usaha/kreator, email, dan kode akses pembelian untuk membuka seluruh alat.
         </p>
 
-        <form id="login-form">
+        <form id="login-form" novalidate>
           <div class="field">
             <label for="login-name">Nama Penyedia Jasa / Studio</label>
-            <input type="text" id="login-name" placeholder="Contoh: Dimas Prakoso — Karya Visual" required />
+            <input type="text" id="login-name" placeholder="Contoh: Dimas Prakoso — Karya Visual" autocomplete="name" />
           </div>
           <div class="field">
             <label for="login-email">Alamat Email</label>
-            <input type="email" id="login-email" placeholder="Contoh: dimas@karyavisual.id" required />
+            <input type="email" id="login-email" placeholder="Contoh: dimas@karyavisual.id" autocomplete="email" />
           </div>
           <div class="field">
             <label for="login-code">Kode Lisensi Pembeli</label>
-            <input type="text" id="login-code" placeholder="Contoh: FREELANCE-2026-PRO" required />
+            <input type="text" id="login-code" placeholder="Masukkan kode akses pembelian resmi" autocomplete="off" />
           </div>
 
-          <p id="login-error" style="display:none;font-size:13px;padding:8px 10px;border:1px solid #f84131;color:#f84131;margin-bottom:12px;"></p>
+          <p id="login-error" role="alert" style="display:none;font-size:13px;padding:8px 10px;border:1px solid #f84131;color:#f84131;margin-bottom:12px;"></p>
 
           <button type="submit" class="btn btn-volt" style="width:100%;margin-bottom:8px;">
             Masuk ke TarifKarya Studio
           </button>
-          <button type="button" class="btn btn-ghost" id="btn-demo-login" style="width:100%;">
-            Isi Cepat Akun Contoh Pembeli
-          </button>
+          <a href="https://nifari-paket-freelancer-lp.pages.dev#coba-mesin" class="btn btn-ghost" style="width:100%;">
+            Belum Punya Kode? Coba Hitung &amp; Beli Akses →
+          </a>
         </form>
       </div>
     </div>
@@ -112,6 +112,7 @@
             <span class="mono-stamp" style="color:var(--text-muted);font-size:9.5px;">RATE CARD & INVOICE</span>
           </div>
         </div>
+        <button type="button" class="btn btn-ghost btn-sm sidebar-close-btn" id="btn-close-drawer" aria-label="Tutup Menu Navigasi">×</button>
       </div>
 
       <div class="nav-group-label">Alat Utama</div>
@@ -183,7 +184,10 @@
     <div class="main-stage">
       <!-- Floating Pill Bar di HP (gaya Osmo DESIGN 4.md) -->
       <header class="mobile-pill-bar">
-        <button type="button" class="btn btn-ghost btn-sm" id="btn-open-drawer">Menu</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="btn-open-drawer" aria-label="Buka Menu Navigasi">
+          <span aria-hidden="true">☰</span>
+          <span>Menu</span>
+        </button>
         <div class="brand-lockup">
           <span class="brand-symbol" style="width:26px;height:26px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -224,7 +228,7 @@
 
             <div class="obsidian-card">
               <span class="mono-stamp" style="color:#a1ff62;">TARIF AMAN / JAM</span>
-              <div class="stat-num" id="stat-hourly-rate" style="color:#f4f4f4;">Rp 75.000</div>
+              <div class="stat-num" id="stat-hourly-rate" style="color:#f4f4f4;">Rp 85.000</div>
               <span style="font-size:12.5px;color:#b8b8b8;">Patokan bawah anti-boncos</span>
             </div>
 
@@ -257,16 +261,16 @@
 
               <div class="grid-3" style="margin-bottom:14px;align-items:end;">
                 <div>
-                  <label style="font-size:11.5px;font-weight:700;display:block;margin-bottom:4px;">Target Bersih / Bln (Rp)</label>
-                  <input type="number" id="calc-income-input" value="8000000" step="500000" style="width:100%;padding:9px;border-radius:5px;border:1px solid #151313;background:#f4f4f4;color:#151313;font-weight:700;" />
+                  <label for="calc-income-input" style="font-size:11.5px;font-weight:700;display:block;margin-bottom:4px;">Target Bersih / Bln (Rp)</label>
+                  <input type="number" id="calc-income-input" min="0" value="8000000" step="500000" style="width:100%;padding:9px;border-radius:5px;border:1px solid #151313;background:#f4f4f4;color:#151313;font-weight:700;" />
                 </div>
                 <div>
-                  <label style="font-size:11.5px;font-weight:700;display:block;margin-bottom:4px;">Biaya Alat/Kuota (Rp)</label>
-                  <input type="number" id="calc-cost-input" value="500000" step="100000" style="width:100%;padding:9px;border-radius:5px;border:1px solid #151313;background:#f4f4f4;color:#151313;font-weight:700;" />
+                  <label for="calc-cost-input" style="font-size:11.5px;font-weight:700;display:block;margin-bottom:4px;">Biaya Alat/Kuota (Rp)</label>
+                  <input type="number" id="calc-cost-input" min="0" value="500000" step="100000" style="width:100%;padding:9px;border-radius:5px;border:1px solid #151313;background:#f4f4f4;color:#151313;font-weight:700;" />
                 </div>
                 <div>
-                  <label style="font-size:11.5px;font-weight:700;display:block;margin-bottom:4px;">Jam Produktif / Bln</label>
-                  <input type="number" id="calc-hours-input" value="100" step="5" style="width:100%;padding:9px;border-radius:5px;border:1px solid #151313;background:#f4f4f4;color:#151313;font-weight:700;" />
+                  <label for="calc-hours-input" style="font-size:11.5px;font-weight:700;display:block;margin-bottom:4px;">Jam Produktif / Bln</label>
+                  <input type="number" id="calc-hours-input" min="1" value="100" step="5" style="width:100%;padding:9px;border-radius:5px;border:1px solid #151313;background:#f4f4f4;color:#151313;font-weight:700;" />
                 </div>
               </div>
 
@@ -362,7 +366,7 @@
                 </div>
                 <div class="field">
                   <label for="inp-revision-limit">Kuota Revisi Gratis di Paket</label>
-                  <input type="text" id="inp-revision-limit" value="2x Revisi Minor Terarah" />
+                  <input type="text" id="inp-revision-limit" value="2x Revisi per Konten" />
                 </div>
               </div>
 
@@ -578,7 +582,7 @@
               </div>
               <div class="field">
                 <label for="set-phone">Nomor WhatsApp / Kontak Resmi</label>
-                <input type="text" id="set-phone" placeholder="Contoh: 0812-3456-7890" />
+                <input type="text" id="set-phone" placeholder="Contoh: 0812-XXXX-XXXX" />
               </div>
               <div class="field">
                 <label for="set-bank">Informasi Rekening Bank / Pembayaran</label>
@@ -601,7 +605,7 @@
                 <button type="button" class="btn btn-ghost btn-sm" id="btn-import-backup">
                   Pulihkan dari File .JSON
                 </button>
-                <input type="file" id="inp-import-backup" accept="application/json,.json" hidden />
+                <input type="file" id="inp-import-backup" accept="application/json,.json" aria-label="Pilih file cadangan JSON" hidden />
               </div>
             </div>
           </div>
@@ -619,7 +623,7 @@
   </div>
 
   <!-- MODAL DETAIL PUSTAKA -->
-  <div class="modal-backdrop" id="lib-modal" role="dialog" aria-modal="true">
+  <div class="modal-backdrop" id="lib-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal-box">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;">
         <span class="volt-badge" id="modal-cat-badge">KATEGORI</span>

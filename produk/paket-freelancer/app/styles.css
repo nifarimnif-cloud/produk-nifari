@@ -329,6 +329,13 @@ body {
   outline-offset: 1px;
 }
 
+.field input.field-invalid,
+.field textarea.field-invalid {
+  border-color: var(--color-vermillion);
+  outline: 2px solid var(--color-vermillion);
+  outline-offset: 1px;
+}
+
 .field textarea {
   min-height: 78px;
   resize: vertical;
@@ -451,6 +458,18 @@ body {
   padding: 4px 6px 16px;
   border-bottom: 1px solid var(--border-card);
   margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sidebar-close-btn {
+  display: none;
+  padding: 4px 11px;
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 .nav-group-label {
@@ -928,6 +947,10 @@ body {
 
   .sidebar.open {
     left: 0;
+  }
+
+  .sidebar-close-btn {
+    display: inline-flex;
   }
 
   .sidebar-backdrop.open {

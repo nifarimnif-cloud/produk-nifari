@@ -14,7 +14,7 @@
 ## 2. Link Live (Cloudflare Pages)
 - **Link Landing Page (LP Jualan):** [https://nifari-paket-freelancer-lp.pages.dev](https://nifari-paket-freelancer-lp.pages.dev)
 - **Link Web App (Aplikasi Pembeli):** [https://nifari-paket-freelancer-app.pages.dev](https://nifari-paket-freelancer-app.pages.dev)
-  - *Cara masuk cepat untuk penguji:* Klik tombol **Isi Cepat Akun Contoh Pembeli** di halaman masuk (atau masukkan kode lisensi `FREELANCE-2026-PRO`), lalu klik **Masuk ke TarifKarya Studio**.
+  - *Cara masuk:* Masukkan kode akses resmi (verifikasi hash SHA-256 ber-salt di sisi klien, tanpa bocoran kode teks biasa di HTML/JS), lalu klik **Masuk ke TarifKarya Studio**.
 
 ---
 
@@ -42,7 +42,7 @@ Seluruh pengujian dijalankan menggunakan browser **Google Chrome asli** pada uku
 
 | Bagian yang Dites | Skenario Pengujian | Hasil |
 | :--- | :--- | :--- |
-| **Login Lisensi Pembeli** | Masuk memakai nama studio, email, & kode lisensi (`FREELANCE-2026-PRO`) serta tombol akun contoh | **Lulus** — Sesi tersimpan rapi di browser, langsung menyapa nama pengguna di Beranda. |
+| **Login Lisensi Pembeli** | Masuk memakai kode akses resmi (terverifikasi hash SHA-256 ber-salt) & sesi tersimpan dengan verifikasi ulang hash | **Lulus** — Sesi tersimpan rapi di browser, langsung menyapa nama pengguna di Beranda tanpa tombol bypass gratis. |
 | **Kalkulator Anti Harga Teman** | Ubah target bersih bulanan (`Rp10.000.000`), biaya alat/kuota, dan jam kerja produktif lalu terapkan ke Wizard | **Lulus** — Tarif aman per jam (`Rp105.000/jam`) & harga 3 paket di Wizard langsung terhitung dan diperbarui otomatis. |
 | **Wizard 3 Langkah** | Pilih 1 dari 8 preset jasa → sesuaikan 3 paket harga, persentase DP, & klausul → buka pratinjau resmi | **Lulus** — Kertas pratinjau menampilkan kop studio, nama klien, perbandingan 3 paket, dan rincian termin DP secara *real-time*. |
 | **Ekspor Rate Card (`.png`)** | Klik unduh Gambar Rate Card 3 Paket | **Lulus** — Menghasilkan gambar potret tajam `1080×1350 px` (`85,1 KB`) siap kirim ke WhatsApp klien. |
