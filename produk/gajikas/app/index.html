@@ -199,7 +199,7 @@
 
         <div class="topbar-actions">
           <button type="button" id="btn-theme-toggle" class="btn btn-subtle btn-sm" title="Ganti Tema Terang / Gelap">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 3a7 7 0 1 0 7 7c0-.4 0-.8-.1-1.2A5.5 5.5 0 0 1 11.2 3.1C10.8 3 10.4 3 10 3z"/></svg>
+            <svg id="theme-toggle-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 3a7 7 0 1 0 7 7c0-.4 0-.8-.1-1.2A5.5 5.5 0 0 1 11.2 3.1C10.8 3 10.4 3 10 3z"/></svg>
             <span id="theme-toggle-label">Mode Gelap</span>
           </button>
           <button type="button" id="btn-open-drawer" class="btn btn-outline btn-sm mobile-menu-trigger" aria-label="Buka Menu Lainnya">
@@ -264,43 +264,43 @@
             </div>
 
             <svg class="rail-svg" viewBox="0 0 980 186" fill="none" aria-label="Diagram Aliran Kas dan Gaji UMKM">
-              <!-- Connector Rails (#dcdcdc & #29735c) -->
-              <path d="M188 78 H238" stroke="#29735c" stroke-width="2.2" />
-              <path d="M418 78 H468" stroke="#dcdcdc" stroke-width="2" />
-              <path d="M418 78 H468" stroke="#29735c" stroke-width="2" stroke-dasharray="5 4" />
-              <path d="M658 78 H714" stroke="#29735c" stroke-width="2.4" />
-              <path d="M846 118 V142 H714" stroke="#29735c" stroke-width="1.8" />
+              <!-- Connector Rails -->
+              <path d="M188 78 H238" stroke="var(--color-network-green)" stroke-width="2.2" />
+              <path d="M418 78 H468" stroke="var(--color-rule-gray)" stroke-width="2" />
+              <path d="M418 78 H468" stroke="var(--color-network-green)" stroke-width="2" stroke-dasharray="5 4" />
+              <path d="M658 78 H714" stroke="var(--color-network-green)" stroke-width="2.4" />
+              <path d="M846 118 V142 H714" stroke="var(--color-network-green)" stroke-width="1.8" />
 
               <!-- Node 1: Omzet -->
-              <rect x="12" y="34" width="176" height="88" rx="6" fill="var(--color-paper)" stroke="#151515" stroke-width="1.4" />
+              <rect x="12" y="34" width="176" height="88" rx="6" fill="var(--color-paper)" stroke="currentColor" stroke-width="1.4" />
               <rect x="12" y="34" width="176" height="22" fill="#0c221d" />
               <text x="22" y="49" fill="#bae0cf" font-family="IBM Plex Mono, monospace" font-size="10.5" font-weight="500">01 // OMZET MASUK</text>
-              <text id="rail-omzet-val" x="22" y="83" fill="var(--color-ink)" font-family="IBM Plex Mono, monospace" font-size="14.5" font-weight="600">Rp 93.000.000</text>
+              <text id="rail-omzet-val" x="22" y="83" fill="currentColor" font-family="IBM Plex Mono, monospace" font-size="14.5" font-weight="600">Rp 93.000.000</text>
               <text x="22" y="106" fill="var(--color-steel)" font-family="Inter, sans-serif" font-size="11">Tunai + QRIS/Transfer</text>
 
               <!-- Node 2: HPP -->
-              <rect x="238" y="34" width="180" height="88" rx="6" fill="var(--color-paper)" stroke="#cbcac8" stroke-width="1.3" />
-              <rect x="238" y="34" width="180" height="22" fill="#f0f8f9" />
-              <text x="248" y="49" fill="#7b5953" font-family="IBM Plex Mono, monospace" font-size="10.5" font-weight="500">02 // HPP BARANG/BAHAN</text>
-              <text id="rail-hpp-val" x="248" y="83" fill="var(--color-ink)" font-family="IBM Plex Mono, monospace" font-size="14.5" font-weight="600">- Rp 66.800.000</text>
-              <text id="rail-gross-sub" x="248" y="106" fill="#29735c" font-family="IBM Plex Mono, monospace" font-size="11">Laba Kotor: 28.2%</text>
+              <rect x="238" y="34" width="180" height="88" rx="6" fill="var(--color-paper)" stroke="var(--color-edge-gray)" stroke-width="1.3" />
+              <rect x="238" y="34" width="180" height="22" fill="var(--color-ice-panel)" />
+              <text x="248" y="49" fill="var(--color-ledger-brown)" font-family="IBM Plex Mono, monospace" font-size="10.5" font-weight="500">02 // HPP BARANG/BAHAN</text>
+              <text id="rail-hpp-val" x="248" y="83" fill="currentColor" font-family="IBM Plex Mono, monospace" font-size="14.5" font-weight="600">- Rp 66.800.000</text>
+              <text id="rail-gross-sub" x="248" y="106" fill="var(--color-network-green)" font-family="IBM Plex Mono, monospace" font-size="11">Laba Kotor: 28.2%</text>
 
               <!-- Node 3: Gaji & Opex -->
-              <rect x="468" y="34" width="190" height="88" rx="6" fill="var(--color-paper)" stroke="#cbcac8" stroke-width="1.3" />
-              <rect x="468" y="34" width="190" height="22" fill="#f0f8f9" />
-              <text x="478" y="49" fill="#7b5953" font-family="IBM Plex Mono, monospace" font-size="10.5" font-weight="500">03 // GAJI TIM &amp; OPEX</text>
-              <text id="rail-opex-val" x="478" y="83" fill="var(--color-ink)" font-family="IBM Plex Mono, monospace" font-size="14.5" font-weight="600">- Rp 16.993.000</text>
-              <text id="rail-payroll-sub" x="478" y="106" fill="var(--color-steel)" font-family="IBM Plex Mono, monospace" font-size="11">Rasio Gaji: 10.5%</text>
+              <rect x="468" y="34" width="190" height="88" rx="6" fill="var(--color-paper)" stroke="var(--color-edge-gray)" stroke-width="1.3" />
+              <rect x="468" y="34" width="190" height="22" fill="var(--color-ice-panel)" />
+              <text x="478" y="49" fill="var(--color-ledger-brown)" font-family="IBM Plex Mono, monospace" font-size="10.5" font-weight="500">03 // GAJI TIM &amp; OPEX</text>
+              <text id="rail-opex-val" x="478" y="83" fill="currentColor" font-family="IBM Plex Mono, monospace" font-size="14.5" font-weight="600">- Rp 17.204.682</text>
+              <text id="rail-payroll-sub" x="478" y="106" fill="var(--color-steel)" font-family="IBM Plex Mono, monospace" font-size="11">Rasio Gaji: 10.8%</text>
 
               <!-- Node 4: Laba Bersih & KUR -->
-              <rect x="698" y="24" width="270" height="96" rx="6" fill="#0c221d" stroke="#29735c" stroke-width="1.8" />
+              <rect x="698" y="24" width="270" height="96" rx="6" fill="#0c221d" stroke="var(--color-network-green)" stroke-width="1.8" />
               <text x="712" y="45" fill="#bae0cf" font-family="IBM Plex Mono, monospace" font-size="10.5" font-weight="500">04 // LABA BERSIH USAHA</text>
-              <text id="rail-net-val" x="712" y="74" fill="#ffffff" font-family="IBM Plex Mono, monospace" font-size="17" font-weight="600">Rp 9.207.000</text>
-              <text id="rail-kur-sub" x="712" y="101" fill="#bae0cf" font-family="IBM Plex Mono, monospace" font-size="11">Aman KUR 30%: Rp 2.762.100/bln</text>
+              <text id="rail-net-val" x="712" y="74" fill="#ffffff" font-family="IBM Plex Mono, monospace" font-size="17" font-weight="600">Rp 8.995.318</text>
+              <text id="rail-kur-sub" x="712" y="101" fill="#bae0cf" font-family="IBM Plex Mono, monospace" font-size="11">Aman KUR 30%: Rp 2.698.595/bln</text>
 
               <!-- Bottom Rail Annotation -->
-              <rect x="428" y="136" width="290" height="32" rx="4" fill="#f0f8f9" stroke="#29735c" stroke-width="1" />
-              <text id="rail-plafon-note" x="442" y="156" fill="#151515" font-family="IBM Plex Mono, monospace" font-size="11" font-weight="500">Est. Plafon KUR 36 Bln: Rp 90.700.000</text>
+              <rect x="428" y="136" width="290" height="32" rx="4" fill="var(--color-ice-panel)" stroke="var(--color-network-green)" stroke-width="1" />
+              <text id="rail-plafon-note" x="442" y="156" fill="currentColor" font-family="IBM Plex Mono, monospace" font-size="11" font-weight="500">Est. Plafon KUR 36 Bln: Rp 88.700.000</text>
             </svg>
           </div>
 
@@ -316,19 +316,19 @@
               <div class="grid-2" style="gap: 12px;">
                 <div class="field">
                   <label class="field-label" for="qc-omzet">Omzet Kotor Bulanan (Rp)</label>
-                  <input id="qc-omzet" class="input num-mono" type="number" min="0" step="100000" value="75000000" />
+                  <input id="qc-omzet" class="input num-mono" type="number" min="0" step="100000" value="93000000" />
                 </div>
                 <div class="field">
                   <label class="field-label" for="qc-hpp">HPP Barang / Bahan Pokok (Rp)</label>
-                  <input id="qc-hpp" class="input num-mono" type="number" min="0" step="100000" value="46000000" />
+                  <input id="qc-hpp" class="input num-mono" type="number" min="0" step="100000" value="66800000" />
                 </div>
                 <div class="field">
                   <label class="field-label" for="qc-payroll">Total Gaji Seluruh Staf (Rp)</label>
-                  <input id="qc-payroll" class="input num-mono" type="number" min="0" step="50000" value="9600000" />
+                  <input id="qc-payroll" class="input num-mono" type="number" min="0" step="50000" value="10004682" />
                 </div>
                 <div class="field">
                   <label class="field-label" for="qc-opex">Sewa, Listrik &amp; Opex Lain (Rp)</label>
-                  <input id="qc-opex" class="input num-mono" type="number" min="0" step="50000" value="6400000" />
+                  <input id="qc-opex" class="input num-mono" type="number" min="0" step="50000" value="7200000" />
                 </div>
               </div>
 
@@ -522,7 +522,7 @@
                   <div class="field">
                     <label class="field-label" for="emp-ot-method">Rumus Tarif Lembur</label>
                     <select id="emp-ot-method" class="select">
-                      <option value="depnaker">Otomatis Depnaker (1/173)</option>
+                      <option value="depnaker">Otomatis Proporsional (1/173 Gaji Pokok)</option>
                       <option value="flat">Nominal Tetap per Jam</option>
                     </select>
                   </div>
@@ -569,6 +569,7 @@
                   </div>
                   <div id="emp-live-terbilang" style="margin-top: 5px; font-size: 12.5px; color: var(--color-graphite);"></div>
                 </div>
+                <div id="emp-cut-warning" class="cut-warning-banner" role="alert" style="display: none;"></div>
               </div>
             </div>
 
@@ -755,7 +756,7 @@
 
             <!-- Switchable Live Document Preview -->
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
-              <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+              <div style="display: flex; flex-wrap: wrap; gap: 8px; max-width: 100%;">
                 <button type="button" class="btn btn-primary btn-sm" id="tab-prev-slip" data-prev-mode="slip">
                   Pratinjau Slip Gaji Karyawan
                 </button>
@@ -764,9 +765,9 @@
                 </button>
               </div>
 
-              <div id="preview-emp-picker-wrap" style="display: flex; align-items: center; gap: 8px;">
-                <label for="preview-emp-select" class="field-label" style="white-space: nowrap;">Pilih Karyawan:</label>
-                <select id="preview-emp-select" class="select" style="width: auto; min-width: 210px; padding: 6px 10px;"></select>
+              <div id="preview-emp-picker-wrap" class="preview-emp-picker-wrap">
+                <label id="preview-emp-picker-label" for="preview-emp-select" class="field-label" style="white-space: nowrap;">Karyawan Terpilih (Slip &amp; WA PNG):</label>
+                <select id="preview-emp-select" class="select preview-emp-select"></select>
               </div>
             </div>
 
@@ -855,13 +856,16 @@
               </button>
             </div>
 
-            <!-- Tool 2: Kalkulator Cepat THR & Lembur Depnaker -->
+            <!-- Tool 2: Kalkulator Cepat THR & Lembur Kepmenaker -->
             <div class="card">
               <div class="eyebrow-green">ALAT 02 // HITUNG INSTAN HAK UPAH</div>
-              <h2 class="title-section" style="margin-top: 6px; margin-bottom: 6px;">Kalkulator THR Proporsional &amp; Lembur 1/173</h2>
-              <p class="text-subtle" style="margin-bottom: 16px;">
-                Hitung cepat hak THR staf baru maupun lama beserta simulasi jam lembur hari kerja (1,5x &amp; 2x) dan hari libur resmi.
+              <h2 class="title-section" style="margin-top: 6px; margin-bottom: 6px;">Kalkulator THR Proporsional &amp; Lembur Kepmenaker (1/173)</h2>
+              <p class="text-subtle" style="margin-bottom: 12px;">
+                Hitung cepat hak THR staf baru/lama beserta simulasi lembur resmi Kepmenaker (<strong>1,5x</strong> jam pertama &amp; <strong>2x</strong> jam berikutnya pada hari kerja, serta <strong>2x</strong> pada hari libur resmi).
               </p>
+              <div style="padding: 9px 11px; margin-bottom: 14px; border: 1px solid var(--color-rule-gray); background-color: var(--color-canvas-subtle); font-size: 12.5px; color: var(--color-graphite);">
+                <strong>Catatan Rumus:</strong> Alat ini memakai pengali berjenjang Kepmenaker (<code>1,5x</code> jam ke-1 &amp; <code>2x</code> jam berikutnya), sedangkan opsi <em>Otomatis Proporsional (1/173 Gaji Pokok)</em> di Wizard mengalikan lurus tarif dasar <code>1/173</code> per jam lembur.
+              </div>
 
               <div class="grid-2" style="gap: 12px;">
                 <div class="field">
@@ -1050,9 +1054,20 @@
           <span class="brand-name">Menu Studio</span>
           <button type="button" id="btn-close-drawer" class="btn btn-subtle btn-sm">Tutup</button>
         </div>
+        <div id="drawer-user-card" style="padding: 10px 12px; margin-bottom: 12px; background-color: var(--color-ice-panel); border: 1px solid var(--color-rule-gray); border-radius: var(--radius-nav);">
+          <div class="eyebrow-green" style="font-size: 10.5px;">SESI USAHA AKTIF</div>
+          <div id="drawer-user-owner" style="font-weight: 600; font-size: 13.5px; color: var(--color-ink); margin-top: 3px; overflow-wrap: break-word;">Pemilik Usaha</div>
+          <div id="drawer-user-biz" class="text-subtle" style="font-size: 12.5px; margin-top: 1px; overflow-wrap: break-word;">Usaha UMKM</div>
+        </div>
         <div class="nav-list">
-          <button type="button" class="nav-item" data-nav="favorites"><span>SOP Favorit</span></button>
-          <button type="button" class="nav-item" data-nav="history"><span>Riwayat Laporan</span></button>
+          <button type="button" class="nav-item" data-nav="favorites">
+            <span>SOP Favorit</span>
+            <span id="drawer-fav-badge" class="nav-count">0</span>
+          </button>
+          <button type="button" class="nav-item" data-nav="history">
+            <span>Riwayat Laporan</span>
+            <span id="drawer-hist-badge" class="nav-count">0</span>
+          </button>
           <button type="button" class="nav-item" data-nav="settings"><span>Pengaturan &amp; Cadangan</span></button>
         </div>
       </div>

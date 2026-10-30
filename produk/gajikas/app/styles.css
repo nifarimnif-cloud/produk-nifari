@@ -629,6 +629,7 @@ h1, h2, h3, h4, p {
   min-width: 680px;
   height: auto;
   display: block;
+  color: var(--color-ink);
 }
 
 /* Wizard Step Rail */
@@ -758,8 +759,56 @@ h1, h2, h3, h4, p {
   font-size: 14px;
 }
 
+.kv-row > :first-child {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.kv-row > :last-child {
+  white-space: nowrap;
+  flex-shrink: 0;
+  text-align: right;
+}
+
 .kv-row:last-child {
   border-bottom: none;
+}
+
+/* Warning Banner for Excess Payroll Deductions */
+.cut-warning-banner {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid #d97706;
+  border-left: 4px solid #dc2626;
+  background-color: #fffbeb;
+  color: #92400e;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+[data-theme="dark"] .cut-warning-banner {
+  background-color: rgba(217, 119, 6, 0.16);
+  border-color: #f59e0b;
+  border-left-color: #ef4444;
+  color: #fde68a;
+}
+
+/* Step 3 Employee Picker Toolbar */
+.preview-emp-picker-wrap {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.preview-emp-select {
+  width: auto;
+  min-width: 210px;
+  max-width: 100%;
+  padding: 6px 10px;
 }
 
 /* Status Badges */
@@ -1036,8 +1085,20 @@ h1, h2, h3, h4, p {
     grid-template-columns: 1fr;
   }
 
-  .card, .card-ice, .card-plum, .card-forest, .doc-sheet-body {
+  .card, .card-ice, .card-plum, .card-forest, .doc-sheet-body, .doc-sheet-header {
     padding: 16px;
+  }
+
+  .preview-emp-picker-wrap {
+    width: 100%;
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .preview-emp-select {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .mobile-bottom-nav {

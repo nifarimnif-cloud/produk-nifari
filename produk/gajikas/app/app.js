@@ -166,10 +166,13 @@
     const grossPay = baseSalary + allowanceTotal + overtimeTotal + bonus + thrAmount;
     const totalDeductions = kasbonCut + lateCut + bpjsCut;
     const takeHomePay = Math.max(0, grossPay - totalDeductions);
+    const excessDeduction = Math.max(0, totalDeductions - grossPay);
+    const trimmedRawName = String(raw.name == null ? '' : raw.name).trim();
 
     return {
       id: raw.id || 'emp-' + Date.now(),
-      name: String(raw.name || 'Karyawan').trim() || 'Karyawan',
+      name: trimmedRawName || 'Karyawan',
+      rawNameEmpty: !trimmedRawName,
       role: String(raw.role || 'Staf Operasional').trim() || 'Staf Operasional',
       tenureMonths,
       daysPresent,
@@ -189,6 +192,7 @@
       thrAmount,
       grossPay,
       totalDeductions,
+      excessDeduction,
       takeHomePay,
       terbilang: angkaKeTerbilang(takeHomePay)
     };
@@ -367,11 +371,13 @@
 
   function buildDefaultState(ownerSession) {
     const firstPreset = cloneDeep(window.GAJIKAS_PRESETS[0]);
+    const ownerName = (ownerSession && ownerSession.ownerName) || 'Pemilik Usaha';
     const bizName = (ownerSession && ownerSession.businessName) || firstPreset.businessName;
     const currentPeriod = {
       id: 'per-initial',
       presetId: firstPreset.id,
       presetLabel: firstPreset.label,
+      ownerName,
       businessName: bizName,
       city: firstPreset.city,
       periodLabel: firstPreset.periodLabel,
@@ -381,11 +387,12 @@
     };
     const savedSample = cloneDeep(currentPeriod);
     savedSample.id = 'hist-sample-1';
+    savedSample.ownerName = ownerName;
     savedSample.savedAt = '2026-10-29T09:00:00Z';
 
     return {
       profile: {
-        ownerName: (ownerSession && ownerSession.ownerName) || 'Pemilik Usaha',
+        ownerName,
         businessName: bizName,
         city: firstPreset.city,
         email: (ownerSession && ownerSession.email) || ''
@@ -394,6 +401,19 @@
       history: [savedSample],
       favorites: ['sop-001', 'sop-021', 'sop-067', 'sop-101']
     };
+  }
+
+  function formatSavedTimestamp(isoStr) {
+    if (!isoStr) return '-';
+    const d = new Date(isoStr);
+    if (Number.isNaN(d.getTime())) return String(isoStr);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    const dd = d.getDate();
+    const mm = months[d.getMonth()] || '';
+    const yyyy = d.getFullYear();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${dd} ${mm} ${yyyy}, ${hh}:${min}`;
   }
 
   function saveState() {
@@ -413,7 +433,7 @@
     clearTimeout(showToast._timer);
     showToast._timer = setTimeout(() => {
       el.classList.remove('show');
-    }, 2600);
+    }, 3000);
   }
 
   // Theme Management
@@ -422,6 +442,13 @@
     document.documentElement.setAttribute('data-theme', clean);
     const lbl = document.getElementById('theme-toggle-label');
     if (lbl) lbl.textContent = clean === 'dark' ? 'Mode Terang' : 'Mode Gelap';
+    const icon = document.getElementById('theme-toggle-icon');
+    if (icon) {
+      icon.innerHTML =
+        clean === 'dark'
+          ? '<circle cx="10" cy="10" r="3.6"/><path d="M10 2.2v2.1M10 15.7v2.1M2.2 10h2.1M15.7 10h2.1M4.5 4.5l1.5 1.5M14 14l1.5 1.5M15.5 4.5L14 6M6 14l-1.5 1.5"/>'
+          : '<path d="M10 3a7 7 0 1 0 7 7c0-.4 0-.8-.1-1.2A5.5 5.5 0 0 1 11.2 3.1C10.8 3 10.4 3 10 3z"/>';
+    }
     try {
       localStorage.setItem(STORAGE_KEYS.theme, clean);
     } catch (_e) {}
@@ -446,6 +473,10 @@
     document.querySelectorAll('[data-nav]').forEach((btn) => {
       btn.classList.toggle('active', btn.getAttribute('data-nav') === viewId);
     });
+    const mobMoreBtn = document.getElementById('btn-mob-more');
+    if (mobMoreBtn) {
+      mobMoreBtn.classList.toggle('active', ['favorites', 'history', 'settings'].includes(viewId));
+    }
     closeMobileDrawer();
     window.scrollTo({ top: 0, behavior: 'auto' });
 
@@ -455,7 +486,7 @@
     if (viewId === 'settings') populateSettingsForm();
   }
 
-  function switchWizardStep(stepNum) {
+  function activateWizardDomStep(stepNum) {
     activeWizStep = stepNum;
     [1, 2, 3].forEach((n) => {
       const pane = document.getElementById('wiz-pane-' + n);
@@ -464,7 +495,51 @@
     document.querySelectorAll('.step-tab').forEach((t) => {
       t.classList.toggle('active', Number(t.getAttribute('data-wiz-step')) === stepNum);
     });
+  }
+
+  function switchWizardStep(stepNum) {
+    if ((stepNum === 2 || stepNum === 3) && appState && appState.currentPeriod) {
+      const p = appState.currentPeriod;
+      if (!String(p.businessName || '').trim()) {
+        activateWizardDomStep(1);
+        renderAllCalculatedUI();
+        showToast('Mohon isi Nama Usaha di Dokumen pada Langkah 1 terlebih dahulu.');
+        const el = document.getElementById('wiz-biz-name');
+        if (el) el.focus();
+        return false;
+      }
+      if (!String(p.periodLabel || '').trim()) {
+        activateWizardDomStep(1);
+        renderAllCalculatedUI();
+        showToast('Mohon isi Bulan & Tahun Periode pada Langkah 1 terlebih dahulu.');
+        const el = document.getElementById('wiz-period-label');
+        if (el) el.focus();
+        return false;
+      }
+      if (!Array.isArray(p.employees) || p.employees.length === 0) {
+        activateWizardDomStep(1);
+        renderAllCalculatedUI();
+        showToast('Daftar karyawan masih kosong. Tambahkan minimal 1 karyawan terlebih dahulu.');
+        const el = document.getElementById('btn-add-employee');
+        if (el) el.focus();
+        return false;
+      }
+      const unnamed = p.employees.find((emp) => !emp || !emp.name || !String(emp.name).trim());
+      if (unnamed) {
+        activeEmpId = unnamed.id;
+        activateWizardDomStep(1);
+        populateEmployeeEditor();
+        renderAllCalculatedUI();
+        showToast('Nama karyawan tidak boleh kosong. Lengkapi Nama Karyawan yang aktif diedit.');
+        const el = document.getElementById('emp-name');
+        if (el) el.focus();
+        return false;
+      }
+    }
+
+    activateWizardDomStep(stepNum);
     renderAllCalculatedUI();
+    return true;
   }
 
   // Render Preset Buttons
@@ -479,8 +554,10 @@
       btn.textContent = p.label;
       btn.addEventListener('click', () => {
         const cloned = cloneDeep(p);
+        appState.currentPeriod.id = 'per-' + Date.now();
         appState.currentPeriod.presetId = cloned.id;
         appState.currentPeriod.presetLabel = cloned.label;
+        appState.currentPeriod.ownerName = appState.profile.ownerName || 'Pemilik Usaha';
         appState.currentPeriod.businessName = cloned.businessName;
         appState.currentPeriod.city = cloned.city;
         appState.currentPeriod.periodLabel = cloned.periodLabel;
@@ -492,6 +569,7 @@
         syncCashflowInputs();
         populateEmployeeEditor();
         renderPresetButtons();
+        syncQuickCalcFromPeriod();
         renderAllCalculatedUI();
         saveState();
         showToast('Preset "' + cloned.label + '" dimuat (3 staf & buku kas).');
@@ -535,12 +613,43 @@
   function populateEmployeeEditor() {
     const raw = getActiveEmployeeRaw();
     const panel = document.getElementById('emp-editor-panel');
+    const badge = document.getElementById('emp-editor-badge');
+    const warnEl = document.getElementById('emp-cut-warning');
     if (!raw) {
       panel.style.opacity = '0.5';
+      panel.style.pointerEvents = 'none';
+      document.getElementById('emp-editor-heading').textContent = 'Belum Ada Karyawan';
+      if (badge) {
+        badge.className = 'tag tag-warn';
+        badge.textContent = 'Nonaktif';
+      }
+      document.getElementById('emp-name').value = '';
+      document.getElementById('emp-role').value = '';
+      document.getElementById('emp-tenure').value = 0;
+      document.getElementById('emp-days').value = 0;
+      document.getElementById('emp-base').value = 0;
+      document.getElementById('emp-allowance').value = 0;
+      document.getElementById('emp-ot-hours').value = 0;
+      document.getElementById('emp-ot-method').value = 'depnaker';
+      document.getElementById('emp-ot-rate').value = 0;
+      document.getElementById('emp-bonus').value = 0;
+      document.getElementById('emp-thr-toggle').checked = false;
+      document.getElementById('emp-kasbon').value = 0;
+      document.getElementById('emp-late').value = 0;
+      document.getElementById('emp-bpjs').value = 0;
+      document.getElementById('emp-live-thp').textContent = 'Rp 0';
+      document.getElementById('emp-live-terbilang').textContent = 'Tambahkan karyawan untuk mulai menghitung gaji.';
+      if (warnEl) warnEl.style.display = 'none';
       return;
     }
+
     panel.style.opacity = '1';
-    document.getElementById('emp-editor-heading').textContent = raw.name || 'Karyawan Baru';
+    panel.style.pointerEvents = 'auto';
+    if (badge) {
+      badge.className = 'tag tag-ok';
+      badge.textContent = 'Aktif Diedit';
+    }
+    document.getElementById('emp-editor-heading').textContent = String(raw.name || '').trim() || 'Karyawan Baru';
     document.getElementById('emp-name').value = raw.name || '';
     document.getElementById('emp-role').value = raw.role || '';
     document.getElementById('emp-tenure').value = raw.tenureMonths ?? 12;
@@ -548,15 +657,20 @@
     document.getElementById('emp-base').value = raw.baseSalary ?? 0;
     document.getElementById('emp-allowance').value = raw.dailyAllowanceRate ?? 0;
     document.getElementById('emp-ot-hours').value = raw.overtimeHours ?? 0;
-    document.getElementById('emp-ot-method').value = raw.overtimeMethod || 'depnaker';
-    document.getElementById('emp-ot-rate').value = raw.overtimeRate ?? 15000;
+    const method = raw.overtimeMethod === 'flat' ? 'flat' : 'depnaker';
+    document.getElementById('emp-ot-method').value = method;
+    if (method === 'flat') {
+      const flatVal = Number(raw.overtimeRate) > 0 ? Math.round(Number(raw.overtimeRate)) : 20000;
+      document.getElementById('emp-ot-rate').value = flatVal;
+      document.getElementById('emp-ot-rate').disabled = false;
+    } else {
+      updateOvertimeRateVisibility();
+    }
     document.getElementById('emp-bonus').value = raw.bonus ?? 0;
     document.getElementById('emp-thr-toggle').checked = Boolean(raw.includeThr);
     document.getElementById('emp-kasbon').value = raw.kasbonCut ?? 0;
     document.getElementById('emp-late').value = raw.lateCut ?? 0;
     document.getElementById('emp-bpjs').value = raw.bpjsCut ?? 0;
-
-    updateOvertimeRateVisibility();
   }
 
   function updateOvertimeRateVisibility() {
@@ -575,15 +689,24 @@
   function renderAllCalculatedUI() {
     const comp = computeFullPeriod(appState.currentPeriod);
     const sum = comp.summary;
+    const displayBizName = comp.businessName || appState.profile.businessName || 'Usaha UMKM';
+    const ownerDisplay = appState.profile.ownerName || comp.ownerName || 'Pemilik Usaha';
+    const profileBizDisplay = appState.profile.businessName || displayBizName;
 
-    // Header & Badges
-    document.getElementById('topbar-biz-name').textContent =
-      appState.profile.businessName || comp.businessName || 'Usaha UMKM';
+    // Header, Sidebar, Mobile Drawer & Badges
+    document.getElementById('topbar-biz-name').textContent = displayBizName;
     document.getElementById('topbar-period-tag').textContent = 'Periode: ' + (comp.periodLabel || '-');
-    document.getElementById('sidebar-user-label').textContent =
-      `${appState.profile.ownerName} • ${appState.profile.businessName}`;
-    document.getElementById('dash-greeting').textContent =
-      `Selamat bertugas, ${appState.profile.ownerName}`;
+    document.getElementById('sidebar-user-label').textContent = `${ownerDisplay} • ${profileBizDisplay}`;
+    document.getElementById('dash-greeting').textContent = `Selamat bertugas, ${ownerDisplay}`;
+
+    const drawerOwner = document.getElementById('drawer-user-owner');
+    const drawerBiz = document.getElementById('drawer-user-biz');
+    const drawerFav = document.getElementById('drawer-fav-badge');
+    const drawerHist = document.getElementById('drawer-hist-badge');
+    if (drawerOwner) drawerOwner.textContent = ownerDisplay;
+    if (drawerBiz) drawerBiz.textContent = profileBizDisplay;
+    if (drawerFav) drawerFav.textContent = appState.favorites.length;
+    if (drawerHist) drawerHist.textContent = appState.history.length;
 
     document.getElementById('nav-emp-badge').textContent = comp.employees.length;
     document.getElementById('nav-fav-badge').textContent = appState.favorites.length;
@@ -615,75 +738,83 @@
     // Step 1 Payroll Roster Table
     const tbody = document.getElementById('payroll-table-body');
     tbody.innerHTML = '';
-    comp.employees.forEach((emp) => {
-      const tr = document.createElement('tr');
-      if (emp.id === activeEmpId) tr.className = 'selected-row';
-      tr.style.cursor = 'pointer';
+    if (!comp.employees.length) {
+      const emptyTr = document.createElement('tr');
+      emptyTr.innerHTML = `<td colspan="6" class="text-subtle" style="text-align: center; padding: 24px 16px;">Belum ada karyawan dalam daftar gaji periode ini. Klik tombol <strong>+ Tambah Karyawan</strong> di kanan atas untuk mulai menghitung.</td>`;
+      tbody.appendChild(emptyTr);
+    } else {
+      comp.employees.forEach((emp) => {
+        const tr = document.createElement('tr');
+        if (emp.id === activeEmpId) tr.className = 'selected-row';
+        tr.style.cursor = 'pointer';
 
-      const tdName = document.createElement('td');
-      tdName.innerHTML = `<div style="font-weight: 600; color: var(--color-ink);">${escapeHtml(emp.name)}</div><div class="text-subtle" style="font-size: 12px;">${escapeHtml(emp.role)}</div>`;
+        const tdName = document.createElement('td');
+        const nameMarkup = emp.rawNameEmpty
+          ? `<span style="color: var(--color-ledger-brown); font-style: italic;">(Nama Belum Diisi)</span>`
+          : escapeHtml(emp.name);
+        tdName.innerHTML = `<div style="font-weight: 600; color: var(--color-ink);">${nameMarkup}</div><div class="text-subtle" style="font-size: 12px;">${escapeHtml(emp.role)}</div>`;
 
-      const tdDays = document.createElement('td');
-      tdDays.className = 'num-mono';
-      tdDays.innerHTML = `${emp.daysPresent} hr<div class="text-subtle" style="font-family: var(--font-sans); font-size: 11.5px;">${emp.tenureMonths} bln${emp.includeThr ? ' + THR' : ''}</div>`;
+        const tdDays = document.createElement('td');
+        tdDays.className = 'num-mono';
+        tdDays.innerHTML = `${emp.daysPresent} hr<div class="text-subtle" style="font-family: var(--font-sans); font-size: 11.5px;">${emp.tenureMonths} bln${emp.includeThr ? ' + THR' : ''}</div>`;
 
-      const tdGross = document.createElement('td');
-      tdGross.className = 'num-mono';
-      tdGross.textContent = formatRp(emp.grossPay);
+        const tdGross = document.createElement('td');
+        tdGross.className = 'num-mono';
+        tdGross.textContent = formatRp(emp.grossPay);
 
-      const tdCut = document.createElement('td');
-      tdCut.className = 'num-mono';
-      tdCut.style.color = 'var(--color-ledger-brown)';
-      tdCut.textContent = '- ' + formatRp(emp.totalDeductions);
+        const tdCut = document.createElement('td');
+        tdCut.className = 'num-mono';
+        tdCut.style.color = 'var(--color-ledger-brown)';
+        tdCut.textContent = '- ' + formatRp(emp.totalDeductions);
 
-      const tdNet = document.createElement('td');
-      tdNet.innerHTML = `<div class="num-mono" style="font-weight: 600; color: var(--color-network-green);">${formatRp(emp.takeHomePay)}</div><div class="text-subtle" style="font-size: 11px; max-width: 190px;">${escapeHtml(emp.terbilang)}</div>`;
+        const tdNet = document.createElement('td');
+        tdNet.innerHTML = `<div class="num-mono" style="font-weight: 600; color: var(--color-network-green);">${formatRp(emp.takeHomePay)}</div><div class="text-subtle" style="font-size: 11px; max-width: 190px;">${escapeHtml(emp.terbilang)}</div>`;
 
-      const tdAct = document.createElement('td');
-      const editBtn = document.createElement('button');
-      editBtn.type = 'button';
-      editBtn.className = 'btn btn-subtle btn-sm';
-      editBtn.style.marginRight = '4px';
-      editBtn.textContent = 'Edit';
-      editBtn.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        activeEmpId = emp.id;
-        populateEmployeeEditor();
-        renderAllCalculatedUI();
-      });
-
-      const delBtn = document.createElement('button');
-      delBtn.type = 'button';
-      delBtn.className = 'btn btn-subtle btn-sm';
-      delBtn.textContent = 'Hapus';
-      delBtn.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        if (appState.currentPeriod.employees.length <= 1) {
-          showToast('Minimal harus ada 1 baris karyawan dalam daftar gaji.');
-          return;
-        }
-        appState.currentPeriod.employees = appState.currentPeriod.employees.filter((x) => x.id !== emp.id);
-        if (activeEmpId === emp.id) {
-          activeEmpId = appState.currentPeriod.employees[0].id;
+        const tdAct = document.createElement('td');
+        const editBtn = document.createElement('button');
+        editBtn.type = 'button';
+        editBtn.className = 'btn btn-subtle btn-sm';
+        editBtn.style.marginRight = '4px';
+        editBtn.textContent = 'Edit';
+        editBtn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          activeEmpId = emp.id;
           populateEmployeeEditor();
-        }
-        renderAllCalculatedUI();
-        saveState();
-        showToast('Baris karyawan dihapus.');
+          renderAllCalculatedUI();
+        });
+
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'btn btn-subtle btn-sm';
+        delBtn.textContent = 'Hapus';
+        delBtn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          appState.currentPeriod.employees = appState.currentPeriod.employees.filter((x) => x.id !== emp.id);
+          if (!appState.currentPeriod.employees.length) {
+            activeEmpId = null;
+            populateEmployeeEditor();
+          } else if (activeEmpId === emp.id) {
+            activeEmpId = appState.currentPeriod.employees[0].id;
+            populateEmployeeEditor();
+          }
+          renderAllCalculatedUI();
+          saveState();
+          showToast('Baris karyawan dihapus.');
+        });
+
+        tdAct.appendChild(editBtn);
+        tdAct.appendChild(delBtn);
+
+        tr.addEventListener('click', () => {
+          activeEmpId = emp.id;
+          populateEmployeeEditor();
+          renderAllCalculatedUI();
+        });
+
+        tr.append(tdName, tdDays, tdGross, tdCut, tdNet, tdAct);
+        tbody.appendChild(tr);
       });
-
-      tdAct.appendChild(editBtn);
-      tdAct.appendChild(delBtn);
-
-      tr.addEventListener('click', () => {
-        activeEmpId = emp.id;
-        populateEmployeeEditor();
-        renderAllCalculatedUI();
-      });
-
-      tr.append(tdName, tdDays, tdGross, tdCut, tdNet, tdAct);
-      tbody.appendChild(tr);
-    });
+    }
 
     document.getElementById('step1-total-gross').textContent = formatRp(sum.payrollGrossTotal);
     document.getElementById('step1-total-cuts').textContent = '- ' + formatRp(sum.totalDeductionsAll);
@@ -691,13 +822,23 @@
     document.getElementById('step1-total-terbilang').textContent =
       'Terbilang Kas Gaji Bersih Tim: # ' + angkaKeTerbilang(sum.payrollTakeHomeTotal) + ' #';
 
-    // Update Active Employee Live Box
+    // Update Active Employee Live Box & Excess Deduction Warning
+    const warnEl = document.getElementById('emp-cut-warning');
     const activeComp = comp.employees.find((e) => e.id === activeEmpId) || comp.employees[0];
     if (activeComp) {
-      document.getElementById('emp-editor-heading').textContent = activeComp.name;
+      document.getElementById('emp-editor-heading').textContent = activeComp.rawNameEmpty ? 'Karyawan Baru' : activeComp.name;
       document.getElementById('emp-live-thp').textContent = formatRp(activeComp.takeHomePay);
       document.getElementById('emp-live-terbilang').textContent =
         'Terbilang: # ' + activeComp.terbilang + ' #';
+      if (warnEl) {
+        if (activeComp.totalDeductions > activeComp.grossPay) {
+          warnEl.textContent =
+            `Perhatian: Total potongan (${formatRp(activeComp.totalDeductions)}) melebihi Gaji Kotor (${formatRp(activeComp.grossPay)}). Sisa kasbon ${formatRp(activeComp.excessDeduction)} perlu dijadwalkan ke bulan depan.`;
+          warnEl.style.display = 'block';
+        } else {
+          warnEl.style.display = 'none';
+        }
+      }
       const thrExplain = document.getElementById('emp-thr-explain');
       if (activeComp.includeThr) {
         thrExplain.textContent =
@@ -710,6 +851,8 @@
             ? `Jika dicentang: berhak 1x Gaji Pokok (${formatRp(activeComp.baseSalary)}).`
             : `Jika dicentang: proporsional ${activeComp.tenureMonths}/12 x Gaji Pokok (${formatRp(Math.round((activeComp.tenureMonths / 12) * activeComp.baseSalary))}).`;
       }
+    } else if (warnEl) {
+      warnEl.style.display = 'none';
     }
 
     // Step 2 Sync & 8-Point Audit
@@ -740,20 +883,29 @@
       auditWrap.appendChild(item);
     });
 
-    // Step 3 Preview Dropdown & Sheets
+    // Step 3 Preview Dropdown & Sheets (always synced with activeEmpId)
     const sel = document.getElementById('preview-emp-select');
-    const prevSelected = sel.value || activeEmpId;
     sel.innerHTML = '';
-    comp.employees.forEach((e) => {
+    if (!comp.employees.length) {
       const opt = document.createElement('option');
-      opt.value = e.id;
-      opt.textContent = `${e.name} — ${e.role} (${formatRp(e.takeHomePay)})`;
+      opt.value = '';
+      opt.textContent = '-- Belum ada karyawan --';
       sel.appendChild(opt);
-    });
-    if (comp.employees.some((e) => e.id === prevSelected)) {
-      sel.value = prevSelected;
-    } else if (comp.employees[0]) {
-      sel.value = comp.employees[0].id;
+      sel.disabled = true;
+    } else {
+      sel.disabled = false;
+      comp.employees.forEach((e) => {
+        const opt = document.createElement('option');
+        opt.value = e.id;
+        opt.textContent = `${e.name} — ${e.role} (${formatRp(e.takeHomePay)})`;
+        sel.appendChild(opt);
+      });
+      if (activeEmpId && comp.employees.some((e) => e.id === activeEmpId)) {
+        sel.value = activeEmpId;
+      } else {
+        activeEmpId = comp.employees[0].id;
+        sel.value = activeEmpId;
+      }
     }
 
     renderStep3Previews(comp);
@@ -761,14 +913,22 @@
 
   function renderStep3Previews(comp) {
     const bizName = comp.businessName || appState.profile.businessName || 'Usaha UMKM';
-    const ownerName = appState.profile.ownerName || 'Pemilik Usaha';
+    const ownerName = comp.ownerName || appState.profile.ownerName || 'Pemilik Usaha';
     const city = comp.city || appState.profile.city || 'Indonesia';
     const selId = document.getElementById('preview-emp-select').value;
     const emp = comp.employees.find((e) => e.id === selId) || comp.employees[0];
     const sum = comp.summary;
 
     const slipEl = document.getElementById('preview-pane-slip');
-    if (emp) {
+    if (!emp) {
+      slipEl.innerHTML = `
+        <div class="doc-sheet-body" style="padding: 36px 24px; text-align: center;">
+          <div style="font-family: var(--font-mono); font-size: 12px; color: #706f6f;">PRATINJAU SLIP GAJI KARYAWAN</div>
+          <div style="font-weight: 600; font-size: 16px; color: #151515; margin-top: 8px;">Belum ada karyawan dalam daftar gaji periode ini.</div>
+          <div style="font-size: 13.5px; color: #706f6f; margin-top: 6px;">Kembali ke Langkah 1 dan klik tombol <strong>+ Tambah Karyawan</strong> untuk membuat slip gaji resmi.</div>
+        </div>
+      `;
+    } else {
       slipEl.innerHTML = `
         <div class="doc-sheet-header">
           <div>
@@ -823,12 +983,14 @@
 
           <div class="doc-sig-grid">
             <div>
-              <div style="font-size: 13px; color: #424242;">Disetujui oleh Pemilik / Keuangan,</div>
+              <div style="font-size: 12px; color: #706f6f;">&nbsp;</div>
+              <div style="font-size: 13px; color: #424242; margin-top: 2px;">Disetujui oleh Pemilik / HR,</div>
               <div style="height: 44px;"></div>
               <div style="font-weight: 600; color: #151515;">( ${escapeHtml(ownerName)} )</div>
             </div>
             <div>
-              <div style="font-size: 13px; color: #424242;">${escapeHtml(city)}, ${escapeHtml(formatIndoDate(comp.payDate))} &mdash; Penerima,</div>
+              <div style="font-size: 12px; color: #706f6f;">${escapeHtml(city)}, ${escapeHtml(formatIndoDate(comp.payDate))}</div>
+              <div style="font-size: 13px; color: #424242; margin-top: 2px;">Penerima Upah,</div>
               <div style="height: 44px;"></div>
               <div style="font-weight: 600; color: #151515;">( ${escapeHtml(emp.name)} )</div>
             </div>
@@ -893,6 +1055,21 @@
     `;
   }
 
+  function syncQuickCalcFromPeriod() {
+    if (!appState || !appState.currentPeriod) return;
+    const comp = computeFullPeriod(appState.currentPeriod);
+    const s = comp.summary;
+    const elOmzet = document.getElementById('qc-omzet');
+    const elHpp = document.getElementById('qc-hpp');
+    const elPayroll = document.getElementById('qc-payroll');
+    const elOpex = document.getElementById('qc-opex');
+    if (elOmzet) elOmzet.value = s.totalRevenue;
+    if (elHpp) elHpp.value = s.hppCost;
+    if (elPayroll) elPayroll.value = s.payrollGrossTotal;
+    if (elOpex) elOpex.value = s.nonPayrollOpex;
+    updateQuickCalculator();
+  }
+
   // Dashboard 30s Quick Calculator
   function updateQuickCalculator() {
     const omzet = Math.max(0, Number(document.getElementById('qc-omzet').value) || 0);
@@ -953,7 +1130,8 @@
       tag.textContent = 'RAWAN GAJI TIPIS (> 30%)';
     }
 
-    const biz = (appState && appState.profile.businessName) || 'Usaha UMKM';
+    const biz =
+      (appState && (appState.currentPeriod.businessName || appState.profile.businessName)) || 'Usaha UMKM';
     document.getElementById('ksb-clause-box').value = [
       `BERITA ACARA PINJAMAN KASBON — ${biz.toUpperCase()}`,
       `Nama Karyawan: ${name}`,
@@ -1125,6 +1303,7 @@
   // History View
   function renderHistory() {
     const wrap = document.getElementById('history-list');
+    if (!wrap) return;
     wrap.innerHTML = '';
     if (!appState.history.length) {
       wrap.innerHTML = `<div class="card-ice">Belum ada riwayat periode tersimpan. Di Langkah 3 Wizard, klik tombol <strong>Simpan Periode ke Riwayat Laporan</strong>.</div>`;
@@ -1134,6 +1313,8 @@
     appState.history.forEach((per) => {
       const comp = computeFullPeriod(per);
       const s = comp.summary;
+      const histOwner = per.ownerName || appState.profile.ownerName || 'Pemilik Usaha';
+      const savedTimeStr = formatSavedTimestamp(per.savedAt);
       const card = document.createElement('div');
       card.className = 'card';
       card.innerHTML = `
@@ -1141,6 +1322,9 @@
           <div>
             <div class="eyebrow-mono">${escapeHtml(comp.presetLabel || 'UMKM')} &bull; PERIODE ${escapeHtml(comp.periodLabel)}</div>
             <h3 class="title-section" style="margin-top: 4px;">${escapeHtml(comp.businessName)}</h3>
+            <div class="text-subtle" style="margin-top: 3px; font-size: 12.5px;">
+              Pemilik: <strong>${escapeHtml(histOwner)}</strong> &bull; Disimpan: <span class="num-mono" style="font-size: 12px;">${escapeHtml(savedTimeStr)}</span>
+            </div>
             <div class="text-subtle" style="margin-top: 4px;">
               ${comp.employees.length} Karyawan &bull; Total Gaji: <strong class="num-mono">${formatRp(s.payrollGrossTotal)}</strong> &bull; Laba Bersih: <strong class="num-mono" style="color: var(--color-network-green);">${formatRp(s.netProfit)}</strong> &bull; Aman KUR: <strong class="num-mono">${formatRp(s.kurMaxInstallment)}/bln</strong>
             </div>
@@ -1156,11 +1340,13 @@
 
       card.querySelector(`[data-hist-open="${per.id}"]`).addEventListener('click', () => {
         appState.currentPeriod = cloneDeep(per);
+        appState.currentPeriod.ownerName = histOwner;
         activeEmpId = appState.currentPeriod.employees[0] ? appState.currentPeriod.employees[0].id : null;
         syncPeriodMetaInputs();
         syncCashflowInputs();
         populateEmployeeEditor();
         renderPresetButtons();
+        syncQuickCalcFromPeriod();
         renderAllCalculatedUI();
         saveState();
         switchView('wizard');
@@ -1169,11 +1355,28 @@
       });
 
       card.querySelector(`[data-hist-slip="${per.id}"]`).addEventListener('click', () => {
-        window.GajiKasExporter.exportPayslipPdf(comp, appState.profile, 'all');
+        if (!comp.employees.length) {
+          showToast('Daftar karyawan pada laporan ini kosong.');
+          return;
+        }
+        window.GajiKasExporter.exportPayslipPdf(
+          comp,
+          { ...appState.profile, ownerName: histOwner, businessName: comp.businessName, city: comp.city },
+          'all'
+        );
       });
 
       card.querySelector(`[data-hist-pl="${per.id}"]`).addEventListener('click', () => {
-        window.GajiKasExporter.exportProfitLossPdf(comp, appState.profile);
+        if (!comp.employees.length) {
+          showToast('Daftar karyawan pada laporan ini kosong.');
+          return;
+        }
+        window.GajiKasExporter.exportProfitLossPdf(comp, {
+          ...appState.profile,
+          ownerName: histOwner,
+          businessName: comp.businessName,
+          city: comp.city
+        });
       });
 
       card.querySelector(`[data-hist-del="${per.id}"]`).addEventListener('click', () => {
@@ -1189,10 +1392,27 @@
   }
 
   function populateSettingsForm() {
+    if (!appState || !appState.profile) return;
     document.getElementById('set-owner').value = appState.profile.ownerName || '';
     document.getElementById('set-biz').value = appState.profile.businessName || '';
     document.getElementById('set-city').value = appState.profile.city || '';
     document.getElementById('set-email').value = appState.profile.email || '';
+  }
+
+  function renderAll() {
+    renderPresetButtons();
+    syncPeriodMetaInputs();
+    syncCashflowInputs();
+    populateEmployeeEditor();
+    populateSettingsForm();
+    renderLibraryCatPills();
+    renderLibrary();
+    renderFavorites();
+    renderHistory();
+    syncQuickCalcFromPeriod();
+    updateKasbonTool();
+    updateThrLemburTool();
+    renderAllCalculatedUI();
   }
 
   function escapeHtml(str) {
@@ -1218,7 +1438,7 @@
   }
 
   // Unlock App Workspace
-  function unlockWorkspace(validSession) {
+  function unlockWorkspace(validSession, isFreshLogin = false) {
     session = validSession;
     let loaded = null;
     try {
@@ -1228,9 +1448,39 @@
 
     if (loaded && loaded.currentPeriod && Array.isArray(loaded.currentPeriod.employees)) {
       appState = loaded;
+      appState.profile = appState.profile || {
+        ownerName: 'Pemilik Usaha',
+        businessName: loaded.currentPeriod.businessName || 'Usaha UMKM',
+        city: loaded.currentPeriod.city || 'Indonesia',
+        email: ''
+      };
+      appState.history = Array.isArray(appState.history) ? appState.history : [];
+      appState.favorites = Array.isArray(appState.favorites) ? appState.favorites : [];
+
+      const prevOwner = appState.profile.ownerName || '';
+      const prevBiz = appState.profile.businessName || '';
+      const prevEmail = appState.profile.email || '';
+      const identityChanged =
+        isFreshLogin ||
+        (validSession.ownerName && validSession.ownerName !== prevOwner) ||
+        (validSession.businessName && validSession.businessName !== prevBiz) ||
+        (validSession.email && validSession.email !== prevEmail);
+
       if (validSession.ownerName) appState.profile.ownerName = validSession.ownerName;
       if (validSession.businessName) appState.profile.businessName = validSession.businessName;
       if (validSession.email) appState.profile.email = validSession.email;
+
+      if (identityChanged) {
+        if (validSession.businessName) {
+          appState.currentPeriod.businessName = validSession.businessName;
+        }
+        if (validSession.ownerName) {
+          appState.currentPeriod.ownerName = validSession.ownerName;
+        }
+        saveState();
+      } else if (!appState.currentPeriod.ownerName) {
+        appState.currentPeriod.ownerName = appState.profile.ownerName || 'Pemilik Usaha';
+      }
     } else {
       appState = buildDefaultState(validSession);
       saveState();
@@ -1241,16 +1491,12 @@
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app-shell').style.display = 'grid';
 
-    renderPresetButtons();
-    syncPeriodMetaInputs();
-    syncCashflowInputs();
-    populateEmployeeEditor();
-    renderLibraryCatPills();
-    renderLibrary();
-    updateQuickCalculator();
-    updateKasbonTool();
-    updateThrLemburTool();
-    renderAllCalculatedUI();
+    renderAll();
+
+    if (isFreshLogin) {
+      switchView('dashboard');
+      activateWizardDomStep(1);
+    }
   }
 
   function handleLogout() {
@@ -1261,7 +1507,134 @@
     closeMobileDrawer();
     document.getElementById('app-shell').style.display = 'none';
     document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('login-owner').value = '';
+    document.getElementById('login-business').value = '';
+    document.getElementById('login-email').value = '';
     document.getElementById('login-code').value = '';
+    const errEl = document.getElementById('login-error');
+    if (errEl) {
+      errEl.textContent = '';
+      errEl.style.display = 'none';
+    }
+  }
+
+  function adjustPeriodPayrollToTarget(targetPayroll) {
+    const cleanTarget = Math.max(0, Math.round(Number(targetPayroll) || 0));
+    const emps = appState.currentPeriod.employees || [];
+    if (!emps.length && cleanTarget > 0) {
+      const created = {
+        id: 'emp-' + Date.now(),
+        name: 'Staf Operasional 1',
+        role: 'Staf Operasional',
+        tenureMonths: 12,
+        daysPresent: 26,
+        baseSalary: cleanTarget,
+        dailyAllowanceRate: 0,
+        overtimeHours: 0,
+        overtimeMethod: 'depnaker',
+        overtimeRate: 20000,
+        bonus: 0,
+        includeThr: false,
+        kasbonCut: 0,
+        lateCut: 0,
+        bpjsCut: 0
+      };
+      appState.currentPeriod.employees = [created];
+      activeEmpId = created.id;
+      return true;
+    }
+
+    const beforeComp = computeFullPeriod(appState.currentPeriod);
+    const curTotal = beforeComp.summary.payrollGrossTotal;
+    if (curTotal === cleanTarget) return false;
+
+    if (!emps.length) return false;
+
+    if (cleanTarget === 0) {
+      emps.forEach((raw) => {
+        raw.baseSalary = 0;
+        raw.dailyAllowanceRate = 0;
+        raw.overtimeHours = 0;
+        raw.bonus = 0;
+        raw.includeThr = false;
+      });
+      return true;
+    }
+
+    const weights = beforeComp.employees.map((ce) => (curTotal > 0 ? ce.grossPay / curTotal : 1 / emps.length));
+    let runningSum = 0;
+    const targetPerEmp = emps.map((_, idx) => {
+      if (idx === emps.length - 1) return Math.max(0, cleanTarget - runningSum);
+      const share = Math.round(cleanTarget * weights[idx]);
+      runningSum += share;
+      return share;
+    });
+
+    emps.forEach((raw, idx) => {
+      const empTarget = targetPerEmp[idx];
+      let ce = computeEmployee(raw);
+      let fixedAdd =
+        ce.allowanceTotal + (ce.overtimeMethod === 'flat' ? ce.overtimeTotal : 0) + ce.bonus;
+
+      if (empTarget < fixedAdd) {
+        raw.bonus = 0;
+        raw.overtimeHours = 0;
+        if (ce.daysPresent > 0) {
+          raw.dailyAllowanceRate = Math.min(
+            Number(raw.dailyAllowanceRate) || 0,
+            Math.floor((empTarget * 0.25) / ce.daysPresent)
+          );
+        } else {
+          raw.dailyAllowanceRate = 0;
+        }
+        ce = computeEmployee(raw);
+        fixedAdd =
+          ce.allowanceTotal + (ce.overtimeMethod === 'flat' ? ce.overtimeTotal : 0) + ce.bonus;
+      }
+
+      const remForBase = Math.max(0, empTarget - fixedAdd);
+      const otFactor = ce.overtimeMethod === 'depnaker' ? ce.overtimeHours / 173 : 0;
+      const thrFactor = ce.includeThr
+        ? ce.tenureMonths >= 12
+          ? 1
+          : ce.tenureMonths >= 1
+            ? ce.tenureMonths / 12
+            : 0
+        : 0;
+      const mult = 1 + otFactor + thrFactor;
+      const approxBase = Math.max(0, Math.round(remForBase / mult));
+      raw.baseSalary = approxBase;
+
+      let bestBase = approxBase;
+      let bestDiff = empTarget - computeEmployee(raw).grossPay;
+      for (let delta = -6; delta <= 6; delta++) {
+        const cand = Math.max(0, approxBase + delta);
+        raw.baseSalary = cand;
+        const diff = empTarget - computeEmployee(raw).grossPay;
+        if (diff === 0) {
+          bestBase = cand;
+          bestDiff = 0;
+          break;
+        }
+        if (diff > 0 && (bestDiff <= 0 || diff < bestDiff)) {
+          bestBase = cand;
+          bestDiff = diff;
+        }
+      }
+      raw.baseSalary = bestBase;
+      const residual = empTarget - computeEmployee(raw).grossPay;
+      if (residual !== 0) {
+        if (residual < 0 && raw.baseSalary > 0) {
+          raw.baseSalary = Math.max(0, raw.baseSalary - 1);
+        }
+        const rem2 = empTarget - computeEmployee(raw).grossPay;
+        if (rem2 > 0) {
+          raw.bonus = Math.max(0, (Number(raw.bonus) || 0) + rem2);
+        }
+      }
+    });
+
+    return true;
   }
 
   // Event Listeners Initialization
@@ -1300,14 +1673,14 @@
       let finalBiz = rawBiz;
       let finalEmail = rawEmail;
 
-      if (role === 'dev') {
+      if (role === 'creator') {
+        finalOwner = rawOwner || 'Nifari (Kreator Utama)';
+        finalBiz = rawBiz || 'Nifari Studio (Owner)';
+        finalEmail = rawEmail || 'creator@nifari.id';
+      } else if (role === 'dev') {
         finalOwner = rawOwner || 'Tim Developer';
-        finalBiz = rawBiz || 'Usaha Contoh Studio';
-        finalEmail = rawEmail || 'dev@gajikas.id';
-      } else if (role === 'creator') {
-        finalOwner = rawOwner || 'Pemilik Utama';
         finalBiz = rawBiz || 'Studio GajiKas';
-        finalEmail = rawEmail || 'akses@gajikas.id';
+        finalEmail = rawEmail || 'dev@gajikas.id';
       } else {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!rawOwner || !rawBiz || !emailRegex.test(rawEmail)) {
@@ -1328,7 +1701,7 @@
         localStorage.setItem(STORAGE_KEYS.session, JSON.stringify(newSession));
       } catch (_e) {}
 
-      unlockWorkspace(newSession);
+      unlockWorkspace(newSession, true);
     });
 
     // 2. Navigation Links & Stat Cards
@@ -1367,9 +1740,10 @@
     });
 
     document.getElementById('btn-send-to-wizard').addEventListener('click', () => {
-      const omzet = Math.max(0, Number(document.getElementById('qc-omzet').value) || 0);
-      const hpp = Math.max(0, Number(document.getElementById('qc-hpp').value) || 0);
-      const opex = Math.max(0, Number(document.getElementById('qc-opex').value) || 0);
+      const omzet = Math.max(0, Math.round(Number(document.getElementById('qc-omzet').value) || 0));
+      const hpp = Math.max(0, Math.round(Number(document.getElementById('qc-hpp').value) || 0));
+      const payroll = Math.max(0, Math.round(Number(document.getElementById('qc-payroll').value) || 0));
+      const opex = Math.max(0, Math.round(Number(document.getElementById('qc-opex').value) || 0));
 
       appState.currentPeriod.cashflow.cashRevenue = Math.round(omzet * 0.6);
       appState.currentPeriod.cashflow.nonCashRevenue = omzet - Math.round(omzet * 0.6);
@@ -1377,15 +1751,26 @@
       appState.currentPeriod.cashflow.rentCost = Math.round(opex * 0.45);
       appState.currentPeriod.cashflow.utilityCost = Math.round(opex * 0.25);
       appState.currentPeriod.cashflow.suppliesCost = Math.round(opex * 0.15);
-      appState.currentPeriod.cashflow.transportCost = opex - Math.round(opex * 0.45) - Math.round(opex * 0.25) - Math.round(opex * 0.15);
+      appState.currentPeriod.cashflow.transportCost =
+        opex - Math.round(opex * 0.45) - Math.round(opex * 0.25) - Math.round(opex * 0.15);
       appState.currentPeriod.cashflow.marketingCost = 0;
       appState.currentPeriod.cashflow.otherCost = 0;
 
+      const payrollAdjusted = adjustPeriodPayrollToTarget(payroll);
+
       syncCashflowInputs();
+      populateEmployeeEditor();
+      renderAllCalculatedUI();
       saveState();
       switchView('wizard');
-      switchWizardStep(2);
-      showToast('Angka Kalkulator Cepat berhasil dikirim ke Buku Kas Wizard.');
+      const advanced = switchWizardStep(2);
+      if (advanced) {
+        showToast(
+          payrollAdjusted
+            ? `Angka Kalkulator Cepat dikirim ke Wizard (beban gaji tim disesuaikan ke ${formatRp(payroll)}).`
+            : 'Angka Kalkulator Cepat berhasil dikirim ke Buku Kas Wizard.'
+        );
+      }
     });
 
     // Wizard Steps Navigation
@@ -1423,7 +1808,7 @@
         dailyAllowanceRate: 20000,
         overtimeHours: 0,
         overtimeMethod: 'depnaker',
-        overtimeRate: 15000,
+        overtimeRate: 20000,
         bonus: 0,
         includeThr: false,
         kasbonCut: 0,
@@ -1450,7 +1835,6 @@
       raw.baseSalary = Number(document.getElementById('emp-base').value) || 0;
       raw.dailyAllowanceRate = Number(document.getElementById('emp-allowance').value) || 0;
       raw.overtimeHours = Number(document.getElementById('emp-ot-hours').value) || 0;
-      raw.overtimeMethod = document.getElementById('emp-ot-method').value;
       if (raw.overtimeMethod === 'flat') {
         raw.overtimeRate = Number(document.getElementById('emp-ot-rate').value) || 0;
       }
@@ -1460,10 +1844,30 @@
       raw.lateCut = Number(document.getElementById('emp-late').value) || 0;
       raw.bpjsCut = Number(document.getElementById('emp-bpjs').value) || 0;
 
-      updateOvertimeRateVisibility();
+      if (raw.overtimeMethod !== 'flat') {
+        updateOvertimeRateVisibility();
+      }
       renderAllCalculatedUI();
       saveState();
     }
+
+    document.getElementById('emp-ot-method').addEventListener('change', (ev) => {
+      const raw = getActiveEmployeeRaw();
+      if (!raw) return;
+      const nextMethod = ev.target.value === 'flat' ? 'flat' : 'depnaker';
+      raw.overtimeMethod = nextMethod;
+      const rateInput = document.getElementById('emp-ot-rate');
+      if (nextMethod === 'flat') {
+        const savedFlat = Number(raw.overtimeRate) > 0 ? Math.round(Number(raw.overtimeRate)) : 20000;
+        raw.overtimeRate = savedFlat;
+        rateInput.value = savedFlat;
+        rateInput.disabled = false;
+      } else {
+        updateOvertimeRateVisibility();
+      }
+      renderAllCalculatedUI();
+      saveState();
+    });
 
     [
       'emp-name',
@@ -1473,7 +1877,6 @@
       'emp-base',
       'emp-allowance',
       'emp-ot-hours',
-      'emp-ot-method',
       'emp-ot-rate',
       'emp-bonus',
       'emp-thr-toggle',
@@ -1506,62 +1909,118 @@
       });
     });
 
-    // Step 3 Preview Tabs & Employee Select
+    // Step 3 Preview Tabs & Employee Select (picker remains visible on both tabs)
     document.querySelectorAll('[data-prev-mode]').forEach((btn) => {
       btn.addEventListener('click', () => {
         activePreviewMode = btn.getAttribute('data-prev-mode');
         const isSlip = activePreviewMode === 'slip';
         document.getElementById('preview-pane-slip').style.display = isSlip ? 'block' : 'none';
         document.getElementById('preview-pane-pl').style.display = isSlip ? 'none' : 'block';
-        document.getElementById('preview-emp-picker-wrap').style.display = isSlip ? 'flex' : 'none';
+        document.getElementById('preview-emp-picker-wrap').style.display = 'flex';
+        const pickerLbl = document.getElementById('preview-emp-picker-label');
+        if (pickerLbl) {
+          pickerLbl.textContent = isSlip
+            ? 'Karyawan Terpilih (Slip & WA PNG):'
+            : 'Karyawan untuk Ekspor WA / Slip:';
+        }
 
         document.getElementById('tab-prev-slip').className = isSlip ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
         document.getElementById('tab-prev-pl').className = !isSlip ? 'btn btn-primary btn-sm' : 'btn btn-outline btn-sm';
       });
     });
 
-    document.getElementById('preview-emp-select').addEventListener('change', () => {
+    document.getElementById('preview-emp-select').addEventListener('change', (ev) => {
+      if (ev.target.value) {
+        activeEmpId = ev.target.value;
+        populateEmployeeEditor();
+      }
       renderStep3Previews(computeFullPeriod(appState.currentPeriod));
     });
 
     // Step 3: 4 Genuine File Exports + Save History
+    function buildExportBusinessInfo(comp) {
+      return {
+        ...appState.profile,
+        ownerName: comp.ownerName || appState.profile.ownerName || 'Pemilik Usaha',
+        businessName: comp.businessName || appState.profile.businessName || 'Usaha UMKM',
+        city: comp.city || appState.profile.city || 'Indonesia'
+      };
+    }
+
     document.getElementById('btn-export-slip-pdf').addEventListener('click', () => {
       const comp = computeFullPeriod(appState.currentPeriod);
+      if (!comp.employees.length) {
+        showToast('Daftar karyawan masih kosong. Tambahkan minimal 1 karyawan terlebih dahulu.');
+        return;
+      }
       const scope = document.getElementById('pdf-slip-scope').value;
       const targetId = scope === 'selected' ? document.getElementById('preview-emp-select').value : 'all';
-      window.GajiKasExporter.exportPayslipPdf(comp, appState.profile, targetId);
+      window.GajiKasExporter.exportPayslipPdf(comp, buildExportBusinessInfo(comp), targetId);
       showToast('Slip Gaji Resmi (.PDF A4) berhasil diunduh.');
     });
 
     document.getElementById('btn-export-pl-pdf').addEventListener('click', () => {
       const comp = computeFullPeriod(appState.currentPeriod);
-      window.GajiKasExporter.exportProfitLossPdf(comp, appState.profile);
+      if (!comp.employees.length) {
+        showToast('Daftar karyawan masih kosong. Tambahkan minimal 1 karyawan terlebih dahulu.');
+        return;
+      }
+      window.GajiKasExporter.exportProfitLossPdf(comp, buildExportBusinessInfo(comp));
       showToast('Laporan Laba-Rugi KUR (.PDF A4) berhasil diunduh.');
     });
 
     document.getElementById('btn-export-wa-png').addEventListener('click', async () => {
       const comp = computeFullPeriod(appState.currentPeriod);
+      if (!comp.employees.length) {
+        showToast('Daftar karyawan masih kosong. Tambahkan minimal 1 karyawan terlebih dahulu.');
+        return;
+      }
       const selId = document.getElementById('preview-emp-select').value;
       const emp = comp.employees.find((e) => e.id === selId) || comp.employees[0];
       if (!emp) return;
-      await window.GajiKasExporter.exportPayslipWaPng(emp, comp, appState.profile);
+      await window.GajiKasExporter.exportPayslipWaPng(emp, comp, buildExportBusinessInfo(comp));
       showToast('Kartu Slip Gaji WA (.PNG) berhasil diunduh.');
     });
 
     document.getElementById('btn-export-csv').addEventListener('click', () => {
       const comp = computeFullPeriod(appState.currentPeriod);
-      window.GajiKasExporter.exportPayrollAndPlCsv(comp, appState.profile);
+      if (!comp.employees.length) {
+        showToast('Daftar karyawan masih kosong. Tambahkan minimal 1 karyawan terlebih dahulu.');
+        return;
+      }
+      window.GajiKasExporter.exportPayrollAndPlCsv(comp, buildExportBusinessInfo(comp));
       showToast('Rekap Gaji & Laba-Rugi (.CSV Excel) berhasil diunduh.');
     });
 
     document.getElementById('btn-save-period').addEventListener('click', () => {
       const snap = cloneDeep(appState.currentPeriod);
-      snap.id = 'hist-' + Date.now();
+      snap.ownerName = snap.ownerName || appState.profile.ownerName || 'Pemilik Usaha';
+      snap.businessName = String(snap.businessName || appState.profile.businessName || 'Usaha UMKM').trim();
+      snap.periodLabel = String(snap.periodLabel || '-').trim();
       snap.savedAt = new Date().toISOString();
+
+      const norm = (s) => String(s || '').trim().toLowerCase();
+      const existingIdx = appState.history.findIndex(
+        (h) => norm(h.businessName) === norm(snap.businessName) && norm(h.periodLabel) === norm(snap.periodLabel)
+      );
+
+      let wasUpdated = false;
+      if (existingIdx >= 0) {
+        snap.id = appState.history[existingIdx].id || 'hist-' + Date.now();
+        appState.history.splice(existingIdx, 1);
+        wasUpdated = true;
+      } else {
+        snap.id = 'hist-' + Date.now();
+      }
       appState.history.unshift(snap);
       saveState();
+      renderHistory();
       renderAllCalculatedUI();
-      showToast('Periode "' + snap.periodLabel + '" disimpan ke Riwayat Laporan.');
+      showToast(
+        wasUpdated
+          ? 'Laporan periode "' + snap.periodLabel + '" (' + snap.businessName + ') diperbarui di Riwayat Laporan.'
+          : 'Periode "' + snap.periodLabel + '" disimpan ke Riwayat Laporan.'
+      );
     });
 
     // Standalone Tools Events
@@ -1609,6 +2068,7 @@
       appState.profile.businessName = document.getElementById('set-biz').value.trim() || 'Usaha UMKM';
       appState.profile.city = document.getElementById('set-city').value.trim() || 'Indonesia';
       appState.profile.email = document.getElementById('set-email').value.trim();
+      appState.currentPeriod.ownerName = appState.profile.ownerName;
       appState.currentPeriod.businessName = appState.profile.businessName;
       appState.currentPeriod.city = appState.profile.city;
 
@@ -1621,8 +2081,7 @@
         } catch (_e) {}
       }
 
-      syncPeriodMetaInputs();
-      renderAllCalculatedUI();
+      renderAll();
       saveState();
       showToast('Profil usaha berhasil diperbarui.');
     });
@@ -1656,13 +2115,19 @@
             return;
           }
           appState = restored;
+          appState.profile = appState.profile || {
+            ownerName: restored.currentPeriod.ownerName || 'Pemilik Usaha',
+            businessName: restored.currentPeriod.businessName || 'Usaha UMKM',
+            city: restored.currentPeriod.city || 'Indonesia',
+            email: ''
+          };
+          appState.history = Array.isArray(appState.history) ? appState.history : [];
+          appState.favorites = Array.isArray(appState.favorites) ? appState.favorites : [];
+          if (!appState.currentPeriod.ownerName) {
+            appState.currentPeriod.ownerName = appState.profile.ownerName || 'Pemilik Usaha';
+          }
           activeEmpId = appState.currentPeriod.employees[0] ? appState.currentPeriod.employees[0].id : null;
-          syncPeriodMetaInputs();
-          syncCashflowInputs();
-          populateEmployeeEditor();
-          populateSettingsForm();
-          renderPresetButtons();
-          renderAllCalculatedUI();
+          renderAll();
           saveState();
           showToast('Data usaha & riwayat berhasil dipulihkan.');
         } catch (_err) {
@@ -1696,7 +2161,7 @@
       if (rawSession) {
         const parsed = JSON.parse(rawSession);
         if (parsed && classifyLicenseHash(parsed.validHash)) {
-          unlockWorkspace(parsed);
+          unlockWorkspace(parsed, false);
           return;
         }
       }
