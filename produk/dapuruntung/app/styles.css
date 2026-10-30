@@ -268,6 +268,12 @@ textarea.input-pill {
   border-color: transparent;
 }
 
+[data-theme="dark"] .pill-tag-graphite {
+  background-color: #f2f2f3;
+  color: #141517;
+  border-color: transparent;
+}
+
 /* Cards — Strict 26px Radius, Flat Surface */
 .card-fog {
   background-color: var(--bg-fog);
@@ -331,7 +337,7 @@ textarea.input-pill {
 
 .login-rings-preview {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -743,6 +749,18 @@ textarea.input-pill {
   padding-right: 14px;
 }
 
+.mob-ing-label {
+  display: none;
+}
+
+.ing-col-cost-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
 .icon-del-btn {
   width: 34px;
   height: 34px;
@@ -975,6 +993,12 @@ textarea.input-pill {
   z-index: 300;
 }
 
+[data-theme="dark"] .toast-pill {
+  background-color: #f2f2f3;
+  color: #141517;
+  border: 1.5px solid var(--border-strong);
+}
+
 /* MOBILE BOTTOM TAB BAR (Foodnoms Tab Bar Pattern) */
 .mobile-topbar {
   display: none;
@@ -998,13 +1022,17 @@ textarea.input-pill {
   background-color: var(--bg-card);
   padding: 24px 18px;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 20px;
 }
 
 /* RESPONSIVE RULES (<= 1024px & 390px HP) */
 @media (max-width: 1040px) {
   .login-shell,
   .dash-split {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .kpi-grid,
   .rings-grid {
@@ -1022,6 +1050,17 @@ textarea.input-pill {
   }
   .sidebar {
     display: none;
+  }
+  .btn {
+    white-space: normal;
+    text-align: center;
+  }
+  .mobile-topbar .btn {
+    white-space: nowrap;
+  }
+  .wiz-go-step,
+  #wiz-save-history-bottom {
+    width: 100%;
   }
   .mobile-topbar {
     display: flex;
@@ -1048,7 +1087,7 @@ textarea.input-pill {
   .audit-grid,
   .export-cards-grid,
   .lib-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .kpi-grid,
   .rings-grid {
@@ -1089,8 +1128,8 @@ textarea.input-pill {
   }
   .ing-table tr {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px;
     background-color: var(--bg-card);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-cards);
@@ -1102,15 +1141,21 @@ textarea.input-pill {
     border: none;
     padding: 0;
     border-radius: 0;
+    min-width: 0;
+  }
+  .mob-ing-label {
+    display: block;
+    font-family: var(--font-micro);
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-bottom: 4px;
   }
   .ing-table td.ing-col-name {
     grid-column: 1 / -1;
   }
   .ing-table td.ing-col-cost {
     grid-column: 1 / -1;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
     padding-top: 8px;
     border-top: 1px solid var(--border-subtle);
   }

@@ -50,6 +50,11 @@
 
   function normalizePdfAscii(str) {
     return String(str || '')
+      .replace(/\u2022/g, '-')
+      .replace(/\u2192/g, '->')
+      .replace(/\u2190/g, '<-')
+      .replace(/\u2264/g, '<=')
+      .replace(/\u2265/g, '>=')
       .replace(/[\u2018\u2019]/g, "'")
       .replace(/[\u201C\u201D]/g, '"')
       .replace(/[\u2013\u2014]/g, '-')
@@ -171,15 +176,17 @@
     let cmds = pages[0];
     let y = 795;
 
-    const shopName = shopInfo.shopName || 'Dapur Kuliner Mandiri';
-    const ownerName = shopInfo.ownerName || 'Kepala Dapur';
-    const shopCity = shopInfo.city || 'Indonesia';
+    const shopName = (shopInfo.shopName || '').trim() || 'Dapur Kuliner Mandiri';
+    const ownerName = (shopInfo.ownerName || '').trim() || 'Kepala Dapur';
+    const shopCity = (shopInfo.city || '').trim() || 'Indonesia';
     const dateStr = formatIndoDate();
 
     function ensureSpace(needPt) {
       if (y - needPt < 55) {
         cmds = [];
         pages.push(cmds);
+        cmds.push('0.184 0.184 0.184 rg');
+        cmds.push('0.88 0.88 0.88 RG 0.4 w');
         y = 795;
       }
     }
@@ -188,7 +195,7 @@
     cmds.push('0.184 0.184 0.184 rg 36 742 523 64 re f');
     cmds.push('1 0.329 0.024 rg 36 738 523 4 re f');
     cmds.push('1 1 1 rg');
-    const hTitle = wrapPdfByWidth('KARTU STANDAR RESEP (SOP GRAMASI & HPP DAPUR)', 360, 12.5, true)[0];
+    const hTitle = wrapPdfByWidth('KARTU STANDAR RESEP (SOP GRAMASI & HPP DAPUR)', 495, 12.5, true)[0];
     cmds.push(`BT /F2 12.5 Tf 48 784 Td (${sanitizePdf(hTitle)}) Tj ET`);
     const subShop = wrapPdfByWidth(`${shopName} | ${shopCity} | Tanggal Cetak: ${dateStr}`, 495, 9, false)[0];
     cmds.push(`BT /F1 9 Tf 48 767 Td (${sanitizePdf(subShop)}) Tj ET`);
@@ -202,7 +209,7 @@
     const boxW = 124;
     const summaryMetrics = [
       { label: 'HASIL 1 RESEP', val: `${calc.batchPortions} Porsi`, sub: 'Takaran Baku' },
-      { label: 'HPP BAHAN / PORSI', val: formatRp(calc.rawCostPerPortion), sub: `Termasuk Susut Yield` },
+      { label: 'HPP BAHAN / PORSI', val: formatRp(calc.rawCostPerPortion), sub: 'Termasuk Susut Yield' },
       { label: 'KEMASAN + GAS', val: formatRp(calc.packagingPerPortion + calc.gasUtilityPerPortion), sub: 'Beban per Porsi' },
       { label: 'TOTAL HPP BERSIH', val: formatRp(calc.totalHppPerPortion), sub: `Rasio ${calc.offlineFoodCostPct.toFixed(1)}% Offline` }
     ];
@@ -215,9 +222,11 @@
       cmds.push('0.45 0.45 0.45 rg');
       cmds.push(`BT /F2 7.5 Tf ${bx + 8} ${y - 13} Td (${sanitizePdf(m.label)}) Tj ET`);
       cmds.push(i === 3 ? '0 0.702 0.247 rg' : '0.184 0.184 0.184 rg');
-      cmds.push(`BT /F2 10.5 Tf ${bx + 8} ${y - 28} Td (${sanitizePdf(m.val)}) Tj ET`);
+      const fitVal = wrapPdfByWidth(m.val, 108, 10.5, true)[0];
+      cmds.push(`BT /F2 10.5 Tf ${bx + 8} ${y - 28} Td (${sanitizePdf(fitVal)}) Tj ET`);
       cmds.push('0.45 0.45 0.45 rg');
-      cmds.push(`BT /F1 7.5 Tf ${bx + 8} ${y - 40} Td (${sanitizePdf(m.sub)}) Tj ET`);
+      const fitSub = wrapPdfByWidth(m.sub, 108, 7.5, false)[0];
+      cmds.push(`BT /F1 7.5 Tf ${bx + 8} ${y - 40} Td (${sanitizePdf(fitSub)}) Tj ET`);
     });
 
     y -= 64;
@@ -232,7 +241,7 @@
     cmds.push('1 1 1 rg');
     cmds.push(`BT /F2 8 Tf 42 ${y - 12} Td (NAMA BAHAN BAKU) Tj ET`);
     cmds.push(`BT /F2 8 Tf 218 ${y - 12} Td (HARGA BELI) Tj ET`);
-    cmds.push(`BT /F2 8 Tf 302 ${y - 12} Td (YIELD) Tj ET`);
+    cmds.push(`BT /F2 8 Tf 304 ${y - 12} Td (YIELD) Tj ET`);
     cmds.push(`BT /F2 8 Tf 348 ${y - 12} Td (PAKAI / BATCH) Tj ET`);
     cmds.push(`BT /F2 8 Tf 425 ${y - 12} Td (PER PORSI) Tj ET`);
     pdfTextRight(cmds, 'BIAYA BATCH', 553, y - 12, 8, true);
@@ -240,7 +249,12 @@
 
     (calc.ingredientRows || []).forEach((row, idx) => {
       const nameLines = wrapPdfByWidth(row.name, 168, 8.2, false);
-      const rowH = Math.max(18, nameLines.length * 10 + 7);
+      const buyTxt = `${formatRp(row.buyPrice)} / ${formatNum(row.buyQty)} ${row.unit}`;
+      const buyLines = wrapPdfByWidth(buyTxt, 80, 7.8, false);
+      const useLines = wrapPdfByWidth(`${formatNum(row.useQty)} ${row.unit}`, 72, 8, false);
+      const porLines = wrapPdfByWidth(`${formatNum(row.perPortionQty, 1)} ${row.unit}`, 62, 8, false);
+      const maxLines = Math.max(nameLines.length, buyLines.length, useLines.length, porLines.length);
+      const rowH = Math.max(18, maxLines * 10 + 7);
       ensureSpace(rowH + 6);
 
       if (idx % 2 === 1) {
@@ -253,11 +267,16 @@
       nameLines.forEach((ln, li) => {
         cmds.push(`BT /F1 8.2 Tf 42 ${y - 11 - li * 10} Td (${sanitizePdf(ln)}) Tj ET`);
       });
-      const buyTxt = `${formatRp(row.buyPrice)} / ${formatNum(row.buyQty)}${row.unit}`;
-      cmds.push(`BT /F1 7.8 Tf 218 ${y - 11} Td (${sanitizePdf(wrapPdfByWidth(buyTxt, 80, 7.8)[0])}) Tj ET`);
-      cmds.push(`BT /F2 8 Tf 302 ${y - 11} Td (${sanitizePdf(row.yieldPct + '%')}) Tj ET`);
-      cmds.push(`BT /F1 8 Tf 348 ${y - 11} Td (${sanitizePdf(formatNum(row.useQty) + ' ' + row.unit)}) Tj ET`);
-      cmds.push(`BT /F1 8 Tf 425 ${y - 11} Td (${sanitizePdf(formatNum(row.perPortionQty, 1) + ' ' + row.unit)}) Tj ET`);
+      buyLines.forEach((ln, li) => {
+        cmds.push(`BT /F1 7.8 Tf 218 ${y - 11 - li * 10} Td (${sanitizePdf(ln)}) Tj ET`);
+      });
+      cmds.push(`BT /F2 8 Tf 304 ${y - 11} Td (${sanitizePdf(row.yieldPct + '%')}) Tj ET`);
+      useLines.forEach((ln, li) => {
+        cmds.push(`BT /F1 8 Tf 348 ${y - 11 - li * 10} Td (${sanitizePdf(ln)}) Tj ET`);
+      });
+      porLines.forEach((ln, li) => {
+        cmds.push(`BT /F1 8 Tf 425 ${y - 11 - li * 10} Td (${sanitizePdf(ln)}) Tj ET`);
+      });
       pdfTextRight(cmds, formatRp(row.batchCost), 553, y - 11, 8.2, true);
       y -= rowH;
     });
@@ -266,8 +285,8 @@
     ensureSpace(58);
     cmds.push(`0.961 0.961 0.961 rg 36 ${y - 20} 523 20 re f`);
     cmds.push('0.184 0.184 0.184 rg');
-    cmds.push(`BT /F2 8.5 Tf 42 ${y - 13} Td (TOTAL MODAL BAHAN 1 BATCH \\(${calc.batchPortions} PORSI\\) / MODAL BAHAN PER 1 PORSI) Tj ET`);
-    pdfTextRight(cmds, `${formatRp(calc.batchRawTotal)}  (${formatRp(calc.rawCostPerPortion)}/porsi)`, 553, y - 13, 8.5, true);
+    cmds.push(`BT /F2 8.2 Tf 42 ${y - 13} Td (TOTAL MODAL BAHAN 1 BATCH \\(${calc.batchPortions} PORSI\\) / PER PORSI) Tj ET`);
+    pdfTextRight(cmds, `${formatRp(calc.batchRawTotal)}  (${formatRp(calc.rawCostPerPortion)}/porsi)`, 553, y - 13, 8.2, true);
     y -= 34;
 
     // Section B: Komponen HPP & Rekomendasi Harga Jual
@@ -287,45 +306,54 @@
     ];
 
     priceSummary.forEach((item, idx) => {
-      ensureSpace(18);
       const isBold = idx >= 3;
-      if (idx === 3) cmds.push(`0.94 0.98 0.95 rg 36 ${y - 16} 523 16 re f`);
+      const labelLines = wrapPdfByWidth(item[0], 395, 8.2, isBold);
+      const rowH = Math.max(16, labelLines.length * 10 + 6);
+      ensureSpace(rowH + 4);
+      if (idx === 3) cmds.push(`0.94 0.98 0.95 rg 36 ${y - rowH} 523 ${rowH} re f`);
       cmds.push('0.88 0.88 0.88 RG 0.4 w');
-      cmds.push(`36 ${y - 16} 523 16 re S`);
+      cmds.push(`36 ${y - rowH} 523 ${rowH} re S`);
       cmds.push(idx === 3 ? '0 0.62 0.22 rg' : '0.184 0.184 0.184 rg');
-      cmds.push(`BT /${isBold ? 'F2' : 'F1'} 8.2 Tf 42 ${y - 11} Td (${sanitizePdf(wrapPdfByWidth(item[0], 395, 8.2, isBold)[0])}) Tj ET`);
+      labelLines.forEach((ln, li) => {
+        cmds.push(`BT /${isBold ? 'F2' : 'F1'} 8.2 Tf 42 ${y - 11 - li * 10} Td (${sanitizePdf(ln)}) Tj ET`);
+      });
       pdfTextRight(cmds, item[1], 553, y - 11, 8.5, isBold);
-      y -= 16;
+      y -= rowH;
     });
 
     y -= 18;
 
     // Section C: Langkah Takaran & SOP Dapur
-    ensureSpace(110);
+    ensureSpace(80);
     cmds.push('1 0.329 0.024 rg');
     cmds.push(`BT /F2 10 Tf 36 ${y} Td (C. INSTRUKSI STANDAR TAKARAN & PENYAJIAN KRU DAPUR) Tj ET`);
     y -= 14;
 
-    const sopLinesRaw = String(calc.sopNotes || 'Timbang seluruh bahan sesuai tabel gramasi di atas sebelum memasak.').split(/\r?\n/);
+    const sopTextClean = String(calc.sopNotes || '').trim() || 'Timbang seluruh bahan sesuai tabel gramasi di atas sebelum memasak.';
+    const sopLinesRaw = sopTextClean.split(/\r?\n/);
     cmds.push('0.184 0.184 0.184 rg');
     for (const rawLine of sopLinesRaw) {
       if (!rawLine.trim()) continue;
       const wrapped = wrapPdfByWidth(rawLine.trim(), 510, 8.5, false);
       for (const wl of wrapped) {
         ensureSpace(14);
+        cmds.push('0.184 0.184 0.184 rg');
         cmds.push(`BT /F1 8.5 Tf 42 ${y} Td (${sanitizePdf(wl)}) Tj ET`);
         y -= 12;
       }
     }
 
-    // Footer Signature
-    ensureSpace(64);
-    y -= 16;
-    cmds.push('0.85 0.85 0.85 RG 0.6 w 36 ' + y + ' 559 ' + y + ' l S');
-    y -= 16;
+    // Footer Signature (Separated onto its own line to prevent collision)
+    ensureSpace(56);
+    y -= 14;
+    cmds.push('0.85 0.85 0.85 RG 0.6 w 36 ' + y + ' m 559 ' + y + ' l S');
+    y -= 14;
     cmds.push('0.35 0.35 0.35 rg');
     cmds.push(`BT /F1 8 Tf 36 ${y} Td (Dokumen Standar Dapur Internal - Wajib ditempel di area racik & timbang.) Tj ET`);
-    pdfTextRight(cmds, `Disahkan oleh: ${ownerName} (${shopName})`, 559, y, 8.2, true);
+    y -= 13;
+    cmds.push('0.184 0.184 0.184 rg');
+    const signSop = wrapPdfByWidth(`Disahkan oleh: ${ownerName} (${shopName})`, 520, 8.2, true)[0];
+    pdfTextRight(cmds, signSop, 559, y, 8.2, true);
 
     const blob = buildMultiPagePdf(pages);
     const filename = `SOP-Resep-HPP-${slugify(calc.menuName)}.pdf`;
@@ -339,14 +367,16 @@
     let cmds = pages[0];
     let y = 795;
 
-    const shopName = shopInfo.shopName || 'Dapur Kuliner Mandiri';
-    const ownerName = shopInfo.ownerName || 'Pemilik Usaha';
+    const shopName = (shopInfo.shopName || '').trim() || 'Dapur Kuliner Mandiri';
+    const ownerName = (shopInfo.ownerName || '').trim() || 'Pemilik Usaha';
     const dateStr = formatIndoDate();
 
     function ensureSpace(needPt) {
       if (y - needPt < 55) {
         cmds = [];
         pages.push(cmds);
+        cmds.push('0.184 0.184 0.184 rg');
+        cmds.push('0.88 0.88 0.88 RG 0.4 w');
         y = 795;
       }
     }
@@ -355,7 +385,8 @@
     cmds.push('0.184 0.184 0.184 rg 36 742 523 64 re f');
     cmds.push('0 0.702 0.247 rg 36 738 523 4 re f');
     cmds.push('1 1 1 rg');
-    cmds.push(`BT /F2 12.5 Tf 48 784 Td (LEMBAR AUDIT HARGA OJOL, PAKET COMBO & TITIK IMPAS KEDAI) Tj ET`);
+    const auditTitle = wrapPdfByWidth('LEMBAR AUDIT HARGA OJOL, PAKET COMBO & TITIK IMPAS KEDAI', 495, 12.2, true)[0];
+    cmds.push(`BT /F2 12.2 Tf 48 784 Td (${sanitizePdf(auditTitle)}) Tj ET`);
     const sub = wrapPdfByWidth(`${shopName} | Menu: ${calc.menuName} | Dicetak: ${dateStr}`, 495, 9, false)[0];
     cmds.push(`BT /F1 9 Tf 48 767 Td (${sanitizePdf(sub)}) Tj ET`);
     cmds.push('0.75 0.96 0.82 rg');
@@ -368,8 +399,15 @@
     cmds.push(`BT /F2 10 Tf 36 ${y} Td (1. PERBANDINGAN CARA NAIKKAN HARGA BIASA VS RUMUS BALIK DAPURUNTUNG) Tj ET`);
     y -= 12;
 
+    const strikePayoutVal = calc.strikePayout != null
+      ? calc.strikePayout
+      : (calc.recommendedOjolStrikePrice - calc.strikeTotalCut);
+    const strikeProfitVal = calc.strikeProfit != null
+      ? calc.strikeProfit
+      : (strikePayoutVal - calc.totalHppPerPortion);
+
     const compRows = [
-      ['Skenario Penetapan Harga di Aplikasi', 'Harga Tayang', 'Potongan Ojol + Promo', 'Cair ke Kedai', 'Untung Bersih / Porsi'],
+      ['Skenario Penetapan Harga Aplikasi', 'Harga Tayang', 'Potongan Aplikasi', 'Cair ke Kedai', 'Untung Bersih'],
       [
         'Jual Offline / Makan di Tempat',
         formatRp(calc.offlinePrice),
@@ -378,7 +416,7 @@
         formatRp(calc.offlineProfitPerPortion)
       ],
       [
-        `Cara Salah ( Cuma Naik +${calc.ojolCommissionPct}% Biasa )`,
+        `Cara Salah (Cuma Naik +${calc.ojolCommissionPct}% Biasa)`,
         formatRp(calc.naiveOjolPrice),
         '- ' + formatRp(calc.naiveCommissionCut),
         formatRp(calc.naiveNetReceived),
@@ -395,13 +433,16 @@
         `Rumus Aman + Diskon Coret ${calc.ojolPromoPct}%`,
         formatRp(calc.recommendedOjolStrikePrice),
         '- ' + formatRp(calc.strikeTotalCut),
-        formatRp(calc.recommendedOjolPayout),
-        formatRp(calc.recommendedOjolProfit)
+        formatRp(strikePayoutVal),
+        formatRp(strikeProfitVal)
       ]
     ];
 
     compRows.forEach((r, idx) => {
-      const h = 20;
+      const b = idx === 0 || idx >= 3;
+      const col0Lines = wrapPdfByWidth(r[0], 178, 7.8, b);
+      const h = Math.max(20, col0Lines.length * 10 + 8);
+      ensureSpace(h + 4);
       if (idx === 0) {
         cmds.push(`0.184 0.184 0.184 rg 36 ${y - h} 523 ${h} re f`);
         cmds.push('1 1 1 rg');
@@ -412,75 +453,115 @@
         cmds.push(`36 ${y - h} 523 ${h} re S`);
         cmds.push('0.184 0.184 0.184 rg');
       }
-      const b = idx === 0 || idx >= 3;
-      cmds.push(`BT /${b ? 'F2' : 'F1'} 7.8 Tf 42 ${y - 13} Td (${sanitizePdf(wrapPdfByWidth(r[0], 185, 7.8, b)[0])}) Tj ET`);
-      cmds.push(`BT /${b ? 'F2' : 'F1'} 7.8 Tf 234 ${y - 13} Td (${sanitizePdf(r[1])}) Tj ET`);
-      cmds.push(`BT /${b ? 'F2' : 'F1'} 7.8 Tf 312 ${y - 13} Td (${sanitizePdf(r[2])}) Tj ET`);
-      cmds.push(`BT /${b ? 'F2' : 'F1'} 7.8 Tf 408 ${y - 13} Td (${sanitizePdf(r[3])}) Tj ET`);
+      col0Lines.forEach((ln, li) => {
+        cmds.push(`BT /${b ? 'F2' : 'F1'} 7.8 Tf 42 ${y - 13 - li * 10} Td (${sanitizePdf(ln)}) Tj ET`);
+      });
+      cmds.push(`BT /${b ? 'F2' : 'F1'} 7.8 Tf 228 ${y - 13} Td (${sanitizePdf(r[1])}) Tj ET`);
+      cmds.push(`BT /${b ? 'F2' : 'F1'} 7.8 Tf 304 ${y - 13} Td (${sanitizePdf(r[2])}) Tj ET`);
+      cmds.push(`BT /${b ? 'F2' : 'F1'} 7.8 Tf 402 ${y - 13} Td (${sanitizePdf(r[3])}) Tj ET`);
       pdfTextRight(cmds, r[4], 553, y - 13, 8, true);
       y -= h;
     });
 
-    y -= 20;
+    y -= 18;
 
-    // 2. 3 Paket Combo Hemat Pengungkit Nilai Nota
+    // 2. 3 Paket Combo Hemat Pengungkit Nilai Nota (Multi-line full wrap)
+    ensureSpace(50);
     cmds.push('1 0.329 0.024 rg');
     cmds.push(`BT /F2 10 Tf 36 ${y} Td (2. REKOMENDASI 3 PAKET HEMAT \\(COMBO PENAIK OMZET\\)) Tj ET`);
     y -= 12;
 
     (calc.combos || []).forEach((cb) => {
-      ensureSpace(34);
-      cmds.push(`0.961 0.961 0.961 rg 36 ${y - 28} 523 28 re f`);
+      const titleDescLines = wrapPdfByWidth(`${cb.title} - ${cb.desc}`, 382, 8.4, true);
+      const metaLines = wrapPdfByWidth(
+        `HPP Paket: ${formatRp(cb.hpp)} | Harga Offline: ${formatRp(cb.offlinePrice)} | Harga Ojol Aman: ${formatRp(cb.ojolPrice)}`,
+        382,
+        7.8,
+        false
+      );
+      const boxH = 10 + titleDescLines.length * 10.5 + metaLines.length * 9.5 + 4;
+      ensureSpace(boxH + 6);
+      cmds.push(`0.961 0.961 0.961 rg 36 ${y - boxH} 523 ${boxH} re f`);
       cmds.push('0.88 0.88 0.88 RG 0.4 w');
-      cmds.push(`36 ${y - 28} 523 28 re S`);
+      cmds.push(`36 ${y - boxH} 523 ${boxH} re S`);
+
+      let curY = y - 11;
       cmds.push('0.184 0.184 0.184 rg');
-      cmds.push(`BT /F2 8.5 Tf 44 ${y - 11} Td (${sanitizePdf(wrapPdfByWidth(cb.title + ' - ' + cb.desc, 330, 8.5, true)[0])}) Tj ET`);
+      titleDescLines.forEach((ln) => {
+        cmds.push(`BT /F2 8.4 Tf 44 ${curY.toFixed(1)} Td (${sanitizePdf(ln)}) Tj ET`);
+        curY -= 10.5;
+      });
       cmds.push('0.4 0.4 0.4 rg');
-      cmds.push(`BT /F1 7.8 Tf 44 ${y - 22} Td (${sanitizePdf(`HPP Paket: ${formatRp(cb.hpp)} | Harga Offline: ${formatRp(cb.offlinePrice)} | Harga Ojol Aman: ${formatRp(cb.ojolPrice)}`)}) Tj ET`);
+      metaLines.forEach((ln) => {
+        cmds.push(`BT /F1 7.8 Tf 44 ${curY.toFixed(1)} Td (${sanitizePdf(ln)}) Tj ET`);
+        curY -= 9.5;
+      });
       cmds.push('0 0.62 0.22 rg');
-      pdfTextRight(cmds, `Untung +${formatRp(cb.profit)}`, 553, y - 16, 9, true);
-      y -= 33;
+      pdfTextRight(cmds, `Untung +${formatRp(cb.profit)}`, 553, y - boxH / 2 - 3, 9, true);
+      y -= (boxH + 5);
     });
 
-    y -= 12;
+    y -= 10;
 
     // 3. Target Titik Impas (Break-Even Point) Bulanan & Harian
-    ensureSpace(72);
+    const bepL1 = wrapPdfByWidth(`Beban Tetap Kedai (Sewa, Gaji Kru, Listrik/WiFi): ${formatRp(calc.monthlyFixedCost)} / bulan`, 505, 8.6, true);
+    const bepL2 = wrapPdfByWidth(`Target Minimal Laku supaya Impas (0 Rugi): ${calc.bepPortionsMonthly} porsi/bulan atau minimal ${calc.bepPortionsDaily} porsi/hari.`, 505, 8.2, false);
+    const bepL3 = wrapPdfByWidth(`Simulasi Laku ${calc.bepPortionsDaily + 25} porsi/hari -> Estimasi Laba Bersih Bulanan: ${formatRp(calc.projectedNetMonthlyProfit)}`, 505, 8.2, true);
+    const bepBoxH = 12 + (bepL1.length + bepL2.length + bepL3.length) * 11.5;
+
+    ensureSpace(bepBoxH + 28);
     cmds.push('1 0.329 0.024 rg');
     cmds.push(`BT /F2 10 Tf 36 ${y} Td (3. TARGET TITIK IMPAS \\(BEP\\) PENUTUP BIAYA TETAP KEDAI) Tj ET`);
-    y -= 14;
-    cmds.push(`0.961 0.961 0.961 rg 36 ${y - 44} 523 44 re f`);
+    y -= 13;
+    cmds.push(`0.961 0.961 0.961 rg 36 ${y - bepBoxH} 523 ${bepBoxH} re f`);
+    let by = y - 13;
     cmds.push('0.184 0.184 0.184 rg');
-    cmds.push(`BT /F2 8.8 Tf 44 ${y - 15} Td (${sanitizePdf(`Beban Tetap Kedai (Sewa, Gaji Kru, Listrik/WiFi): ${formatRp(calc.monthlyFixedCost)} / bulan`)}) Tj ET`);
-    cmds.push(`BT /F1 8.4 Tf 44 ${y - 29} Td (${sanitizePdf(`Target Minimal Laku supaya Impas (0 Rugi): ${calc.bepPortionsMonthly} porsi/bulan atau minimal ${calc.bepPortionsDaily} porsi/hari.`)}) Tj ET`);
+    bepL1.forEach((ln) => {
+      cmds.push(`BT /F2 8.6 Tf 44 ${by.toFixed(1)} Td (${sanitizePdf(ln)}) Tj ET`);
+      by -= 11.5;
+    });
+    bepL2.forEach((ln) => {
+      cmds.push(`BT /F1 8.2 Tf 44 ${by.toFixed(1)} Td (${sanitizePdf(ln)}) Tj ET`);
+      by -= 11.5;
+    });
     cmds.push('0 0.62 0.22 rg');
-    cmds.push(`BT /F2 8.4 Tf 44 ${y - 40} Td (${sanitizePdf(`Simulasi Laku ${calc.bepPortionsDaily + 25} porsi/hari -> Estimasi Laba Bersih Bulanan: ${formatRp(calc.projectedNetMonthlyProfit)}`)}) Tj ET`);
-    y -= 60;
+    bepL3.forEach((ln) => {
+      cmds.push(`BT /F2 8.2 Tf 44 ${by.toFixed(1)} Td (${sanitizePdf(ln)}) Tj ET`);
+      by -= 11.5;
+    });
+    y -= (bepBoxH + 14);
 
-    // 4. 8 Poin Audit Kesehatan Margin Dapur
-    ensureSpace(150);
+    // 4. 8 Poin Audit Kesehatan Margin Dapur (Multi-line full wrap)
+    ensureSpace(44);
     cmds.push('1 0.329 0.024 rg');
     cmds.push(`BT /F2 10 Tf 36 ${y} Td (4. DELAPAN INDIKATOR AUDIT KESEHATAN MARGIN DAPUR) Tj ET`);
     y -= 12;
 
     (calc.auditChecks || []).forEach((chk) => {
-      ensureSpace(20);
+      const lines = wrapPdfByWidth(`${chk.label}: ${chk.detail}`, 445, 8, false);
+      const itemH = Math.max(15, lines.length * 10.5 + 4);
+      ensureSpace(itemH + 4);
       const badge = chk.passed ? '[AMAN]' : '[PERLU CEK]';
       cmds.push(chk.passed ? '0 0.62 0.22 rg' : '0.85 0.20 0.02 rg');
       cmds.push(`BT /F2 8 Tf 42 ${y - 10} Td (${sanitizePdf(badge)}) Tj ET`);
       cmds.push('0.184 0.184 0.184 rg');
-      const lineTxt = wrapPdfByWidth(`${chk.label}: ${chk.detail}`, 445, 8, false)[0];
-      cmds.push(`BT /F1 8 Tf 104 ${y - 10} Td (${sanitizePdf(lineTxt)}) Tj ET`);
-      y -= 15;
+      lines.forEach((ln, li) => {
+        cmds.push(`BT /F1 8 Tf 104 ${(y - 10 - li * 10.5).toFixed(1)} Td (${sanitizePdf(ln)}) Tj ET`);
+      });
+      y -= itemH;
     });
 
-    ensureSpace(40);
+    // Footer Signature (Separated onto its own line to prevent collision)
+    ensureSpace(52);
     y -= 12;
-    cmds.push('0.85 0.85 0.85 RG 0.6 w 36 ' + y + ' 559 ' + y + ' l S');
+    cmds.push('0.85 0.85 0.85 RG 0.6 w 36 ' + y + ' m 559 ' + y + ' l S');
     y -= 14;
     cmds.push('0.4 0.4 0.4 rg');
     cmds.push(`BT /F1 8 Tf 36 ${y} Td (Dihitung otomatis dengan Mesin Rumus DapurUntung Studio - 100% Akurat Tanpa AI.) Tj ET`);
-    pdfTextRight(cmds, `${ownerName} - ${shopName}`, 559, y, 8, true);
+    y -= 13;
+    cmds.push('0.184 0.184 0.184 rg');
+    const signAudit = wrapPdfByWidth(`Disahkan oleh: ${ownerName} (${shopName})`, 520, 8.2, true)[0];
+    pdfTextRight(cmds, signAudit, 559, y, 8.2, true);
 
     const blob = buildMultiPagePdf(pages);
     const filename = `Audit-Harga-Ojol-${slugify(calc.menuName)}.pdf`;
@@ -500,8 +581,29 @@
     ctx.closePath();
   }
 
+  function splitCanvasWord(ctx, word, maxWidth) {
+    if (ctx.measureText(word).width <= maxWidth) return [word];
+    const chunks = [];
+    let cur = '';
+    for (let i = 0; i < word.length; i++) {
+      const next = cur + word[i];
+      if (cur && ctx.measureText(next).width > maxWidth) {
+        chunks.push(cur);
+        cur = word[i];
+      } else {
+        cur = next;
+      }
+    }
+    if (cur) chunks.push(cur);
+    return chunks;
+  }
+
   function wrapCanvasText(ctx, text, maxWidth) {
-    const words = String(text || '').split(/\s+/);
+    const rawWords = String(text || '').trim().split(/\s+/).filter(Boolean);
+    const words = [];
+    for (const rw of rawWords) {
+      words.push(...splitCanvasWord(ctx, rw, maxWidth));
+    }
     const lines = [];
     let cur = '';
     for (const w of words) {
@@ -514,11 +616,17 @@
       }
     }
     if (cur) lines.push(cur);
-    return lines;
+    return lines.length ? lines : [''];
   }
 
   // 3. EKSPOR PNG 1080x1350 — POSTER DAFTAR MENU & 3 PAKET HEMAT (FOODNOMS FLAT 26PX)
-  function exportMenuPosterPng(calc, shopInfo = {}) {
+  async function exportMenuPosterPng(calc, shopInfo = {}) {
+    if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
+      try {
+        await document.fonts.ready;
+      } catch (e) {}
+    }
+
     return new Promise((resolve) => {
       const canvas = document.createElement('canvas');
       canvas.width = 1080;
@@ -526,9 +634,10 @@
       const ctx = canvas.getContext('2d');
 
       const fontStack = '"Nunito Sans", "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-      const shopName = shopInfo.shopName || 'Dapur Kuliner Pilihan';
-      const shopPhone = shopInfo.phone || 'Pesan Langsung via WhatsApp / Aplikasi Pesan-Antar';
-      const shopCity = shopInfo.city || 'Siap Antar Hangat Setiap Hari';
+      const shopName = (shopInfo.shopName || '').trim() || 'Dapur Kuliner Pilihan';
+      const rawPhone = (shopInfo.phone || '').trim();
+      const footerPhone = rawPhone || 'Tersedia Makan di Tempat & Pesan-Antar';
+      const shopCity = (shopInfo.city || '').trim() || 'Siap Antar Hangat Setiap Hari';
 
       // Pure Paper White Canvas (#ffffff) — flat & shadowless per Foodnoms spec
       ctx.fillStyle = '#ffffff';
@@ -550,7 +659,7 @@
 
       ctx.fillStyle = '#2f2f2f';
       ctx.font = `700 28px ${fontStack}`;
-      ctx.fillText(shopName.slice(0, 32), 156, 106);
+      ctx.fillText(shopName, 156, 106, 584);
 
       ctx.fillStyle = '#00b33f';
       roundRect(ctx, 760, 74, 236, 48, 24);
@@ -558,7 +667,7 @@
       ctx.fillStyle = '#ffffff';
       ctx.font = `700 20px ${fontStack}`;
       ctx.textAlign = 'center';
-      ctx.fillText('FRESH SETIAP HARI', 878, 105);
+      ctx.fillText('FRESH SETIAP HARI', 878, 105, 212);
       ctx.textAlign = 'left';
 
       // Two-Tone Display Headline (Foodnoms signature)
@@ -567,13 +676,13 @@
       ctx.fillText('Menu Favorit', 64, 224);
       const firstW = ctx.measureText('Menu Favorit ').width;
       ctx.fillStyle = '#2f2f2f';
-      ctx.fillText('& Paket Hemat', 64 + firstW, 224);
+      ctx.fillText('& Paket Hemat', 64 + firstW, 224, Math.max(200, 952 - firstW));
 
       ctx.font = `600 24px ${fontStack}`;
       ctx.fillStyle = '#666666';
-      ctx.fillText(`${shopCity}  •  Takaran Konsisten, Porsi Puas & Higienis`, 64, 268);
+      ctx.fillText(`${shopCity}  •  Takaran Konsisten, Porsi Puas & Higienis`, 64, 268, 952);
 
-      // Featured Signature Menu Card (Fog #f5f5f5, 26px radius, crisp #e8e8e8 border)
+      // Featured Signature Menu Card (Fog #f5f5f5, 26px+ radius, crisp #e6e6e6 border)
       ctx.fillStyle = '#f5f5f5';
       roundRect(ctx, 64, 308, 952, 276, 36);
       ctx.fill();
@@ -588,38 +697,42 @@
       ctx.fillStyle = '#ffffff';
       ctx.font = `700 18px ${fontStack}`;
       ctx.textAlign = 'center';
-      ctx.fillText('MENU ANDALAN UTAMA', 215, 369);
+      ctx.fillText('MENU ANDALAN UTAMA', 215, 369, 210);
       ctx.textAlign = 'left';
 
       ctx.fillStyle = '#2f2f2f';
-      ctx.font = `800 42px ${fontStack}`;
-      const titleLines = wrapCanvasText(ctx, calc.menuName, 600).slice(0, 2);
+      ctx.font = `800 40px ${fontStack}`;
+      const allTitleLines = wrapCanvasText(ctx, calc.menuName, 595);
+      const titleLines = allTitleLines.slice(0, 2);
+      if (allTitleLines.length > 2) {
+        titleLines[1] = titleLines[1] + '...';
+      }
       titleLines.forEach((ln, idx) => {
-        ctx.fillText(ln, 100, 434 + idx * 48);
+        ctx.fillText(ln, 100, 434 + idx * 46, 595);
       });
 
       ctx.fillStyle = '#555555';
-      ctx.font = `600 22px ${fontStack}`;
+      ctx.font = `600 21px ${fontStack}`;
       const catText = `${calc.category || 'Spesial Racikan Dapur'} • Porsi Standar Terukur`;
-      ctx.fillText(catText, 100, titleLines.length > 1 ? 536 : 498);
+      ctx.fillText(catText, 100, titleLines.length > 1 ? 536 : 498, 595);
 
-      // Price Badge Right Side (White card inside Fog card)
+      // Price Badge Right Side (White card inside Fog card at x=720)
       ctx.fillStyle = '#ffffff';
       roundRect(ctx, 720, 342, 260, 208, 32);
       ctx.fill();
       ctx.fillStyle = '#72a2c5';
       ctx.font = `700 18px ${fontStack}`;
       ctx.textAlign = 'center';
-      ctx.fillText('HARGA SPESIAL', 850, 388);
+      ctx.fillText('HARGA SPESIAL', 850, 388, 232);
       ctx.fillStyle = '#00b33f';
-      ctx.font = `800 42px ${fontStack}`;
-      ctx.fillText(formatRp(calc.offlinePrice), 850, 444);
+      ctx.font = `800 40px ${fontStack}`;
+      ctx.fillText(formatRp(calc.offlinePrice), 850, 444, 232);
       ctx.fillStyle = '#2f2f2f';
       ctx.font = `600 18px ${fontStack}`;
-      ctx.fillText(`Aplikasi: ${formatRp(calc.recommendedOjolNetPrice)}`, 850, 492);
+      ctx.fillText(`Aplikasi: ${formatRp(calc.recommendedOjolNetPrice)}`, 850, 492, 232);
       ctx.fillStyle = '#ff5406';
       ctx.font = `700 16px ${fontStack}`;
-      ctx.fillText('Siap Bungkus Rapi', 850, 524);
+      ctx.fillText('Siap Bungkus Rapi', 850, 524, 232);
       ctx.textAlign = 'left';
 
       // Section Heading: Pilihan Paket Hemat
@@ -628,9 +741,9 @@
       ctx.fillText('Lebih Hemat', 64, 650);
       const lhW = ctx.measureText('Lebih Hemat ').width;
       ctx.fillStyle = '#2f2f2f';
-      ctx.fillText('Pesan Paket Ramean', 64 + lhW, 650);
+      ctx.fillText('Pesan Paket Ramean', 64 + lhW, 650, Math.max(200, 952 - lhW));
 
-      // 3 Combo Cards Stacked
+      // 3 Combo Cards Stacked (Up to 2 lines for cb.desc)
       const comboColors = ['#ff5406', '#00a9dd', '#bd4be5'];
       (calc.combos || []).slice(0, 3).forEach((cb, i) => {
         const cy = 682 + i * 166;
@@ -649,13 +762,24 @@
         ctx.fillText('0' + (i + 1), 124, cy + 82);
         ctx.textAlign = 'left';
 
+        ctx.font = `600 19.5px ${fontStack}`;
+        const rawDescLines = wrapCanvasText(ctx, cb.desc, 536);
+        const descLines = rawDescLines.slice(0, 2);
+        if (rawDescLines.length > 2) {
+          descLines[1] = descLines[1] + '...';
+        }
+
         ctx.fillStyle = '#2f2f2f';
-        ctx.font = `800 30px ${fontStack}`;
-        ctx.fillText(cb.title, 180, cy + 62);
+        ctx.font = `800 28px ${fontStack}`;
+        const titleY = descLines.length > 1 ? cy + 46 : cy + 58;
+        ctx.fillText(cb.title, 180, titleY, 536);
 
         ctx.fillStyle = '#555555';
-        ctx.font = `600 21px ${fontStack}`;
-        ctx.fillText(wrapCanvasText(ctx, cb.desc, 520)[0] || '', 180, cy + 102);
+        ctx.font = `600 19.5px ${fontStack}`;
+        descLines.forEach((dLine, dIdx) => {
+          const descY = descLines.length > 1 ? (cy + 81 + dIdx * 27) : (cy + 98);
+          ctx.fillText(dLine, 180, descY, 536);
+        });
 
         // Combo Price Pill
         ctx.fillStyle = '#2f2f2f';
@@ -664,18 +788,18 @@
         ctx.fillStyle = '#ffffff';
         ctx.font = `800 30px ${fontStack}`;
         ctx.textAlign = 'center';
-        ctx.fillText(formatRp(cb.offlinePrice), 861, cy + 82);
+        ctx.fillText(formatRp(cb.offlinePrice), 861, cy + 82, 220);
         ctx.textAlign = 'left';
       });
 
-      // Bottom Footer CTA Bar (#2f2f2f Graphite rounded 32px)
+      // Bottom Footer CTA Bar (#2f2f2f Graphite rounded 32px, button at x=770)
       ctx.fillStyle = '#2f2f2f';
       roundRect(ctx, 64, 1196, 952, 98, 32);
       ctx.fill();
 
       ctx.fillStyle = '#ffffff';
-      ctx.font = `700 24px ${fontStack}`;
-      ctx.fillText(`Info & Pesanan Katering / Acara: ${shopPhone.slice(0, 42)}`, 100, 1254);
+      ctx.font = `700 22px ${fontStack}`;
+      ctx.fillText('Info & Pesanan: ' + footerPhone, 100, 1253, 640);
 
       ctx.fillStyle = '#ff5406';
       roundRect(ctx, 770, 1218, 218, 54, 27);
@@ -683,7 +807,7 @@
       ctx.fillStyle = '#ffffff';
       ctx.font = `800 20px ${fontStack}`;
       ctx.textAlign = 'center';
-      ctx.fillText('PESAN SEKARANG', 879, 1252);
+      ctx.fillText('PESAN SEKARANG', 879, 1252, 198);
 
       canvas.toBlob((blob) => {
         const filename = `Poster-Menu-${slugify(calc.menuName)}-1080x1350.png`;
@@ -693,16 +817,39 @@
     });
   }
 
-  // 4. EKSPOR CSV UTF-8 BOM — REKAP HPP + DAFTAR BELANJA PASAR OTOMATIS (50, 100 & CUSTOM PORSI)
-  function exportShoppingHppCsv(calc, shopInfo = {}, customTargetPortions = 50) {
-    const targetCustom = Math.max(1, Math.round(Number(customTargetPortions) || 50));
-    const esc = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+  // 4. EKSPOR CSV UTF-8 BOM — REKAP HPP + DAFTAR BELANJA PASAR OTOMATIS (50, 100 & KATERING + BUFFER)
+  function exportShoppingHppCsv(calc, shopInfo = {}, cateringPortions = 75, cateringBufferPct = 3) {
+    const portions = Math.max(1, Math.round(Number(cateringPortions) || 75));
+    const rawBuf = Number(cateringBufferPct);
+    const bufferPct = (cateringBufferPct !== '' && cateringBufferPct != null && Number.isFinite(rawBuf))
+      ? Math.max(0, rawBuf)
+      : 3;
+    const effectivePortions = Math.ceil(portions * (1 + bufferPct / 100));
+
+    // Safe CSV Escaper (prevents CSV formula injection on =, +, -, @)
+    const esc = (v) => {
+      if (typeof v === 'number' && Number.isFinite(v)) {
+        return `"${String(v)}"`;
+      }
+      let s = String(v == null ? '' : v);
+      if (/^[\s]*[=+\-@]/.test(s)) {
+        s = "'" + s;
+      }
+      return `"${s.replace(/"/g, '""')}"`;
+    };
+
     const rows = [];
+    const shopLabel = (shopInfo.shopName || '').trim() || 'Dapur Kuliner Mandiri';
 
     rows.push(['REKAP HPP RESEP & DAFTAR BELANJA PASAR OTOMATIS - DAPURUNTUNG STUDIO'].map(esc).join(','));
-    rows.push(['Nama Kedai / Usaha', shopInfo.shopName || 'Dapur Kuliner Mandiri', 'Tanggal Cetak', formatIndoDate()].map(esc).join(','));
+    rows.push(['Nama Kedai / Usaha', shopLabel, 'Tanggal Cetak', formatIndoDate()].map(esc).join(','));
     rows.push(['Nama Menu', calc.menuName, 'Hasil 1 Resep (Batch)', `${calc.batchPortions} Porsi`].map(esc).join(','));
+    rows.push(['Target Order Katering', `${portions} Porsi`, 'Cadangan Buffer Dapur', `${bufferPct}% (Masak ${effectivePortions} Porsi)`].map(esc).join(','));
     rows.push([]);
+
+    const customColHeader = bufferPct > 0
+      ? `Belanja Kotor Katering ${portions} Porsi (+Buffer ${bufferPct}% = ${effectivePortions} Porsi)`
+      : `Belanja Kotor Katering ${portions} Porsi`;
 
     rows.push([
       'No',
@@ -714,22 +861,20 @@
       'Takaran Bersih 1 Batch',
       'Biaya Bahan 1 Batch (Rp)',
       'Biaya Bahan per Porsi (Rp)',
-      `Belanja Kotor Pasar utk 50 Porsi`,
-      `Belanja Kotor Pasar utk 100 Porsi`,
-      `Belanja Kotor Pasar utk ${targetCustom} Porsi`
+      'Belanja Kotor Pasar utk 50 Porsi',
+      'Belanja Kotor Pasar utk 100 Porsi',
+      customColHeader
     ].map(esc).join(','));
 
     const factor50 = 50 / calc.batchPortions;
     const factor100 = 100 / calc.batchPortions;
-    const factorCustom = targetCustom / calc.batchPortions;
+    const factorCustom = effectivePortions / calc.batchPortions;
 
     (calc.ingredientRows || []).forEach((ing, i) => {
       const yFrac = Math.max(0.05, (Number(ing.yieldPct) || 100) / 100);
-      // Gross market purchase needed so that after yield shrinkage we have enough clean weight!
-      const grossPerBatch = ing.useQty / yFrac;
-      const buy50 = Math.ceil(grossPerBatch * factor50 * 10) / 10;
-      const buy100 = Math.ceil(grossPerBatch * factor100 * 10) / 10;
-      const buyCustom = Math.ceil(grossPerBatch * factorCustom * 10) / 10;
+      const buy50 = Math.ceil(Number(((ing.useQty * factor50) / yFrac).toFixed(9)));
+      const buy100 = Math.ceil(Number(((ing.useQty * factor100) / yFrac).toFixed(9)));
+      const buyCustom = Math.ceil(Number(((ing.useQty * factorCustom) / yFrac).toFixed(9)));
 
       rows.push([
         i + 1,

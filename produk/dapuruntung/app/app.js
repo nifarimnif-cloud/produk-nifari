@@ -11,6 +11,7 @@
     'e6e9d2294908b7faae7f645a290054c8b7fb58db74e9f66c75315650ab472e47'
   ]);
   const OFFICIAL_BUYER_HASH = 'ff59064cba2ffe8ba6f17b47ed5dfe628156eef6c3315dea872d3bccc2b045ac';
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   const STORAGE_KEYS = {
     session: 'dapuruntung_session_v1',
@@ -139,6 +140,66 @@
       .replace(/"/g, '&quot;');
   }
 
+  function parseNumOr(val, fallback) {
+    if (val === '' || val === null || val === undefined) return fallback;
+    const n = Number(val);
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  function clampBuyQty(val) {
+    if (val === undefined || val === null) return 1;
+    const n = parseFloat(val);
+    if (!Number.isFinite(n) || n <= 0) return 1;
+    return Math.max(0.1, n);
+  }
+
+  function clampYieldPct(val) {
+    if (val === undefined || val === null) return 100;
+    const n = parseFloat(val);
+    if (!Number.isFinite(n) || val === '') return 5;
+    return Math.min(100, Math.max(5, Math.round(n)));
+  }
+
+  function ensureRecipeDefaults(recipe) {
+    if (!recipe || typeof recipe !== 'object') return recipe;
+    if (!Number.isFinite(Number(recipe.cateringPortions)) || Number(recipe.cateringPortions) < 1) {
+      recipe.cateringPortions = 75;
+    } else {
+      recipe.cateringPortions = Math.max(1, Math.round(Number(recipe.cateringPortions)));
+    }
+    const rawBuf = parseNumOr(recipe.cateringBufferPct, 3);
+    recipe.cateringBufferPct = Math.max(0, rawBuf);
+    return recipe;
+  }
+
+  function copyTextSafe(txt, onDone) {
+    function fallbackCopy() {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = txt;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch (err) {}
+      if (onDone) onDone();
+    }
+
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      navigator.clipboard.writeText(txt).then(() => {
+        if (onDone) onDone();
+      }).catch(() => {
+        fallbackCopy();
+      });
+    } else {
+      fallbackCopy();
+    }
+  }
+
   const formatRp = window.DapurExporter.formatRp;
   const formatNum = window.DapurExporter.formatNum;
 
@@ -161,15 +222,16 @@
 
   let appState = {
     activePresetId: defaultPreset ? defaultPreset.id : 'ayam-geprek',
-    currentRecipe: cloneDeep(defaultPreset),
+    currentRecipe: ensureRecipeDefaults(cloneDeep(defaultPreset)),
     savedRecipes: [],
     favoriteIds: ['lib-001', 'lib-041'],
     exportCount: 0,
     shopInfo: {
       ownerName: '',
       shopName: '',
-      city: 'Jakarta & Sekitarnya',
-      phone: 'WA 0812-8800-9900'
+      city: '',
+      phone: '',
+      email: ''
     }
   };
 
@@ -181,7 +243,14 @@
     clearTimeout(showToast._timer);
     showToast._timer = setTimeout(() => {
       el.classList.add('hidden');
-    }, 2600);
+    }, 2800);
+  }
+
+  function clearActivePresetIfNeeded() {
+    if (appState.activePresetId !== null) {
+      appState.activePresetId = null;
+      renderPresetChips();
+    }
   }
 
   function loadPersistedState() {
@@ -195,13 +264,22 @@
         const parsed = JSON.parse(rawState);
         if (parsed && typeof parsed === 'object') {
           if (parsed.currentRecipe && Array.isArray(parsed.currentRecipe.ingredients)) {
-            appState.currentRecipe = parsed.currentRecipe;
+            appState.currentRecipe = ensureRecipeDefaults(parsed.currentRecipe);
           }
           if (Array.isArray(parsed.savedRecipes)) appState.savedRecipes = parsed.savedRecipes;
           if (Array.isArray(parsed.favoriteIds)) appState.favoriteIds = parsed.favoriteIds;
           if (typeof parsed.exportCount === 'number') appState.exportCount = parsed.exportCount;
-          if (parsed.activePresetId) appState.activePresetId = parsed.activePresetId;
-          if (parsed.shopInfo) appState.shopInfo = Object.assign({}, appState.shopInfo, parsed.shopInfo);
+          if ('activePresetId' in parsed) appState.activePresetId = parsed.activePresetId;
+          if (parsed.shopInfo && typeof parsed.shopInfo === 'object') {
+            appState.shopInfo = Object.assign({}, appState.shopInfo, parsed.shopInfo);
+            // Strip legacy placeholder contact/city if persisted from old version
+            if (/^WA\s+0812-8800-\d{4}$/.test(appState.shopInfo.phone || '')) {
+              appState.shopInfo.phone = '';
+            }
+            if (appState.shopInfo.city === 'Jakarta & Sekitarnya') {
+              appState.shopInfo.city = '';
+            }
+          }
         }
       }
       const rawSession = localStorage.getItem(STORAGE_KEYS.session);
@@ -211,6 +289,7 @@
           session = parsedSes;
           if (!appState.shopInfo.ownerName) appState.shopInfo.ownerName = session.ownerName;
           if (!appState.shopInfo.shopName) appState.shopInfo.shopName = session.shopName;
+          if (!appState.shopInfo.email && session.email) appState.shopInfo.email = session.email;
         }
       }
     } catch (err) {
@@ -226,21 +305,23 @@
 
   // MESIN KALKULASI UTAMA HPP, % YIELD, HARGA OJOL, COMBO & BEP
   function computeRecipeMetrics(recipe) {
+    const safeMenuName = (recipe.name || '').trim() || 'Menu Andalan Kedai';
+    const categoryStr = (recipe.category || '').trim() || 'Kuliner Utama';
     const batchPortions = Math.max(1, Number(recipe.batchPortions) || 1);
-    const packagingPerPortion = Math.max(0, Number(recipe.packagingPerPortion) || 0);
-    const gasUtilityPerPortion = Math.max(0, Number(recipe.gasUtilityPerPortion) || 0);
-    const offlinePrice = Math.max(0, Number(recipe.offlinePrice) || 0);
-    const ojolCommissionPct = Math.min(65, Math.max(0, Number(recipe.ojolCommissionPct) || 0));
-    const ojolFixedFee = Math.max(0, Number(recipe.ojolFixedFee) || 0);
-    const ojolPromoPct = Math.min(65, Math.max(0, Number(recipe.ojolPromoPct) || 0));
-    const monthlyFixedCost = Math.max(0, Number(recipe.monthlyFixedCost) || 0);
+    const packagingPerPortion = Math.max(0, parseNumOr(recipe.packagingPerPortion, 0));
+    const gasUtilityPerPortion = Math.max(0, parseNumOr(recipe.gasUtilityPerPortion, 0));
+    const offlinePrice = Math.max(0, parseNumOr(recipe.offlinePrice, 0));
+    const ojolCommissionPct = Math.min(65, Math.max(0, parseNumOr(recipe.ojolCommissionPct, 0)));
+    const ojolFixedFee = Math.max(0, parseNumOr(recipe.ojolFixedFee, 0));
+    const ojolPromoPct = Math.min(65, Math.max(0, parseNumOr(recipe.ojolPromoPct, 0)));
+    const monthlyFixedCost = Math.max(0, parseNumOr(recipe.monthlyFixedCost, 0));
 
     let batchRawTotal = 0;
     const ingredientRows = (recipe.ingredients || []).map((ing) => {
-      const buyPrice = Math.max(0, Number(ing.buyPrice) || 0);
-      const buyQty = Math.max(0.01, Number(ing.buyQty) || 1);
-      const yieldPct = Math.min(100, Math.max(5, Number(ing.yieldPct) || 100));
-      const useQty = Math.max(0, Number(ing.useQty) || 0);
+      const buyPrice = Math.max(0, parseNumOr(ing.buyPrice, 0));
+      const buyQty = clampBuyQty(ing.buyQty);
+      const yieldPct = clampYieldPct(ing.yieldPct);
+      const useQty = Math.max(0, parseNumOr(ing.useQty, 0));
 
       const cleanUsableFromPack = buyQty * (yieldPct / 100);
       const costPerCleanUnit = buyPrice / Math.max(0.0001, cleanUsableFromPack);
@@ -251,7 +332,8 @@
       batchRawTotal += batchCost;
       return {
         id: ing.id,
-        name: ing.name || 'Bahan Dapur',
+        name: (ing.name || '').trim() || 'Bahan Dapur',
+        rawName: ing.name != null ? String(ing.name) : '',
         buyPrice,
         buyQty,
         unit: ing.unit || 'gr',
@@ -277,29 +359,35 @@
     const naiveProfitPerPortion = naiveNetReceived - totalHppPerPortion;
 
     // 2. Rumus Balik Aman DapurUntung (Uang cair kedai >= Harga Offline utuh)
-    const targetNetPayout = Math.max(offlinePrice, totalHppPerPortion + 4000);
+    const targetNetPayout = Math.max(offlinePrice, Math.round(totalHppPerPortion) + 4000);
     const rawSafeOjol = (targetNetPayout + ojolFixedFee) / Math.max(0.2, 1 - commFrac);
     const recommendedOjolNetPrice = roundUpRp500(rawSafeOjol);
     const recommendedOjolCommissionCut = Math.round(recommendedOjolNetPrice * commFrac + ojolFixedFee);
     const recommendedOjolPayout = recommendedOjolNetPrice - recommendedOjolCommissionCut;
     const recommendedOjolProfit = recommendedOjolPayout - totalHppPerPortion;
 
-    // 3. Harga Tayang Sebelum Diskon Coret
+    // 3. Harga Tayang Sebelum Diskon Coret (Presisi: Harga Tayang - Potongan === Cair ke Kedai)
     const rawStrike = recommendedOjolNetPrice / Math.max(0.2, 1 - promoFrac);
     const recommendedOjolStrikePrice = ojolPromoPct > 0 ? roundUpRp500(rawStrike) : recommendedOjolNetPrice;
     const afterDiscountPrice = Math.round(recommendedOjolStrikePrice * (1 - promoFrac));
     const strikeCommissionCut = Math.round(afterDiscountPrice * commFrac + ojolFixedFee);
     const strikeTotalCut = (recommendedOjolStrikePrice - afterDiscountPrice) + strikeCommissionCut;
+    const strikePayout = afterDiscountPrice - strikeCommissionCut;
+    const strikeProfit = strikePayout - totalHppPerPortion;
 
-    // 3 Paket Combo Penaik Nilai Nota
-    const drinkHpp = 1750;
-    const drinkPrice = 6000;
-    const combo1Offline = roundUpRp500(offlinePrice + drinkPrice - 2000);
-    const combo1Hpp = totalHppPerPortion + drinkHpp;
+    // 3 Paket Combo Penaik Nilai Nota (Adaptif untuk Kategori Kopi / Minuman vs Makanan)
+    const isBeverage = /kopi|minum|teh|jus|boba|latte|drink|cafe/i.test(categoryStr);
+    const side1Text = isBeverage ? '1x Camilan / Roti Pendamping' : '1x Es Teh / Minuman Segar';
+    const side2Text = isBeverage ? '2x Camilan Pendamping' : '2x Minuman Segar';
+
+    const addonHpp = 1750;
+    const addonPrice = 6000;
+    const combo1Offline = roundUpRp500(offlinePrice + addonPrice - 2000);
+    const combo1Hpp = totalHppPerPortion + addonHpp;
     const combo1Ojol = roundUpRp500((combo1Offline + ojolFixedFee) / Math.max(0.2, 1 - commFrac));
 
-    const combo2Offline = roundUpRp500((offlinePrice * 2) + (drinkPrice * 2) - 5000);
-    const combo2Hpp = (totalHppPerPortion * 2) + (drinkHpp * 2) - 400;
+    const combo2Offline = roundUpRp500((offlinePrice * 2) + (addonPrice * 2) - 5000);
+    const combo2Hpp = (totalHppPerPortion * 2) + (addonHpp * 2) - 400;
     const combo2Ojol = roundUpRp500((combo2Offline + ojolFixedFee) / Math.max(0.2, 1 - commFrac));
 
     const combo3Offline = roundUpRp500((offlinePrice * 4) * 0.92);
@@ -308,8 +396,8 @@
 
     const combos = [
       {
-        title: 'Paket Kenyang Sendiri',
-        desc: `1x ${recipe.name} + 1x Es Teh / Minuman Segar`,
+        title: isBeverage ? 'Paket Ngopi & Camilan' : 'Paket Kenyang Sendiri',
+        desc: `1x ${safeMenuName} + ${side1Text}`,
         hpp: combo1Hpp,
         offlinePrice: combo1Offline,
         ojolPrice: combo1Ojol,
@@ -317,7 +405,7 @@
       },
       {
         title: 'Paket Hemat Berdua',
-        desc: `2x ${recipe.name} + 2x Minuman Segar (Hemat Rp 5.000)`,
+        desc: `2x ${safeMenuName} + ${side2Text} (Hemat Rp 5.000)`,
         hpp: combo2Hpp,
         offlinePrice: combo2Offline,
         ojolPrice: combo2Ojol,
@@ -325,7 +413,7 @@
       },
       {
         title: 'Paket Ramean Keluarga (4 Porsi)',
-        desc: `4x ${recipe.name} Kemasan Gabung Hemat 8%`,
+        desc: `4x ${safeMenuName} Kemasan Gabung Hemat 8%`,
         hpp: combo3Hpp,
         offlinePrice: combo3Offline,
         ojolPrice: combo3Ojol,
@@ -392,8 +480,8 @@
     ];
 
     return {
-      menuName: recipe.name || 'Menu Andalan Kedai',
-      category: recipe.category || 'Kuliner Utama',
+      menuName: safeMenuName,
+      category: categoryStr,
       batchPortions,
       packagingPerPortion,
       gasUtilityPerPortion,
@@ -418,13 +506,77 @@
       recommendedOjolPayout,
       recommendedOjolProfit,
       recommendedOjolStrikePrice,
+      afterDiscountPrice,
+      strikeCommissionCut,
       strikeTotalCut,
+      strikePayout,
+      strikeProfit,
       combos,
       bepPortionsMonthly,
       bepPortionsDaily,
       projectedNetMonthlyProfit,
       auditChecks
     };
+  }
+
+  // VALIDASI WIZARD LANGKAH 1 -> 2 -> 3
+  function validateStepBeforeLeave(targetStep) {
+    const target = Number(targetStep) || 1;
+    if (target <= 1) return true;
+
+    const r = appState.currentRecipe;
+    const calc = computeRecipeMetrics(r);
+
+    if ((r.name || '').trim() === '') {
+      if (activeStep !== 1) switchWizardStep(1);
+      showToast('Isi Nama Menu Jualan terlebih dahulu di Langkah 1.');
+      const nameInput = document.getElementById('menu-name');
+      if (nameInput) nameInput.focus();
+      return false;
+    }
+
+    if (!(Number(r.batchPortions) >= 1)) {
+      if (activeStep !== 1) switchWizardStep(1);
+      showToast('Hasil 1 Resep / Batch minimal harus 1 porsi.');
+      const batchInput = document.getElementById('batch-portions');
+      if (batchInput) batchInput.focus();
+      return false;
+    }
+
+    if (!Array.isArray(r.ingredients) || r.ingredients.length === 0) {
+      if (activeStep !== 1) switchWizardStep(1);
+      showToast('Tambahkan minimal 1 bahan baku di Langkah 1.');
+      const addBtn = document.getElementById('add-ing-btn');
+      if (addBtn) addBtn.focus();
+      return false;
+    }
+
+    const hasNamedIng = r.ingredients.some((ing) => (ing.name || '').trim() !== '');
+    if (!hasNamedIng) {
+      if (activeStep !== 1) switchWizardStep(1);
+      showToast('Isi nama bahan baku pada minimal 1 baris di Langkah 1.');
+      const firstIngName = document.querySelector('#ing-tbody .ing-field[data-key="name"]');
+      if (firstIngName) firstIngName.focus();
+      return false;
+    }
+
+    if (calc.totalHppPerPortion <= 0) {
+      if (activeStep !== 1) switchWizardStep(1);
+      showToast('Total HPP per porsi masih Rp 0. Isi harga beli dan takaran pakai bahan.');
+      const firstPrice = document.querySelector('#ing-tbody .ing-field[data-key="buyPrice"]');
+      if (firstPrice) firstPrice.focus();
+      return false;
+    }
+
+    if (target === 3 && calc.offlinePrice <= 0) {
+      if (activeStep !== 2) switchWizardStep(2);
+      showToast('Isi Harga Jual Offline lebih dari Rp 0 di Langkah 2 sebelum mengunduh dokumen.');
+      const offInput = document.getElementById('offline-price');
+      if (offInput) offInput.focus();
+      return false;
+    }
+
+    return true;
   }
 
   // UPDATE RING SVG HELPER
@@ -446,6 +598,11 @@
 
     document.getElementById('side-shop-name').textContent = shop;
     document.getElementById('side-owner-name').textContent = owner;
+    const mobShopEl = document.getElementById('mob-shop-name');
+    const mobOwnerEl = document.getElementById('mob-owner-name');
+    if (mobShopEl) mobShopEl.textContent = shop;
+    if (mobOwnerEl) mobOwnerEl.textContent = owner;
+
     document.getElementById('dash-greeting').textContent = `Halo, ${owner}`;
     document.getElementById('dash-subtitle').textContent = `${shop} • Pantau modal resep, susut bahan, dan harga aman aplikasi pesan-antar.`;
 
@@ -467,20 +624,36 @@
     setRingArc('ring-arc-profit', 'ring-pct-profit', 'ring-rp-profit', calc.recommendedOjolProfit, baseOjol, `${formatRp(calc.recommendedOjolProfit)} / porsi`);
   }
 
+  function syncQuickCheckerFromRecipe() {
+    const calc = computeRecipeMetrics(appState.currentRecipe);
+    document.getElementById('qc-hpp').value = Math.round(calc.totalHppPerPortion);
+    document.getElementById('qc-offline').value = calc.offlinePrice;
+    document.getElementById('qc-comm').value = calc.ojolCommissionPct;
+    document.getElementById('qc-promo').value = calc.ojolPromoPct;
+  }
+
   function renderQuickChecker() {
-    const hpp = Math.max(0, Number(document.getElementById('qc-hpp').value) || 0);
-    const off = Math.max(0, Number(document.getElementById('qc-offline').value) || 0);
-    const comm = Math.min(60, Math.max(0, Number(document.getElementById('qc-comm').value) || 0));
-    const promo = Math.min(60, Math.max(0, Number(document.getElementById('qc-promo').value) || 0));
+    const hpp = Math.max(0, parseNumOr(document.getElementById('qc-hpp').value, 0));
+    const off = Math.max(0, parseNumOr(document.getElementById('qc-offline').value, 0));
+    const comm = Math.min(60, Math.max(0, parseNumOr(document.getElementById('qc-comm').value, 0)));
+    const promo = Math.min(65, Math.max(0, parseNumOr(document.getElementById('qc-promo').value, 0)));
+    const fixedFee = Math.max(0, parseNumOr(appState.currentRecipe.ojolFixedFee, 1000));
 
     const cFrac = comm / 100;
     const pFrac = promo / 100;
     const naiveP = roundUpRp500(off * (1 + cFrac));
-    const naiveNet = naiveP - Math.round(naiveP * cFrac + 1000);
-    const safeNet = roundUpRp500((Math.max(off, hpp + 3000) + 1000) / Math.max(0.2, 1 - cFrac));
+    const naiveNet = naiveP - Math.round(naiveP * cFrac + fixedFee);
+    const targetNetPayout = Math.max(off, Math.round(hpp) + 4000);
+    const safeNet = roundUpRp500((targetNetPayout + fixedFee) / Math.max(0.2, 1 - cFrac));
     const safeStrike = promo > 0 ? roundUpRp500(safeNet / Math.max(0.2, 1 - pFrac)) : safeNet;
 
-    document.getElementById('qc-naive-result').textContent = `Cair ${formatRp(naiveNet)} (Kurang ${formatRp(Math.max(0, off - naiveNet))})`;
+    const naiveLabel = document.getElementById('qc-naive-label');
+    if (naiveLabel) {
+      naiveLabel.textContent = `Kalau cuma dinaikkan +${comm}% biasa (Rugi Margin):`;
+    }
+    const shortfall = Math.max(0, off - naiveNet);
+    document.getElementById('qc-naive-result').textContent =
+      shortfall > 0 ? `Cair ${formatRp(naiveNet)} (Kurang ${formatRp(shortfall)})` : `Cair ${formatRp(naiveNet)}`;
     document.getElementById('qc-safe-net').textContent = formatRp(safeNet);
     document.getElementById('qc-safe-strike').textContent = formatRp(safeStrike);
   }
@@ -511,19 +684,32 @@
   }
 
   function syncWizardInputsFromRecipe() {
-    const r = appState.currentRecipe;
-    document.getElementById('menu-name').value = r.name || '';
-    document.getElementById('menu-category').value = r.category || '';
-    document.getElementById('batch-portions').value = r.batchPortions || 10;
-    document.getElementById('pack-cost').value = r.packagingPerPortion || 0;
-    document.getElementById('gas-cost').value = r.gasUtilityPerPortion || 0;
-    document.getElementById('sop-notes').value = r.sopNotes || '';
+    const r = ensureRecipeDefaults(appState.currentRecipe);
+    document.getElementById('menu-name').value = r.name != null ? r.name : '';
+    document.getElementById('menu-category').value = r.category != null ? r.category : '';
+    document.getElementById('batch-portions').value = parseNumOr(r.batchPortions, 10);
+    document.getElementById('pack-cost').value = parseNumOr(r.packagingPerPortion, 0);
+    document.getElementById('gas-cost').value = parseNumOr(r.gasUtilityPerPortion, 0);
+    document.getElementById('sop-notes').value = r.sopNotes != null ? r.sopNotes : '';
 
-    document.getElementById('offline-price').value = r.offlinePrice || 0;
-    document.getElementById('ojol-comm-pct').value = r.ojolCommissionPct != null ? r.ojolCommissionPct : 20;
-    document.getElementById('ojol-fixed-fee').value = r.ojolFixedFee != null ? r.ojolFixedFee : 1000;
-    document.getElementById('ojol-promo-pct').value = r.ojolPromoPct != null ? r.ojolPromoPct : 10;
-    document.getElementById('monthly-fixed-cost').value = r.monthlyFixedCost != null ? r.monthlyFixedCost : 4500000;
+    document.getElementById('offline-price').value = parseNumOr(r.offlinePrice, 0);
+    document.getElementById('ojol-comm-pct').value = parseNumOr(r.ojolCommissionPct, 20);
+    document.getElementById('ojol-fixed-fee').value = parseNumOr(r.ojolFixedFee, 1000);
+    document.getElementById('ojol-promo-pct').value = parseNumOr(r.ojolPromoPct, 10);
+    document.getElementById('monthly-fixed-cost').value = parseNumOr(r.monthlyFixedCost, 4500000);
+
+    // Sync Belanja Pasar & Katering controls from currentRecipe
+    const mTarget = document.getElementById('market-target-portions');
+    const mBuffer = document.getElementById('market-buffer-pct');
+    if (mTarget) mTarget.value = r.cateringPortions;
+    if (mBuffer) {
+      const bufStr = String(r.cateringBufferPct);
+      const hasOpt = Array.from(mBuffer.options).some((opt) => opt.value === bufStr);
+      mBuffer.value = hasOpt ? bufStr : '3';
+    }
+    document.querySelectorAll('.market-qty-chip').forEach((chip) => {
+      chip.classList.toggle('active', Number(chip.getAttribute('data-qty')) === Number(r.cateringPortions));
+    });
   }
 
   function renderIngredientsTable() {
@@ -533,28 +719,39 @@
     tbody.innerHTML = calc.ingredientRows.map((row, idx) => `
       <tr data-idx="${idx}">
         <td class="ing-col-name">
-          <input type="text" class="input-pill input-sm ing-field" data-idx="${idx}" data-key="name" value="${escapeHtml(row.name)}" aria-label="Nama Bahan" />
+          <span class="mob-ing-label">Nama Bahan Baku</span>
+          <input type="text" class="input-pill input-sm ing-field" data-idx="${idx}" data-key="name" value="${escapeHtml(row.rawName)}" aria-label="Nama Bahan Baku" />
         </td>
         <td>
-          <input type="number" class="input-pill input-sm ing-field" data-idx="${idx}" data-key="buyPrice" value="${row.buyPrice}" min="0" step="500" aria-label="Harga Beli" />
+          <span class="mob-ing-label">Harga Beli (Rp)</span>
+          <input type="number" class="input-pill input-sm ing-field" data-idx="${idx}" data-key="buyPrice" value="${row.buyPrice}" min="0" step="500" aria-label="Harga Beli (Rp)" />
         </td>
         <td>
-          <input type="number" class="input-pill input-sm ing-field" data-idx="${idx}" data-key="buyQty" value="${row.buyQty}" min="0.1" step="any" aria-label="Isi Kemasan Beli" />
+          <span class="mob-ing-label">Isi Kemasan</span>
+          <input type="number" class="input-pill input-sm ing-field" data-idx="${idx}" data-key="buyQty" value="${row.buyQty}" min="0.1" step="any" aria-label="Isi Kemasan" />
         </td>
         <td>
+          <span class="mob-ing-label">Satuan</span>
           <select class="input-pill input-sm ing-field" data-idx="${idx}" data-key="unit" aria-label="Satuan">
             ${['gr', 'ml', 'pcs', 'butir', 'lembar'].map((u) => `<option value="${u}" ${row.unit === u ? 'selected' : ''}>${u}</option>`).join('')}
           </select>
         </td>
         <td>
-          <input type="number" class="input-pill input-sm ing-field" data-idx="${idx}" data-key="yieldPct" value="${row.yieldPct}" min="5" max="100" step="1" aria-label="Persentase Yield" />
+          <span class="mob-ing-label">% Yield Bersih</span>
+          <input type="number" class="input-pill input-sm ing-field" data-idx="${idx}" data-key="yieldPct" value="${row.yieldPct}" min="5" max="100" step="1" aria-label="% Yield Bersih" />
         </td>
         <td>
-          <input type="number" class="input-pill input-sm ing-field" data-idx="${idx}" data-key="useQty" value="${row.useQty}" min="0" step="any" aria-label="Takaran Pakai" />
+          <span class="mob-ing-label">Pakai / Batch</span>
+          <input type="number" class="input-pill input-sm ing-field" data-idx="${idx}" data-key="useQty" value="${row.useQty}" min="0" step="any" aria-label="Pakai / Batch" />
         </td>
         <td class="ing-col-cost">
-          <strong class="ing-row-cost-txt" style="font-size:14px;">${formatRp(row.batchCost)}</strong>
-          <button type="button" class="icon-del-btn ing-del-btn" data-idx="${idx}" title="Hapus Bahan" aria-label="Hapus Bahan">&times;</button>
+          <div class="ing-col-cost-inner">
+            <div>
+              <span class="mob-ing-label">Biaya Batch</span>
+              <strong class="ing-row-cost-txt" style="font-size:14px;">${formatRp(row.batchCost)}</strong>
+            </div>
+            <button type="button" class="icon-del-btn ing-del-btn" data-idx="${idx}" title="Hapus Bahan" aria-label="Hapus Bahan">&times;</button>
+          </div>
         </td>
       </tr>
     `).join('');
@@ -598,7 +795,7 @@
     // Step 2 Combos
     document.getElementById('combo-cards-list').innerHTML = calc.combos.map((cb) => `
       <div class="card-fog" style="padding:14px 16px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
           <strong style="font-size:15px;">${escapeHtml(cb.title)}</strong>
           <span class="pill-tag pill-tag-green">Untung +${formatRp(cb.profit)}</span>
         </div>
@@ -683,7 +880,7 @@
 
         <div class="card-fog" style="margin-top:16px;padding:16px 20px;">
           <strong style="font-size:13.5px;display:block;margin-bottom:6px;">INSTRUKSI TAKARAN &amp; LANGKAH MASAK KRU DAPUR:</strong>
-          <div style="font-size:14px;white-space:pre-line;line-height:1.6;">${escapeHtml(calc.sopNotes)}</div>
+          <div style="font-size:14px;white-space:pre-line;line-height:1.6;">${escapeHtml(calc.sopNotes || 'Timbang seluruh bahan sesuai tabel gramasi di atas sebelum memasak.')}</div>
         </div>
       `;
     } else if (activePreviewTab === 'ojol') {
@@ -727,8 +924,8 @@
                 <td><strong>Harga Tayang Sebelum Coret Diskon ${calc.ojolPromoPct}%</strong></td>
                 <td><strong class="accent-orange">${formatRp(calc.recommendedOjolStrikePrice)}</strong></td>
                 <td>- ${formatRp(calc.strikeTotalCut)}</td>
-                <td>${formatRp(calc.recommendedOjolPayout)}</td>
-                <td><strong class="accent-green">${formatRp(calc.recommendedOjolProfit)}</strong></td>
+                <td>${formatRp(calc.strikePayout)}</td>
+                <td><strong class="accent-green">${formatRp(calc.strikeProfit)}</strong></td>
               </tr>
             </tbody>
           </table>
@@ -755,8 +952,8 @@
             <tbody>
               ${calc.ingredientRows.map((r) => {
                 const yf = Math.max(0.05, r.yieldPct / 100);
-                const g50 = Math.ceil((r.useQty / yf) * f50);
-                const g100 = Math.ceil((r.useQty / yf) * f100);
+                const g50 = Math.ceil(Number(((r.useQty * f50) / yf).toFixed(9)));
+                const g100 = Math.ceil(Number(((r.useQty * f100) / yf).toFixed(9)));
                 return `
                   <tr>
                     <td><strong>${escapeHtml(r.name)}</strong></td>
@@ -777,8 +974,9 @@
 
   // STANDALONE VIEW: KONVERSI BELANJA PASAR & KATERING
   function renderMarketConverter(calc) {
-    const targetPortions = Math.max(1, Math.round(Number(document.getElementById('market-target-portions').value) || 75));
-    const bufferPct = Math.max(0, Number(document.getElementById('market-buffer-pct').value) || 0);
+    ensureRecipeDefaults(appState.currentRecipe);
+    const targetPortions = Math.max(1, Math.round(Number(document.getElementById('market-target-portions').value) || appState.currentRecipe.cateringPortions || 75));
+    const bufferPct = Math.max(0, parseNumOr(document.getElementById('market-buffer-pct').value, appState.currentRecipe.cateringBufferPct));
     const effectivePortions = Math.ceil(targetPortions * (1 + bufferPct / 100));
     const scaleFactor = effectivePortions / calc.batchPortions;
 
@@ -786,7 +984,8 @@
     const rowsHtml = calc.ingredientRows.map((r) => {
       const cleanNeed = r.useQty * scaleFactor;
       const yFrac = Math.max(0.05, r.yieldPct / 100);
-      const grossBuyNeed = cleanNeed / yFrac;
+      const grossBuyNeed = Number((cleanNeed / yFrac).toFixed(9));
+      const grossCeil = Math.ceil(grossBuyNeed);
       const packsNeeded = Math.ceil((grossBuyNeed / r.buyQty) * 10) / 10;
       const estCash = r.batchCost * scaleFactor;
       totalMarketRawCash += estCash;
@@ -796,7 +995,7 @@
           <td><strong>${escapeHtml(r.name)}</strong></td>
           <td>${formatNum(cleanNeed, 1)} ${escapeHtml(r.unit)}</td>
           <td><span class="pill-tag">${r.yieldPct}%</span></td>
-          <td><strong class="accent-orange">${formatNum(Math.ceil(grossBuyNeed))} ${escapeHtml(r.unit)}</strong></td>
+          <td><strong class="accent-orange">${formatNum(grossCeil)} ${escapeHtml(r.unit)}</strong></td>
           <td>~${formatNum(packsNeeded, 1)} kemasan beli</td>
           <td><strong>${formatRp(estCash)}</strong></td>
         </tr>
@@ -881,7 +1080,7 @@
           <div>
             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
               <span class="pill-tag" style="border-color:${escapeHtml(item.categoryColor)};color:${escapeHtml(item.categoryColor)};">${escapeHtml(item.code)}</span>
-              <span style="font-size:12px;font-weight:800;color:${isFav ? 'var(--color-ember-orange)' : 'var(--text-muted)'};">${isFav ? ' Tersimpan' : 'Klik Detail'}</span>
+              <span style="font-size:12px;font-weight:800;color:${isFav ? 'var(--color-ember-orange)' : 'var(--text-muted)'};">${isFav ? 'Tersimpan' : 'Klik Detail'}</span>
             </div>
             <h4>${escapeHtml(item.title)}</h4>
             <p>${escapeHtml(item.summary)}</p>
@@ -924,7 +1123,7 @@
         return `
           <div class="card-white" style="padding:18px 22px;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">
             <div>
-              <strong style="font-size:17px;">${escapeHtml(entry.recipe.name)}</strong>
+              <strong style="font-size:17px;">${escapeHtml(m.menuName)}</strong>
               <div style="font-size:13px;color:var(--text-muted);margin-top:3px;">
                 Disimpan ${escapeHtml(entry.savedAt)} • HPP ${formatRp(m.totalHppPerPortion)}/porsi • Harga Ojol Aman ${formatRp(m.recommendedOjolNetPrice)}
               </div>
@@ -945,7 +1144,7 @@
       favWrap.innerHTML = `<div style="font-size:14px;color:var(--text-muted);">Belum ada SOP favorit yang ditandai.</div>`;
     } else {
       favWrap.innerHTML = favItems.map((it) => `
-        <div class="card-fog" style="padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <div class="card-fog" style="padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
           <div>
             <span class="pill-tag" style="margin-right:8px;">${escapeHtml(it.code)}</span>
             <strong style="font-size:14.5px;">${escapeHtml(it.title)}</strong>
@@ -961,6 +1160,17 @@
     document.getElementById('set-shop').value = appState.shopInfo.shopName || '';
     document.getElementById('set-city').value = appState.shopInfo.city || '';
     document.getElementById('set-phone').value = appState.shopInfo.phone || '';
+  }
+
+  function syncThemeButtons() {
+    const cur = document.documentElement.getAttribute('data-theme') || 'light';
+    const label = cur === 'dark' ? 'Tema Terang' : 'Tema Gelap';
+    const deskBtn = document.getElementById('theme-toggle-btn');
+    const mobBtn = document.getElementById('mob-theme-btn');
+    const setBtn = document.getElementById('settings-theme-btn');
+    if (deskBtn) deskBtn.textContent = label;
+    if (mobBtn) mobBtn.textContent = label;
+    if (setBtn) setBtn.textContent = cur === 'dark' ? 'Ubah ke Tema Terang' : 'Ubah ke Tema Gelap';
   }
 
   function refreshAll() {
@@ -1001,19 +1211,22 @@
     const next = cur === 'dark' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', next);
     localStorage.setItem(STORAGE_KEYS.theme, next);
-    document.getElementById('theme-toggle-btn').textContent = next === 'dark' ? 'Tema Terang' : 'Tema Gelap';
+    syncThemeButtons();
   }
 
   function enterAuthenticatedApp() {
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('app-shell').classList.remove('hidden');
-    const curTheme = document.documentElement.getAttribute('data-theme') || 'light';
-    document.getElementById('theme-toggle-btn').textContent = curTheme === 'dark' ? 'Tema Terang' : 'Tema Gelap';
+    syncThemeButtons();
+
+    switchView('dashboard');
+    switchWizardStep(1);
 
     renderDashboardPresets();
     renderPresetChips();
     syncWizardInputsFromRecipe();
     renderIngredientsTable();
+    syncQuickCheckerFromRecipe();
     renderQuickChecker();
     syncSettingsForm();
     refreshAll();
@@ -1022,13 +1235,23 @@
   function doLogout() {
     session = null;
     localStorage.removeItem(STORAGE_KEYS.session);
+    document.getElementById('mobile-drawer-backdrop').classList.add('hidden');
+    closeLibModal();
     document.getElementById('app-shell').classList.add('hidden');
     document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('login-name').value = '';
+    document.getElementById('login-shop').value = '';
+    document.getElementById('login-email').value = '';
     document.getElementById('login-code').value = '';
+    const errBox = document.getElementById('login-error');
+    if (errBox) {
+      errBox.textContent = '';
+      errBox.classList.add('hidden');
+    }
   }
 
   function bindEvents() {
-    // 1. Login Form (Supports Developer Blank-Field Login + Buyer Validation)
+    // 1. Login Form (Supports Creator Master + Dev Agent Blank-Field Login + Buyer Validation)
     document.getElementById('login-form').addEventListener('submit', (e) => {
       e.preventDefault();
       const errBox = document.getElementById('login-error');
@@ -1042,6 +1265,7 @@
       if (!rawCode) {
         errBox.textContent = 'Masukkan kode lisensi akses terlebih dahulu.';
         errBox.classList.remove('hidden');
+        document.getElementById('login-code').focus();
         return;
       }
 
@@ -1049,22 +1273,48 @@
       const role = classifyLicenseHash(codeHash);
 
       if (!role) {
-        errBox.textContent = 'Kode lisensi tidak dikenali. Periksa kembali huruf besar/tanda hubung kode dari email pembelianmu.';
+        errBox.textContent = 'Kode lisensi tidak dikenali. Periksa kembali huruf besar/tanda hubung kode dari bukti pembelianmu.';
         errBox.classList.remove('hidden');
+        document.getElementById('login-code').focus();
         return;
       }
 
       if (role === 'buyer') {
-        if (!rawName || !rawShop || !rawEmail || !rawEmail.includes('@')) {
-          errBox.textContent = 'Lengkapi Nama Pemilik, Nama Kedai, dan alamat Email yang valid untuk mengaktifkan lisensi pembeli.';
+        if (!rawName || !rawShop || !EMAIL_REGEX.test(rawEmail)) {
+          errBox.textContent = 'Lengkapi Nama Pemilik, Nama Kedai, dan alamat Email yang valid (contoh: nama@email.com) untuk mengaktifkan lisensi pembeli.';
           errBox.classList.remove('hidden');
+          if (!rawName) document.getElementById('login-name').focus();
+          else if (!rawShop) document.getElementById('login-shop').focus();
+          else document.getElementById('login-email').focus();
           return;
         }
       }
 
-      const finalOwner = rawName || 'Tim Developer';
-      const finalShop = rawShop || 'Dapur Uji Studio';
-      const finalEmail = rawEmail || 'dev@dapuruntung.id';
+      let finalOwner = rawName;
+      let finalShop = rawShop;
+      let finalEmail = rawEmail;
+
+      if (role === 'creator') {
+        finalOwner = rawName || 'Nifari (Kreator Utama)';
+        finalShop = rawShop || 'Dapur Nifari (Owner)';
+        finalEmail = rawEmail || 'creator@nifari.id';
+      } else if (role === 'dev') {
+        finalOwner = rawName || 'Tim Developer';
+        finalShop = rawShop || 'Dapur Uji Studio';
+        finalEmail = rawEmail || 'dev@dapuruntung.id';
+      }
+
+      // Reset stale city & phone when switching to a different account (email or shopName changed)
+      const prevEmail = (appState.shopInfo.email || '').trim().toLowerCase();
+      const prevShop = (appState.shopInfo.shopName || '').trim().toLowerCase();
+      const isDifferentAccount =
+        (prevEmail && prevEmail !== finalEmail.toLowerCase()) ||
+        (prevShop && prevShop !== finalShop.toLowerCase());
+
+      if (isDifferentAccount) {
+        appState.shopInfo.city = '';
+        appState.shopInfo.phone = '';
+      }
 
       session = {
         ownerName: finalOwner,
@@ -1076,6 +1326,7 @@
       };
       appState.shopInfo.ownerName = finalOwner;
       appState.shopInfo.shopName = finalShop;
+      appState.shopInfo.email = finalEmail;
 
       localStorage.setItem(STORAGE_KEYS.session, JSON.stringify(session));
       saveState();
@@ -1114,20 +1365,112 @@
     document.getElementById('settings-theme-btn').addEventListener('click', toggleTheme);
     document.getElementById('logout-btn').addEventListener('click', doLogout);
     document.getElementById('settings-logout-btn').addEventListener('click', doLogout);
+    const mobLogoutBtn = document.getElementById('mob-logout-btn');
+    if (mobLogoutBtn) mobLogoutBtn.addEventListener('click', doLogout);
 
     // Quick Checker 30s
     ['qc-hpp', 'qc-offline', 'qc-comm', 'qc-promo'].forEach((id) => {
       document.getElementById(id).addEventListener('input', renderQuickChecker);
     });
+
     document.getElementById('qc-apply-wizard-btn').addEventListener('click', () => {
-      appState.currentRecipe.offlinePrice = Number(document.getElementById('qc-offline').value) || 18000;
-      appState.currentRecipe.ojolCommissionPct = Number(document.getElementById('qc-comm').value) || 20;
-      appState.currentRecipe.ojolPromoPct = Number(document.getElementById('qc-promo').value) || 10;
+      const qcHpp = Math.round(Math.max(0, parseNumOr(document.getElementById('qc-hpp').value, 0)));
+      const qcOff = Math.round(Math.max(0, parseNumOr(document.getElementById('qc-offline').value, 0)));
+      const qcComm = Math.min(60, Math.max(0, parseNumOr(document.getElementById('qc-comm').value, 0)));
+      const qcPromo = Math.min(65, Math.max(0, parseNumOr(document.getElementById('qc-promo').value, 0)));
+
+      if (qcHpp <= 0 || qcOff <= 0) {
+        showToast('Isi HPP Dapur dan Harga Jual Offline lebih dari Rp 0 terlebih dahulu.');
+        if (qcHpp <= 0) document.getElementById('qc-hpp').focus();
+        else document.getElementById('qc-offline').focus();
+        return;
+      }
+
+      const r = appState.currentRecipe;
+      const beforeCalc = computeRecipeMetrics(r);
+      const hppDiff = Math.abs(qcHpp - beforeCalc.totalHppPerPortion);
+
+      r.offlinePrice = qcOff;
+      r.ojolCommissionPct = qcComm;
+      r.ojolPromoPct = qcPromo;
+
+      let adjustedHpp = false;
+      if (hppDiff > 50) {
+        adjustedHpp = true;
+        if (!(r.name || '').trim()) {
+          r.name = 'Menu Simulasi Cepat Kedai';
+        }
+        r.batchPortions = Math.max(1, Number(r.batchPortions) || 10);
+
+        const setFallbackQuickRecipe = () => {
+          const packVal = Math.round(qcHpp * 0.15);
+          const gasVal = Math.round(qcHpp * 0.05);
+          const rawVal = Math.max(0, qcHpp - packVal - gasVal);
+          r.batchPortions = 10;
+          r.packagingPerPortion = packVal;
+          r.gasUtilityPerPortion = gasVal;
+          r.ingredients = [
+            {
+              id: 'ing-qc-1',
+              name: 'Bahan Baku Utama (Simulasi Cepat)',
+              buyPrice: Math.round(rawVal * 10),
+              buyQty: 1000,
+              unit: 'gr',
+              yieldPct: 80,
+              useQty: 800
+            }
+          ];
+        };
+
+        if (beforeCalc.rawCostPerPortion > 0 && Array.isArray(r.ingredients) && r.ingredients.length > 0) {
+          const totalRatio = qcHpp / beforeCalc.totalHppPerPortion;
+          let newPack = Math.round((Number(r.packagingPerPortion) || 0) * totalRatio);
+          let newGas = Math.round((Number(r.gasUtilityPerPortion) || 0) * totalRatio);
+          if (newPack + newGas >= qcHpp) {
+            newPack = Math.round(qcHpp * 0.15);
+            newGas = Math.round(qcHpp * 0.05);
+          }
+          const targetRaw = Math.max(0, qcHpp - newPack - newGas);
+          const rawRatio = targetRaw / beforeCalc.rawCostPerPortion;
+          r.ingredients.forEach((ing) => {
+            ing.buyPrice = Math.max(0, Math.round((Number(ing.buyPrice) || 0) * rawRatio));
+          });
+          r.packagingPerPortion = newPack;
+          r.gasUtilityPerPortion = newGas;
+
+          // Fine-tune rounding remainder so totalHppPerPortion === qcHpp to the exact Rupiah
+          const midCalc = computeRecipeMetrics(r);
+          const remainder = qcHpp - midCalc.rawCostPerPortion - r.gasUtilityPerPortion;
+          if (remainder >= 0) {
+            r.packagingPerPortion = Math.round(remainder);
+          } else {
+            r.packagingPerPortion = 0;
+            r.gasUtilityPerPortion = Math.max(0, Math.round(qcHpp - midCalc.rawCostPerPortion));
+          }
+
+          const afterCalc = computeRecipeMetrics(r);
+          if (Math.round(afterCalc.totalHppPerPortion) !== qcHpp || afterCalc.rawCostPerPortion <= 0) {
+            setFallbackQuickRecipe();
+          }
+        } else {
+          setFallbackQuickRecipe();
+        }
+      }
+
+      clearActivePresetIfNeeded();
       syncWizardInputsFromRecipe();
+      renderIngredientsTable();
+      syncQuickCheckerFromRecipe();
+      renderQuickChecker();
       refreshAll();
       switchView('wizard');
       switchWizardStep(2);
-      showToast('Simulasi harga dikirim ke Langkah 2 Wizard.');
+
+      if (adjustedHpp) {
+        showToast(`Simulasi diterapkan ke Wizard (HPP disesuaikan proporsional menjadi ${formatRp(qcHpp)}/porsi).`);
+      } else {
+        showToast('Simulasi harga & komisi dikirim ke Langkah 2 Wizard.');
+      }
     });
 
     // Dashboard Load Preset
@@ -1138,10 +1481,12 @@
       const found = DATA.PRESETS.find((x) => x.id === pid);
       if (found) {
         appState.activePresetId = found.id;
-        appState.currentRecipe = cloneDeep(found);
+        appState.currentRecipe = ensureRecipeDefaults(cloneDeep(found));
         renderPresetChips();
         syncWizardInputsFromRecipe();
         renderIngredientsTable();
+        syncQuickCheckerFromRecipe();
+        renderQuickChecker();
         refreshAll();
         switchView('wizard');
         switchWizardStep(1);
@@ -1149,13 +1494,19 @@
       }
     });
 
-    // Wizard Stepper
+    // Wizard Stepper (Validated)
     document.querySelectorAll('.step-pill').forEach((pill) => {
-      pill.addEventListener('click', () => switchWizardStep(pill.getAttribute('data-step')));
+      pill.addEventListener('click', () => {
+        const target = Number(pill.getAttribute('data-step')) || 1;
+        if (!validateStepBeforeLeave(target)) return;
+        switchWizardStep(target);
+      });
     });
     document.querySelectorAll('.wiz-go-step').forEach((btn) => {
       btn.addEventListener('click', () => {
-        switchWizardStep(btn.getAttribute('data-target'));
+        const target = Number(btn.getAttribute('data-target')) || 1;
+        if (!validateStepBeforeLeave(target)) return;
+        switchWizardStep(target);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       });
     });
@@ -1168,10 +1519,12 @@
       const found = DATA.PRESETS.find((x) => x.id === pid);
       if (found) {
         appState.activePresetId = found.id;
-        appState.currentRecipe = cloneDeep(found);
+        appState.currentRecipe = ensureRecipeDefaults(cloneDeep(found));
         renderPresetChips();
         syncWizardInputsFromRecipe();
         renderIngredientsTable();
+        syncQuickCheckerFromRecipe();
+        renderQuickChecker();
         refreshAll();
         showToast(`Resep "${found.name}" siap diedit.`);
       }
@@ -1192,14 +1545,29 @@
       ['monthly-fixed-cost', 'monthlyFixedCost', true]
     ];
     fieldMap.forEach(([domId, prop, isNum]) => {
-      document.getElementById(domId).addEventListener('input', (e) => {
-        appState.currentRecipe[prop] = isNum ? (Number(e.target.value) || 0) : e.target.value;
+      const inputEl = document.getElementById(domId);
+      inputEl.addEventListener('input', (e) => {
+        appState.currentRecipe[prop] = isNum ? parseNumOr(e.target.value, 0) : e.target.value;
+        clearActivePresetIfNeeded();
         refreshAll();
       });
+      if (isNum) {
+        inputEl.addEventListener('change', (e) => {
+          let v = parseNumOr(e.target.value, 0);
+          if (prop === 'batchPortions') v = Math.max(1, Math.round(v || 1));
+          else if (prop === 'ojolCommissionPct') v = Math.min(60, Math.max(0, v));
+          else if (prop === 'ojolPromoPct') v = Math.min(65, Math.max(0, v));
+          else v = Math.max(0, v);
+          appState.currentRecipe[prop] = v;
+          e.target.value = v;
+          refreshAll();
+        });
+      }
     });
 
-    // Ingredient Table Edits & Delete
-    document.getElementById('ing-tbody').addEventListener('input', (e) => {
+    // Ingredient Table Edits, Clamp on Change/Blur, & Delete
+    const ingTbody = document.getElementById('ing-tbody');
+    ingTbody.addEventListener('input', (e) => {
       const input = e.target.closest('.ing-field');
       if (!input) return;
       const idx = Number(input.getAttribute('data-idx'));
@@ -1209,12 +1577,41 @@
       if (key === 'name' || key === 'unit') {
         item[key] = input.value;
       } else {
-        item[key] = Number(input.value) || 0;
+        item[key] = input.value === '' ? '' : parseNumOr(input.value, 0);
       }
+      clearActivePresetIfNeeded();
       refreshAll();
     });
 
-    document.getElementById('ing-tbody').addEventListener('click', (e) => {
+    function normalizeIngField(e) {
+      const input = e.target.closest('.ing-field');
+      if (!input) return;
+      const idx = Number(input.getAttribute('data-idx'));
+      const key = input.getAttribute('data-key');
+      const item = appState.currentRecipe.ingredients[idx];
+      if (!item) return;
+
+      if (key === 'yieldPct') {
+        const clamped = clampYieldPct(input.value);
+        item.yieldPct = clamped;
+        input.value = clamped;
+        refreshAll();
+      } else if (key === 'buyQty') {
+        const clamped = clampBuyQty(input.value);
+        item.buyQty = clamped;
+        input.value = clamped;
+        refreshAll();
+      } else if (key === 'buyPrice' || key === 'useQty') {
+        const clamped = Math.max(0, parseNumOr(input.value, 0));
+        item[key] = clamped;
+        input.value = clamped;
+        refreshAll();
+      }
+    }
+    ingTbody.addEventListener('change', normalizeIngField);
+    ingTbody.addEventListener('focusout', normalizeIngField);
+
+    ingTbody.addEventListener('click', (e) => {
       const del = e.target.closest('.ing-del-btn');
       if (!del) return;
       const idx = Number(del.getAttribute('data-idx'));
@@ -1223,6 +1620,7 @@
         return;
       }
       appState.currentRecipe.ingredients.splice(idx, 1);
+      clearActivePresetIfNeeded();
       renderIngredientsTable();
       refreshAll();
     });
@@ -1237,6 +1635,7 @@
         yieldPct: 95,
         useQty: 100
       });
+      clearActivePresetIfNeeded();
       renderIngredientsTable();
       refreshAll();
     });
@@ -1272,9 +1671,14 @@
     });
 
     document.getElementById('btn-export-csv').addEventListener('click', () => {
+      ensureRecipeDefaults(appState.currentRecipe);
       const calc = computeRecipeMetrics(appState.currentRecipe);
-      const customTarget = Number(document.getElementById('market-target-portions').value) || 75;
-      const res = window.DapurExporter.exportShoppingHppCsv(calc, appState.shopInfo, customTarget);
+      const res = window.DapurExporter.exportShoppingHppCsv(
+        calc,
+        appState.shopInfo,
+        appState.currentRecipe.cateringPortions,
+        appState.currentRecipe.cateringBufferPct
+      );
       bumpExport(res.filename);
     });
 
@@ -1284,44 +1688,106 @@
       bumpExport(res.filename);
     });
 
-    // Save Recipe to History
+    // Save Recipe to History (Deduplicates by ID or Normalized Menu Name)
     function saveCurrentRecipeToHistory() {
-      const copy = cloneDeep(appState.currentRecipe);
+      if (!(appState.currentRecipe.name || '').trim()) {
+        showToast('Isi Nama Menu Jualan terlebih dahulu sebelum menyimpan ke Riwayat.');
+        if (activeView === 'wizard' && activeStep !== 1) switchWizardStep(1);
+        document.getElementById('menu-name').focus();
+        return;
+      }
+
+      const copy = ensureRecipeDefaults(cloneDeep(appState.currentRecipe));
+      copy.name = copy.name.trim();
+      if (!copy.id) {
+        copy.id = 'custom-' + Date.now();
+        appState.currentRecipe.id = copy.id;
+      }
+
       const now = new Date();
       const stamp = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-      appState.savedRecipes.unshift({
-        id: 'rec-' + Date.now(),
-        savedAt: stamp,
-        recipe: copy
+      const normName = copy.name.toLowerCase();
+
+      const existingIdx = appState.savedRecipes.findIndex((entry) => {
+        if (!entry || !entry.recipe) return false;
+        const sameId = copy.id && entry.recipe.id && entry.recipe.id === copy.id;
+        const sameName = String(entry.recipe.name || '').trim().toLowerCase() === normName;
+        return sameId || sameName;
       });
-      if (appState.savedRecipes.length > 30) appState.savedRecipes.pop();
-      refreshAll();
-      showToast(`Resep "${copy.name}" disimpan ke Riwayat Kedai.`);
+
+      if (existingIdx >= 0) {
+        const prevEntry = appState.savedRecipes.splice(existingIdx, 1)[0];
+        appState.savedRecipes.unshift({
+          id: prevEntry.id || ('rec-' + Date.now()),
+          savedAt: stamp,
+          recipe: copy
+        });
+        refreshAll();
+        showToast(`Resep "${copy.name}" diperbarui di Riwayat Kedai (${stamp}).`);
+      } else {
+        appState.savedRecipes.unshift({
+          id: 'rec-' + Date.now(),
+          savedAt: stamp,
+          recipe: copy
+        });
+        if (appState.savedRecipes.length > 30) appState.savedRecipes.pop();
+        refreshAll();
+        showToast(`Resep "${copy.name}" disimpan ke Riwayat Kedai (${stamp}).`);
+      }
     }
 
     document.getElementById('wiz-save-history-top').addEventListener('click', saveCurrentRecipeToHistory);
     document.getElementById('wiz-save-history-bottom').addEventListener('click', saveCurrentRecipeToHistory);
 
-    // Market Converter View Events
-    document.getElementById('market-target-portions').addEventListener('input', () => {
-      document.querySelectorAll('.market-qty-chip').forEach((c) => c.classList.remove('active'));
+    // Market Converter View Events (Persists cateringPortions & cateringBufferPct in currentRecipe)
+    const marketTargetInput = document.getElementById('market-target-portions');
+    const marketBufferSelect = document.getElementById('market-buffer-pct');
+
+    marketTargetInput.addEventListener('input', () => {
+      const val = Math.max(1, Math.round(Number(marketTargetInput.value) || 1));
+      appState.currentRecipe.cateringPortions = val;
+      document.querySelectorAll('.market-qty-chip').forEach((c) => {
+        c.classList.toggle('active', Number(c.getAttribute('data-qty')) === val);
+      });
       renderMarketConverter(computeRecipeMetrics(appState.currentRecipe));
+      saveState();
     });
-    document.getElementById('market-buffer-pct').addEventListener('change', () => {
+
+    marketTargetInput.addEventListener('change', () => {
+      const val = Math.max(1, Math.round(Number(marketTargetInput.value) || 1));
+      marketTargetInput.value = val;
+      appState.currentRecipe.cateringPortions = val;
       renderMarketConverter(computeRecipeMetrics(appState.currentRecipe));
+      saveState();
     });
+
+    marketBufferSelect.addEventListener('change', () => {
+      appState.currentRecipe.cateringBufferPct = Math.max(0, parseNumOr(marketBufferSelect.value, 3));
+      renderMarketConverter(computeRecipeMetrics(appState.currentRecipe));
+      saveState();
+    });
+
     document.querySelectorAll('.market-qty-chip').forEach((chip) => {
       chip.addEventListener('click', () => {
+        const qty = Math.max(1, Number(chip.getAttribute('data-qty')) || 75);
         document.querySelectorAll('.market-qty-chip').forEach((c) => c.classList.remove('active'));
         chip.classList.add('active');
-        document.getElementById('market-target-portions').value = chip.getAttribute('data-qty');
+        marketTargetInput.value = qty;
+        appState.currentRecipe.cateringPortions = qty;
         renderMarketConverter(computeRecipeMetrics(appState.currentRecipe));
+        saveState();
       });
     });
+
     document.getElementById('market-download-csv-btn').addEventListener('click', () => {
+      ensureRecipeDefaults(appState.currentRecipe);
       const calc = computeRecipeMetrics(appState.currentRecipe);
-      const target = Number(document.getElementById('market-target-portions').value) || 75;
-      const res = window.DapurExporter.exportShoppingHppCsv(calc, appState.shopInfo, target);
+      const res = window.DapurExporter.exportShoppingHppCsv(
+        calc,
+        appState.shopInfo,
+        appState.currentRecipe.cateringPortions,
+        appState.currentRecipe.cateringBufferPct
+      );
       bumpExport(res.filename);
     });
 
@@ -1348,16 +1814,21 @@
       if (e.target.id === 'lib-modal') closeLibModal();
     });
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && currentModalItem) closeLibModal();
+      if (e.key === 'Escape') {
+        if (currentModalItem) closeLibModal();
+        const drawer = document.getElementById('mobile-drawer-backdrop');
+        if (drawer && !drawer.classList.contains('hidden')) {
+          drawer.classList.add('hidden');
+        }
+      }
     });
 
     document.getElementById('lib-modal-copy').addEventListener('click', () => {
       if (!currentModalItem) return;
       const txt = `${currentModalItem.title}\n${currentModalItem.summary}\nContoh: ${currentModalItem.example}\nTips: ${currentModalItem.tip}`;
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(txt);
-      }
-      showToast('Panduan SOP disalin ke papan klip.');
+      copyTextSafe(txt, () => {
+        showToast('Panduan SOP disalin ke papan klip.');
+      });
     });
 
     document.getElementById('lib-modal-fav').addEventListener('click', () => {
@@ -1379,6 +1850,7 @@
       if (!currentModalItem) return;
       const addition = `\n• [${currentModalItem.code}] ${currentModalItem.title}: ${currentModalItem.tip}`;
       appState.currentRecipe.sopNotes = String(appState.currentRecipe.sopNotes || '').trim() + addition;
+      clearActivePresetIfNeeded();
       syncWizardInputsFromRecipe();
       refreshAll();
       closeLibModal();
@@ -1395,9 +1867,13 @@
       if (loadBtn) {
         const entry = appState.savedRecipes[Number(loadBtn.getAttribute('data-hidx'))];
         if (entry) {
-          appState.currentRecipe = cloneDeep(entry.recipe);
+          appState.activePresetId = null;
+          appState.currentRecipe = ensureRecipeDefaults(cloneDeep(entry.recipe));
+          renderPresetChips();
           syncWizardInputsFromRecipe();
           renderIngredientsTable();
+          syncQuickCheckerFromRecipe();
+          renderQuickChecker();
           refreshAll();
           switchView('wizard');
           switchWizardStep(1);
@@ -1428,8 +1904,9 @@
       e.preventDefault();
       appState.shopInfo.ownerName = document.getElementById('set-owner').value.trim() || 'Kepala Dapur';
       appState.shopInfo.shopName = document.getElementById('set-shop').value.trim() || 'Dapur Kuliner Mandiri';
-      appState.shopInfo.city = document.getElementById('set-city').value.trim() || 'Indonesia';
-      appState.shopInfo.phone = document.getElementById('set-phone').value.trim() || '';
+      appState.shopInfo.city = document.getElementById('set-city').value.trim();
+      appState.shopInfo.phone = document.getElementById('set-phone').value.trim();
+      syncSettingsForm();
       refreshAll();
       showToast('Profil kedai berhasil diperbarui.');
     });
@@ -1451,7 +1928,8 @@
     });
 
     document.getElementById('restore-json-input').addEventListener('change', (e) => {
-      const file = e.target.files && e.target.files[0];
+      const inputEl = e.target;
+      const file = inputEl.files && inputEl.files[0];
       if (!file) return;
       const reader = new FileReader();
       reader.onload = () => {
@@ -1459,8 +1937,15 @@
           const parsed = JSON.parse(String(reader.result || '{}'));
           if (parsed && parsed.appState && parsed.appState.currentRecipe) {
             appState = Object.assign(appState, parsed.appState);
+            appState.currentRecipe = ensureRecipeDefaults(appState.currentRecipe);
+            if (!appState.shopInfo || typeof appState.shopInfo !== 'object') {
+              appState.shopInfo = { ownerName: '', shopName: '', city: '', phone: '', email: '' };
+            }
+            renderPresetChips();
             syncWizardInputsFromRecipe();
             renderIngredientsTable();
+            syncQuickCheckerFromRecipe();
+            renderQuickChecker();
             syncSettingsForm();
             refreshAll();
             showToast('Data kedai berhasil dipulihkan dari file cadangan!');
@@ -1469,7 +1954,13 @@
           }
         } catch (err) {
           showToast('Gagal membaca file JSON.');
+        } finally {
+          inputEl.value = '';
         }
+      };
+      reader.onerror = () => {
+        inputEl.value = '';
+        showToast('Gagal membaca file JSON.');
       };
       reader.readAsText(file);
     });
@@ -1477,6 +1968,7 @@
 
   // INIT
   loadPersistedState();
+  syncThemeButtons();
   bindEvents();
   if (session) {
     enterAuthenticatedApp();

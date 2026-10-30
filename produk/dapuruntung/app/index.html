@@ -114,7 +114,7 @@
         <span class="brand-wordmark" style="font-size:17px;">DapurUntung</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-        <button type="button" id="mob-theme-btn" class="btn btn-fog btn-sm" aria-label="Ganti Tema">Tema</button>
+        <button type="button" id="mob-theme-btn" class="btn btn-fog btn-sm" aria-label="Ganti Tema">Tema Gelap</button>
         <button type="button" id="mob-menu-btn" class="btn btn-graphite btn-sm" aria-label="Buka Menu">Menu</button>
       </div>
     </header>
@@ -122,26 +122,34 @@
     <!-- LACI MENU SAMPING MOBILE -->
     <div id="mobile-drawer-backdrop" class="mobile-drawer-backdrop hidden">
       <div class="mobile-drawer" id="mobile-drawer-panel">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-          <div class="brand-lockup">
-            <span class="brand-mark" style="width:32px;height:32px;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <path d="M4 15C4 10.5817 7.58172 7 12 7C16.4183 7 20 10.5817 20 15H4Z" fill="#ffffff"/>
-                <circle cx="12" cy="5" r="1.6" fill="#ffffff"/>
-                <rect x="3" y="17" width="18" height="2.4" rx="1.2" fill="#ffffff"/>
-              </svg>
-            </span>
-            <span class="brand-wordmark">DapurUntung</span>
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+            <div class="brand-lockup">
+              <span class="brand-mark" style="width:32px;height:32px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M4 15C4 10.5817 7.58172 7 12 7C16.4183 7 20 10.5817 20 15H4Z" fill="#ffffff"/>
+                  <circle cx="12" cy="5" r="1.6" fill="#ffffff"/>
+                  <rect x="3" y="17" width="18" height="2.4" rx="1.2" fill="#ffffff"/>
+                </svg>
+              </span>
+              <span class="brand-wordmark">DapurUntung</span>
+            </div>
+            <button type="button" id="mob-drawer-close" class="btn btn-fog btn-sm">Tutup</button>
           </div>
-          <button type="button" id="mob-drawer-close" class="btn btn-fog btn-sm">Tutup</button>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <button type="button" class="nav-btn mob-nav-link" data-view="dashboard">Beranda Dapur</button>
+            <button type="button" class="nav-btn mob-nav-link" data-view="wizard">Wizard HPP &amp; Ojol</button>
+            <button type="button" class="nav-btn mob-nav-link" data-view="belanja">Belanja Pasar &amp; Katering</button>
+            <button type="button" class="nav-btn mob-nav-link" data-view="library">Pustaka 120 SOP</button>
+            <button type="button" class="nav-btn mob-nav-link" data-view="history">Riwayat &amp; Favorit</button>
+            <button type="button" class="nav-btn mob-nav-link" data-view="settings">Pengaturan Kedai</button>
+          </div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:8px;">
-          <button type="button" class="nav-btn mob-nav-link" data-view="dashboard">Beranda Dapur</button>
-          <button type="button" class="nav-btn mob-nav-link" data-view="wizard">Wizard HPP &amp; Ojol</button>
-          <button type="button" class="nav-btn mob-nav-link" data-view="belanja">Belanja Pasar &amp; Katering</button>
-          <button type="button" class="nav-btn mob-nav-link" data-view="library">Pustaka 120 SOP</button>
-          <button type="button" class="nav-btn mob-nav-link" data-view="history">Riwayat &amp; Favorit</button>
-          <button type="button" class="nav-btn mob-nav-link" data-view="settings">Pengaturan Kedai</button>
+
+        <div class="sidebar-shop-box">
+          <div id="mob-shop-name" class="sidebar-shop-name">Dapur Kuliner</div>
+          <div id="mob-owner-name" class="sidebar-shop-owner">Kepala Dapur</div>
+          <button type="button" id="mob-logout-btn" class="btn btn-outline btn-sm btn-block" style="color:var(--color-signal-red-orange);">Keluar dari Sesi</button>
         </div>
       </div>
     </div>
@@ -320,11 +328,11 @@
             <div class="grid-2" style="margin-bottom:14px;">
               <div class="field-group">
                 <label class="field-label" for="qc-hpp">Total HPP Dapur / Porsi (Rp)</label>
-                <input id="qc-hpp" type="number" class="input-pill" value="9200" min="0" step="100" />
+                <input id="qc-hpp" type="number" class="input-pill" value="14822" min="0" step="100" />
               </div>
               <div class="field-group">
                 <label class="field-label" for="qc-offline">Harga Jual Offline Warung (Rp)</label>
-                <input id="qc-offline" type="number" class="input-pill" value="18000" min="0" step="500" />
+                <input id="qc-offline" type="number" class="input-pill" value="19000" min="0" step="500" />
               </div>
               <div class="field-group">
                 <label class="field-label" for="qc-comm">Komisi Aplikasi (%)</label>
@@ -332,22 +340,22 @@
               </div>
               <div class="field-group">
                 <label class="field-label" for="qc-promo">Diskon Coret Promo (%)</label>
-                <input id="qc-promo" type="number" class="input-pill" value="10" min="0" max="60" step="1" />
+                <input id="qc-promo" type="number" class="input-pill" value="10" min="0" max="65" step="1" />
               </div>
             </div>
 
             <div class="card-fog" style="padding:18px;margin-bottom:14px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                <span style="font-size:13.5px;font-weight:700;color:var(--text-muted);">Kalau cuma dinaikkan +20% biasa (Rugi Margin):</span>
-                <strong class="accent-red" id="qc-naive-result">Cair Rp 16.280</strong>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+                <span id="qc-naive-label" style="font-size:13.5px;font-weight:700;color:var(--text-muted);">Kalau cuma dinaikkan +20% biasa (Rugi Margin):</span>
+                <strong class="accent-red" id="qc-naive-result">Cair Rp 17.400 (Kurang Rp 1.600)</strong>
               </div>
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
                 <span style="font-size:14px;font-weight:800;">Harga Aman Ojol (Tanpa Diskon):</span>
-                <strong class="accent-green" style="font-size:18px;" id="qc-safe-net">Rp 24.000</strong>
+                <strong class="accent-green" style="font-size:18px;" id="qc-safe-net">Rp 25.000</strong>
               </div>
-              <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
                 <span style="font-size:14px;font-weight:800;">Harga Tayang Sebelum Coret Diskon:</span>
-                <strong class="accent-orange" style="font-size:18px;" id="qc-safe-strike">Rp 27.000</strong>
+                <strong class="accent-orange" style="font-size:18px;" id="qc-safe-strike">Rp 28.000</strong>
               </div>
             </div>
 
