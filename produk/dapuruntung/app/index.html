@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DapurUntung Studio — Kalkulator HPP Resep, Yield Bahan &amp; Harga Aman GoFood/GrabFood</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='10' fill='%23ff5406'/%3E%3Cpath d='M7 20c0-5 4-9 9-9s9 4 9 9H7z' fill='%23fff'/%3E%3Ccircle cx='16' cy='8.5' r='2' fill='%23fff'/%3E%3Crect x='6' y='22' width='20' height='3' rx='1.5' fill='%23fff'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700&family=Nunito+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <!-- GERBANG AKSES LISENSI PEMBELI -->
+  <section id="login-screen" class="login-screen">
+    <div class="login-shell">
+      <div class="login-showcase">
+        <div>
+          <div class="brand-lockup">
+            <span class="brand-mark" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M4 15C4 10.5817 7.58172 7 12 7C16.4183 7 20 10.5817 20 15H4Z" fill="#ffffff"/>
+                <circle cx="12" cy="5" r="1.6" fill="#ffffff"/>
+                <rect x="3" y="17" width="18" height="2.4" rx="1.2" fill="#ffffff"/>
+              </svg>
+            </span>
+            <span class="brand-wordmark">DapurUntung</span>
+            <span class="pill-tag pill-tag-green">100% Tanpa AI</span>
+          </div>
+
+          <h1 class="login-display-title">
+            <span class="accent-green">Kunci Untung Dapur</span> dari Susut Bahan &amp; Potongan Ojol.
+          </h1>
+          <p class="login-sub">
+            Hitung HPP gramasi resep lengkap koreksi susut kupas/masak (% Yield), pasang harga GoFood, GrabFood &amp; ShopeeFood anti-boncos, dan cetak 4 dokumen dapur siap pakai langsung dari browser.
+          </p>
+        </div>
+
+        <div class="login-rings-preview">
+          <div class="mini-stat-pill">
+            <strong class="accent-orange">8 Menu Preset</strong>
+            <span>Kopi susu, geprek, rice bowl, dimsum, brownies, katering</span>
+          </div>
+          <div class="mini-stat-pill">
+            <strong class="accent-green">120 SOP Dapur</strong>
+            <span>Tabel susut bahan, bumbu dasar, rumus komisi ojol &amp; simpan stok</span>
+          </div>
+          <div class="mini-stat-pill">
+            <strong class="accent-sky">4 File Resmi</strong>
+            <span>Kartu SOP PDF, Poster Menu PNG, Excel CSV &amp; Audit Ojol PDF</span>
+          </div>
+          <div class="mini-stat-pill">
+            <strong class="accent-plum"> Rp 0 Biaya Bulanan</strong>
+            <span>Tanpa kuota token AI, tanpa kunci API, aman di perangkatmu</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="login-card">
+        <span class="pill-tag" style="align-self:flex-start;margin-bottom:12px;">RUANG KERJA KULINER</span>
+        <h2>Masuk ke DapurUntung</h2>
+        <p>Masukkan profil kedai dan kode lisensi resmi dari bukti pembelianmu.</p>
+
+        <div id="login-error" class="login-error hidden" role="alert"></div>
+
+        <form id="login-form" novalidate style="display:flex;flex-direction:column;gap:14px;">
+          <div class="grid-2">
+            <div class="field-group">
+              <label class="field-label" for="login-name">Nama Pemilik / Kepala Dapur</label>
+              <input id="login-name" type="text" class="input-pill" placeholder="Contoh: Ibu Sari" autocomplete="name" />
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="login-shop">Nama Kedai / Usaha Kuliner</label>
+              <input id="login-shop" type="text" class="input-pill" placeholder="Contoh: Kedai Kopi &amp; Geprek Sari" />
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="login-email">Email Pembeli</label>
+            <input id="login-email" type="email" class="input-pill" placeholder="nama@email.com" autocomplete="email" />
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="login-code">Kode Lisensi Akses</label>
+            <input id="login-code" type="password" class="input-pill" placeholder="Tempel kode lisensi resmi di sini" autocomplete="off" />
+          </div>
+
+          <button type="submit" class="btn btn-orange btn-block" style="margin-top:6px;padding:14px 24px;font-size:16px;">
+            Buka Studio Dapur Sekarang
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </button>
+        </form>
+
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--text-muted);">
+          <span>Belum punya kode akses resmi?</span>
+          <a href="https://nifari-dapuruntung-lp.pages.dev#demo-coba" style="font-weight:800;color:var(--color-ember-orange);">Coba Demo Gratis di Halaman Produk &rarr;</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RUANG KERJA UTAMA APLIKASI -->
+  <div id="app-shell" class="app-layout hidden">
+    <!-- HEADER KHUSUS MOBILE -->
+    <header class="mobile-topbar">
+      <div class="brand-lockup">
+        <span class="brand-mark" style="width:32px;height:32px;border-radius:10px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M4 15C4 10.5817 7.58172 7 12 7C16.4183 7 20 10.5817 20 15H4Z" fill="#ffffff"/>
+            <circle cx="12" cy="5" r="1.6" fill="#ffffff"/>
+            <rect x="3" y="17" width="18" height="2.4" rx="1.2" fill="#ffffff"/>
+          </svg>
+        </span>
+        <span class="brand-wordmark" style="font-size:17px;">DapurUntung</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button type="button" id="mob-theme-btn" class="btn btn-fog btn-sm" aria-label="Ganti Tema">Tema</button>
+        <button type="button" id="mob-menu-btn" class="btn btn-graphite btn-sm" aria-label="Buka Menu">Menu</button>
+      </div>
+    </header>
+
+    <!-- LACI MENU SAMPING MOBILE -->
+    <div id="mobile-drawer-backdrop" class="mobile-drawer-backdrop hidden">
+      <div class="mobile-drawer" id="mobile-drawer-panel">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+          <div class="brand-lockup">
+            <span class="brand-mark" style="width:32px;height:32px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M4 15C4 10.5817 7.58172 7 12 7C16.4183 7 20 10.5817 20 15H4Z" fill="#ffffff"/>
+                <circle cx="12" cy="5" r="1.6" fill="#ffffff"/>
+                <rect x="3" y="17" width="18" height="2.4" rx="1.2" fill="#ffffff"/>
+              </svg>
+            </span>
+            <span class="brand-wordmark">DapurUntung</span>
+          </div>
+          <button type="button" id="mob-drawer-close" class="btn btn-fog btn-sm">Tutup</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <button type="button" class="nav-btn mob-nav-link" data-view="dashboard">Beranda Dapur</button>
+          <button type="button" class="nav-btn mob-nav-link" data-view="wizard">Wizard HPP &amp; Ojol</button>
+          <button type="button" class="nav-btn mob-nav-link" data-view="belanja">Belanja Pasar &amp; Katering</button>
+          <button type="button" class="nav-btn mob-nav-link" data-view="library">Pustaka 120 SOP</button>
+          <button type="button" class="nav-btn mob-nav-link" data-view="history">Riwayat &amp; Favorit</button>
+          <button type="button" class="nav-btn mob-nav-link" data-view="settings">Pengaturan Kedai</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SIDEBAR DESKTOP -->
+    <aside class="sidebar">
+      <div>
+        <div class="brand-lockup" style="padding:0 6px;">
+          <span class="brand-mark">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M4 15C4 10.5817 7.58172 7 12 7C16.4183 7 20 10.5817 20 15H4Z" fill="#ffffff"/>
+              <circle cx="12" cy="5" r="1.6" fill="#ffffff"/>
+              <rect x="3" y="17" width="18" height="2.4" rx="1.2" fill="#ffffff"/>
+            </svg>
+          </span>
+          <div>
+            <div class="brand-wordmark">DapurUntung</div>
+            <div style="font-size:11.5px;font-weight:700;color:var(--text-muted);">Studio HPP &amp; Margin Kuliner</div>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav" aria-label="Menu Utama">
+          <button type="button" class="nav-btn active" data-view="dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>
+            Beranda Dapur
+          </button>
+          <button type="button" class="nav-btn" data-view="wizard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v18"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            Wizard HPP &amp; Ojol
+          </button>
+          <button type="button" class="nav-btn" data-view="belanja">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+            Belanja Pasar
+          </button>
+          <button type="button" class="nav-btn" data-view="library">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+            Pustaka 120 SOP
+          </button>
+          <button type="button" class="nav-btn" data-view="history">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+            Riwayat &amp; Favorit
+          </button>
+          <button type="button" class="nav-btn" data-view="settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+            Pengaturan Kedai
+          </button>
+        </nav>
+      </div>
+
+      <div class="sidebar-shop-box">
+        <div id="side-shop-name" class="sidebar-shop-name">Dapur Kuliner</div>
+        <div id="side-owner-name" class="sidebar-shop-owner">Kepala Dapur</div>
+        <div style="display:flex;gap:8px;">
+          <button type="button" id="theme-toggle-btn" class="btn btn-fog btn-sm" style="flex:1;">Tema Gelap</button>
+          <button type="button" id="logout-btn" class="btn btn-outline btn-sm">Keluar</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- KONTEN UTAMA -->
+    <main class="main-area">
+      <!-- 1. BERANDA DAPUR -->
+      <section id="view-dashboard" class="app-view">
+        <div class="topbar">
+          <div>
+            <h1 class="page-title">
+              <span class="accent-green" id="dash-greeting">Halo, Kepala Dapur</span> — Cek Margin Hari Ini
+            </h1>
+            <p class="page-sub" id="dash-subtitle">Pantau komposisi modal bahan, kemasan, potongan komisi aplikasi, dan laba bersih setiap porsi.</p>
+          </div>
+          <div class="topbar-actions">
+            <button type="button" class="btn btn-orange" id="dash-open-wizard-btn">
+              Hitung Resep Baru
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Resep Tersimpan</div>
+            <div class="kpi-value" id="kpi-saved-count">0 Menu</div>
+            <div class="kpi-foot">Siap panggil ulang kapan saja</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Dokumen Terunduh</div>
+            <div class="kpi-value accent-orange" id="kpi-export-count">0 File</div>
+            <div class="kpi-foot">PDF SOP, Poster PNG &amp; CSV</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">SOP Favorit</div>
+            <div class="kpi-value accent-sky" id="kpi-fav-count">0 SOP</div>
+            <div class="kpi-foot">Dari 120 standar dapur</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Untung Bersih Menu Aktif</div>
+            <div class="kpi-value accent-green" id="kpi-active-profit">Rp 0</div>
+            <div class="kpi-foot" id="kpi-active-menu-name">Per porsi terjual</div>
+          </div>
+        </div>
+
+        <!-- 4 CINCIN KOMPOSISI HARGA OJOL (FOODNOMS MACRO RINGS ADAPTATION) -->
+        <div class="card-fog">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div>
+              <span class="pill-tag pill-tag-orange">BEDAH PORSI HARGA OJOL</span>
+              <h2 style="margin:8px 0 4px;font-size:22px;font-weight:800;">
+                <span class="accent-orange">Komposisi Uang</span> pada <span id="ring-menu-label">Menu Aktif</span>
+              </h2>
+            </div>
+            <div class="pill-tag" id="ring-ojol-price-pill">Harga Ojol Aman: Rp 0</div>
+          </div>
+
+          <div class="rings-grid" id="dashboard-rings">
+            <div class="ring-card">
+              <div class="ring-svg-wrap">
+                <svg viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="var(--border-subtle)" stroke-width="9"/>
+                  <circle id="ring-arc-raw" cx="50" cy="50" r="40" fill="none" stroke="#ff3400" stroke-width="9" stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="180"/>
+                </svg>
+                <div class="ring-center-val" id="ring-pct-raw">0%</div>
+              </div>
+              <div class="ring-title">Bahan Baku</div>
+              <div class="ring-rp" id="ring-rp-raw">Rp 0 / porsi</div>
+            </div>
+
+            <div class="ring-card">
+              <div class="ring-svg-wrap">
+                <svg viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="var(--border-subtle)" stroke-width="9"/>
+                  <circle id="ring-arc-pack" cx="50" cy="50" r="40" fill="none" stroke="#00a9dd" stroke-width="9" stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="220"/>
+                </svg>
+                <div class="ring-center-val" id="ring-pct-pack">0%</div>
+              </div>
+              <div class="ring-title">Kemasan &amp; Gas</div>
+              <div class="ring-rp" id="ring-rp-pack">Rp 0 / porsi</div>
+            </div>
+
+            <div class="ring-card">
+              <div class="ring-svg-wrap">
+                <svg viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="var(--border-subtle)" stroke-width="9"/>
+                  <circle id="ring-arc-comm" cx="50" cy="50" r="40" fill="none" stroke="#bd4be5" stroke-width="9" stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="200"/>
+                </svg>
+                <div class="ring-center-val" id="ring-pct-comm">0%</div>
+              </div>
+              <div class="ring-title">Potongan Ojol</div>
+              <div class="ring-rp" id="ring-rp-comm">Rp 0 / porsi</div>
+            </div>
+
+            <div class="ring-card">
+              <div class="ring-svg-wrap">
+                <svg viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="var(--border-subtle)" stroke-width="9"/>
+                  <circle id="ring-arc-profit" cx="50" cy="50" r="40" fill="none" stroke="#00b33f" stroke-width="9" stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="150"/>
+                </svg>
+                <div class="ring-center-val accent-green" id="ring-pct-profit">0%</div>
+              </div>
+              <div class="ring-title">Untung Bersih</div>
+              <div class="ring-rp" id="ring-rp-profit">Rp 0 / porsi</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SPLIT: KALKULATOR KILAT 30 DETIK & PRESET POPULER -->
+        <div class="dash-split">
+          <div class="card-white">
+            <span class="pill-tag pill-tag-green">CEK KILAT 30 DETIK</span>
+            <h3 style="margin:10px 0 6px;font-size:21px;font-weight:800;">
+              <span class="accent-green">Simulasi Cepat</span> Harga GoFood &amp; GrabFood
+            </h3>
+            <p style="margin:0 0 16px;font-size:14px;color:var(--text-muted);">
+              Cek berapa harga tayang yang aman di aplikasi supaya uang cair ke rekening kedai tetap utuh.
+            </p>
+
+            <div class="grid-2" style="margin-bottom:14px;">
+              <div class="field-group">
+                <label class="field-label" for="qc-hpp">Total HPP Dapur / Porsi (Rp)</label>
+                <input id="qc-hpp" type="number" class="input-pill" value="9200" min="0" step="100" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="qc-offline">Harga Jual Offline Warung (Rp)</label>
+                <input id="qc-offline" type="number" class="input-pill" value="18000" min="0" step="500" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="qc-comm">Komisi Aplikasi (%)</label>
+                <input id="qc-comm" type="number" class="input-pill" value="20" min="0" max="60" step="1" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="qc-promo">Diskon Coret Promo (%)</label>
+                <input id="qc-promo" type="number" class="input-pill" value="10" min="0" max="60" step="1" />
+              </div>
+            </div>
+
+            <div class="card-fog" style="padding:18px;margin-bottom:14px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <span style="font-size:13.5px;font-weight:700;color:var(--text-muted);">Kalau cuma dinaikkan +20% biasa (Rugi Margin):</span>
+                <strong class="accent-red" id="qc-naive-result">Cair Rp 16.280</strong>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <span style="font-size:14px;font-weight:800;">Harga Aman Ojol (Tanpa Diskon):</span>
+                <strong class="accent-green" style="font-size:18px;" id="qc-safe-net">Rp 24.000</strong>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:14px;font-weight:800;">Harga Tayang Sebelum Coret Diskon:</span>
+                <strong class="accent-orange" style="font-size:18px;" id="qc-safe-strike">Rp 27.000</strong>
+              </div>
+            </div>
+
+            <button type="button" id="qc-apply-wizard-btn" class="btn btn-graphite btn-block">
+              Kirim Angka Ini ke Wizard Lengkap &rarr;
+            </button>
+          </div>
+
+          <div class="card-fog">
+            <span class="pill-tag">8 CONTOH MENU NYATA</span>
+            <h3 style="margin:10px 0 6px;font-size:21px;font-weight:800;">
+              <span class="accent-orange">Buka Cepat</span> Template Resep Laris
+            </h3>
+            <p style="margin:0 0 14px;font-size:14px;color:var(--text-muted);">
+              Klik salah satu preset di bawah untuk memuat seluruh gramasi bahan, persentase susut kupas, dan SOP masaknya ke Wizard.
+            </p>
+            <div id="dash-preset-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. WIZARD HPP RESEP & HARGA OJOL (3 LANGKAH) -->
+      <section id="view-wizard" class="app-view hidden">
+        <div class="topbar">
+          <div>
+            <h1 class="page-title">
+              <span class="accent-orange">Wizard Resep</span>, HPP Yield &amp; Harga Ojol
+            </h1>
+            <p class="page-sub">Susun gramasi bahan baku di Langkah 1, kunci harga ojol di Langkah 2, lalu unduh 4 dokumen resmi di Langkah 3.</p>
+          </div>
+          <div class="topbar-actions">
+            <button type="button" id="wiz-save-history-top" class="btn btn-green btn-sm">Simpan Resep Ini</button>
+          </div>
+        </div>
+
+        <!-- STEPPER PILLS -->
+        <div class="stepper-bar" role="tablist">
+          <button type="button" class="step-pill active" data-step="1">
+            <span class="step-num">1</span>
+            <span class="step-meta">
+              <strong>Takaran &amp; % Yield</strong>
+              <span>Bahan baku, kemasan &amp; gas</span>
+            </span>
+          </button>
+          <button type="button" class="step-pill" data-step="2">
+            <span class="step-num">2</span>
+            <span class="step-meta">
+              <strong>Harga Ojol &amp; Combo</strong>
+              <span>Anti-boncos, paket &amp; titik impas</span>
+            </span>
+          </button>
+          <button type="button" class="step-pill" data-step="3">
+            <span class="step-num">3</span>
+            <span class="step-meta">
+              <strong>Unduh 4 Dokumen</strong>
+              <span>PDF SOP, Poster PNG &amp; CSV</span>
+            </span>
+          </button>
+        </div>
+
+        <!-- LANGKAH 1 -->
+        <div id="wiz-step-1" class="wiz-pane">
+          <div class="card-fog" style="margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+              <div>
+                <strong style="font-size:15px;">Muat Cepat dari 8 Preset Menu Kuliner Indonesia:</strong>
+                <div style="font-size:13px;color:var(--text-muted);">Seluruh harga pasar dan angka Yield bisa kamu ubah sesuai pemasok daerahmu.</div>
+              </div>
+            </div>
+            <div id="wiz-preset-chips" class="preset-strip"></div>
+          </div>
+
+          <div class="card-white" style="margin-bottom:20px;">
+            <h3 style="margin:0 0 16px;font-size:20px;font-weight:800;">
+              <span class="accent-orange">Identitas Menu</span> &amp; Beban Non-Bahan
+            </h3>
+            <div class="grid-3" style="margin-bottom:14px;">
+              <div class="field-group">
+                <label class="field-label" for="menu-name">Nama Menu Jualan</label>
+                <input id="menu-name" type="text" class="input-pill" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="menu-category">Kategori Usaha / Etalase</label>
+                <input id="menu-category" type="text" class="input-pill" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="batch-portions">Hasil 1 Resep / Batch (Porsi)</label>
+                <input id="batch-portions" type="number" class="input-pill" min="1" step="1" />
+              </div>
+            </div>
+
+            <div class="grid-2">
+              <div class="field-group">
+                <label class="field-label" for="pack-cost">Biaya Kemasan Lengkap per 1 Porsi (Rp)</label>
+                <input id="pack-cost" type="number" class="input-pill" min="0" step="50" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="gas-cost">Alokasi Gas LPG, Listrik &amp; Air per 1 Porsi (Rp)</label>
+                <input id="gas-cost" type="number" class="input-pill" min="0" step="50" />
+              </div>
+            </div>
+          </div>
+
+          <div class="card-fog" style="margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+              <div>
+                <h3 style="margin:0;font-size:20px;font-weight:800;">
+                  <span class="accent-green">Daftar Gramasi Bahan</span> &amp; Koreksi Susut (% Yield)
+                </h3>
+                <p style="margin:4px 0 0;font-size:13.5px;color:var(--text-muted);">
+                  Kolom <strong>% Yield</strong> menghitung berat bersih siap masak setelah kupas kulit, buang tulang, atau cair.
+                </p>
+              </div>
+              <button type="button" id="add-ing-btn" class="btn btn-orange btn-sm">+ Tambah Bahan Baku</button>
+            </div>
+
+            <div class="ing-table-wrap">
+              <table class="ing-table">
+                <thead>
+                  <tr>
+                    <th style="width:28%;">Nama Bahan Baku</th>
+                    <th style="width:15%;">Harga Beli (Rp)</th>
+                    <th style="width:12%;">Isi Beli</th>
+                    <th style="width:9%;">Satuan</th>
+                    <th style="width:11%;">% Yield</th>
+                    <th style="width:12%;">Pakai / Batch</th>
+                    <th style="width:13%;">Biaya Batch</th>
+                  </tr>
+                </thead>
+                <tbody id="ing-tbody"></tbody>
+              </table>
+            </div>
+
+            <div class="card-white" style="margin-top:16px;padding:18px 22px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+              <div>
+                <span style="font-size:13px;color:var(--text-muted);font-weight:700;">RINGKASAN HPP LANGKAH 1</span>
+                <div style="font-size:15px;font-weight:700;" id="step1-batch-summary">Modal Bahan 1 Batch: Rp 0</div>
+              </div>
+              <div style="text-align:right;">
+                <span style="font-size:13px;color:var(--text-muted);font-weight:700;">TOTAL HPP BERSIH PER 1 PORSI</span>
+                <div style="font-size:26px;font-weight:800;" class="accent-green" id="step1-hpp-portion">Rp 0</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-white" style="margin-bottom:20px;">
+            <div class="field-group">
+              <label class="field-label" for="sop-notes">Catatan Langkah Takaran &amp; SOP Kru Dapur (Tercetak di PDF)</label>
+              <textarea id="sop-notes" class="input-pill" placeholder="Tulis urutan takaran dan suhu masak agar rasa selalu konsisten..."></textarea>
+            </div>
+          </div>
+
+          <div style="display:flex;justify-content:flex-end;">
+            <button type="button" class="btn btn-orange wiz-go-step" data-target="2">
+              Lanjut ke Langkah 2: Harga Ojol &amp; Paket Combo &rarr;
+            </button>
+          </div>
+        </div>
+
+        <!-- LANGKAH 2 -->
+        <div id="wiz-step-2" class="wiz-pane hidden">
+          <div class="card-white" style="margin-bottom:20px;">
+            <h3 style="margin:0 0 16px;font-size:20px;font-weight:800;">
+              <span class="accent-orange">Atur Harga Offline</span>, Komisi Aplikasi &amp; Biaya Tetap Kedai
+            </h3>
+            <div class="grid-3" style="margin-bottom:14px;">
+              <div class="field-group">
+                <label class="field-label" for="offline-price">Harga Jual Offline / Makan di Tempat (Rp)</label>
+                <input id="offline-price" type="number" class="input-pill" min="0" step="500" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="ojol-comm-pct">Komisi GoFood / GrabFood / ShopeeFood (%)</label>
+                <input id="ojol-comm-pct" type="number" class="input-pill" min="0" max="60" step="0.5" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="ojol-fixed-fee">Potongan Biaya Tetap per Pesanan (Rp)</label>
+                <input id="ojol-fixed-fee" type="number" class="input-pill" min="0" step="100" />
+              </div>
+            </div>
+
+            <div class="grid-2">
+              <div class="field-group">
+                <label class="field-label" for="ojol-promo-pct">Rencana Diskon Coret Promo di Aplikasi (%)</label>
+                <input id="ojol-promo-pct" type="number" class="input-pill" min="0" max="65" step="1" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="monthly-fixed-cost">Beban Tetap Bulanan Kedai: Sewa + Gaji + Listrik (Rp)</label>
+                <input id="monthly-fixed-cost" type="number" class="input-pill" min="0" step="100000" />
+              </div>
+            </div>
+          </div>
+
+          <div class="card-fog" style="margin-bottom:20px;">
+            <span class="pill-tag pill-tag-orange">PERBANDINGAN NYATA ANTI-BONCOS</span>
+            <h3 style="margin:10px 0 4px;font-size:21px;font-weight:800;">
+              <span class="accent-green">Rumus Balik Komisi</span> vs Naikkan Harga Biasa
+            </h3>
+            <div class="ojol-compare-grid" id="ojol-compare-cards"></div>
+          </div>
+
+          <div class="grid-2" style="margin-bottom:20px;">
+            <div class="card-white">
+              <span class="pill-tag pill-tag-green">3 PAKET PENAIK NOTA</span>
+              <h3 style="margin:10px 0 12px;font-size:20px;font-weight:800;">Rekomendasi Paket Hemat (Combo)</h3>
+              <div id="combo-cards-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+            </div>
+
+            <div class="card-white">
+              <span class="pill-tag pill-tag-graphite">TITIK IMPAS KEDAI (BEP)</span>
+              <h3 style="margin:10px 0 12px;font-size:20px;font-weight:800;">Target Minimal Laku Harian</h3>
+              <div id="bep-summary-box"></div>
+            </div>
+          </div>
+
+          <div class="card-fog" style="margin-bottom:22px;">
+            <h3 style="margin:0 0 6px;font-size:20px;font-weight:800;">
+              <span class="accent-orange">8 Poin Audit</span> Kesehatan Margin Dapur
+            </h3>
+            <div id="audit-checks-grid" class="audit-grid"></div>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <button type="button" class="btn btn-fog wiz-go-step" data-target="1">&larr; Kembali ke Gramasi Bahan</button>
+            <button type="button" class="btn btn-orange wiz-go-step" data-target="3">Lanjut ke Langkah 3: Cetak &amp; Unduh 4 File &rarr;</button>
+          </div>
+        </div>
+
+        <!-- LANGKAH 3 -->
+        <div id="wiz-step-3" class="wiz-pane hidden">
+          <div class="export-cards-grid">
+            <div class="export-action-card">
+              <div>
+                <span class="pill-tag pill-tag-orange">DOKUMEN 1 • PDF A4</span>
+                <h3 style="margin:10px 0 6px;font-size:19px;font-weight:800;">Kartu Standar Resep &amp; HPP (SOP Dapur)</h3>
+                <p style="margin:0;font-size:14px;color:var(--text-muted);">Tabel takaran bersih, koreksi % Yield, rincian HPP per porsi, dan langkah masak siap tempel di dinding dapur.</p>
+              </div>
+              <button type="button" id="btn-export-sop-pdf" class="btn btn-orange btn-block">Unduh Kartu SOP Resep (.PDF)</button>
+            </div>
+
+            <div class="export-action-card">
+              <div>
+                <span class="pill-tag pill-tag-green">DOKUMEN 2 • PNG 1080x1350</span>
+                <h3 style="margin:10px 0 6px;font-size:19px;font-weight:800;">Poster Daftar Menu &amp; 3 Paket Hemat</h3>
+                <p style="margin:0;font-size:14px;color:var(--text-muted);">Gambar poster resolusi tinggi siap kirim ke WhatsApp pelanggan, Story IG, atau cetak di meja kasir.</p>
+              </div>
+              <button type="button" id="btn-export-poster-png" class="btn btn-green btn-block">Unduh Poster Menu (.PNG)</button>
+            </div>
+
+            <div class="export-action-card">
+              <div>
+                <span class="pill-tag">DOKUMEN 3 • EXCEL CSV</span>
+                <h3 style="margin:10px 0 6px;font-size:19px;font-weight:800;">Rekap HPP &amp; Belanja Pasar 50/100 Porsi</h3>
+                <p style="margin:0;font-size:14px;color:var(--text-muted);">File spreadsheet UTF-8 siap buka di Excel/Google Sheets berisi hitungan belanja kotor pasar otomatis.</p>
+              </div>
+              <button type="button" id="btn-export-csv" class="btn btn-graphite btn-block">Unduh Tabel Belanja &amp; HPP (.CSV)</button>
+            </div>
+
+            <div class="export-action-card">
+              <div>
+                <span class="pill-tag pill-tag-graphite">DOKUMEN 4 • PDF A4</span>
+                <h3 style="margin:10px 0 6px;font-size:19px;font-weight:800;">Lembar Audit Harga Ojol &amp; Titik Impas</h3>
+                <p style="margin:0;font-size:14px;color:var(--text-muted);">Laporan perbandingan komisi GoFood/GrabFood, harga diskon coret aman, dan 8 poin audit kesehatan margin.</p>
+              </div>
+              <button type="button" id="btn-export-audit-pdf" class="btn btn-outline btn-block">Unduh Audit Harga Ojol (.PDF)</button>
+            </div>
+          </div>
+
+          <div class="preview-tabs">
+            <button type="button" class="btn btn-graphite btn-sm prev-tab-btn" data-ptab="sop">Pratinjau Kartu SOP Resep</button>
+            <button type="button" class="btn btn-fog btn-sm prev-tab-btn" data-ptab="ojol">Pratinjau Harga Ojol &amp; Combo</button>
+            <button type="button" class="btn btn-fog btn-sm prev-tab-btn" data-ptab="market">Pratinjau Belanja 50 &amp; 100 Porsi</button>
+          </div>
+
+          <div id="step3-preview-sheet" class="doc-sheet" style="margin-bottom:22px;"></div>
+
+          <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <button type="button" class="btn btn-fog wiz-go-step" data-target="2">&larr; Kembali ke Pengaturan Harga Ojol</button>
+            <button type="button" id="wiz-save-history-bottom" class="btn btn-green">Simpan Resep ke Riwayat Kedai</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. KONVERSI BELANJA PASAR & KATERING -->
+      <section id="view-belanja" class="app-view hidden">
+        <div class="topbar">
+          <div>
+            <h1 class="page-title">
+              <span class="accent-green">Konversi Belanja Pasar</span> &amp; Order Katering
+            </h1>
+            <p class="page-sub">Masukkan jumlah pesanan boks/cup hari ini; sistem menghitung berat kotor belanja pasar termasuk susut kupas (% Yield) dan DP minimal pelanggan.</p>
+          </div>
+        </div>
+
+        <div class="card-fog" style="margin-bottom:20px;">
+          <div class="grid-3" style="align-items:end;">
+            <div class="field-group">
+              <label class="field-label" for="market-target-portions">Target Produksi / Pesanan Katering (Porsi)</label>
+              <input id="market-target-portions" type="number" class="input-pill" value="75" min="1" step="1" />
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="market-buffer-pct">Cadangan Keamanan Dapur / Buffer (%)</label>
+              <select id="market-buffer-pct" class="input-pill">
+                <option value="0">0% (Pas Sesuai Pesanan)</option>
+                <option value="3" selected>3% (Standar Aman Katering)</option>
+                <option value="5">5% (Acara Besar / Luar Kota)</option>
+              </select>
+            </div>
+            <div>
+              <button type="button" id="market-download-csv-btn" class="btn btn-orange btn-block">Unduh Daftar Belanja (.CSV)</button>
+            </div>
+          </div>
+
+          <div class="preset-strip" style="margin-top:14px;">
+            <button type="button" class="preset-chip market-qty-chip" data-qty="25">25 Porsi</button>
+            <button type="button" class="preset-chip market-qty-chip" data-qty="50">50 Porsi</button>
+            <button type="button" class="preset-chip market-qty-chip active" data-qty="75">75 Porsi</button>
+            <button type="button" class="preset-chip market-qty-chip" data-qty="100">100 Porsi</button>
+            <button type="button" class="preset-chip market-qty-chip" data-qty="150">150 Porsi</button>
+            <button type="button" class="preset-chip market-qty-chip" data-qty="250">250 Porsi</button>
+          </div>
+        </div>
+
+        <div id="market-kpi-row" class="kpi-grid"></div>
+
+        <div class="doc-sheet">
+          <h3 style="margin:0 0 8px;font-size:19px;font-weight:800;" id="market-table-heading">Daftar Belanja Kotor Pasar</h3>
+          <div class="clean-table-scroll">
+            <table class="clean-table">
+              <thead>
+                <tr>
+                  <th>Bahan Baku</th>
+                  <th>Takaran Bersih Dibutuhkan</th>
+                  <th>% Yield</th>
+                  <th>Wajib Beli Kotor di Pasar</th>
+                  <th>Perkiraan Kemasan Beli</th>
+                  <th>Estimasi Uang Belanja</th>
+                </tr>
+              </thead>
+              <tbody id="market-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. PUSTAKA 120 SOP & RUMUS KULINER -->
+      <section id="view-library" class="app-view hidden">
+        <div class="topbar">
+          <div>
+            <h1 class="page-title">
+              <span class="accent-orange">Pustaka 120 SOP</span> &amp; Standar Dapur Kuliner
+            </h1>
+            <p class="page-sub">Panduan praktis tabel susut bahan, bumbu dasar tahan lama, strategi GoFood/GrabFood, hingga kontrol kebocoran stok.</p>
+          </div>
+        </div>
+
+        <div class="card-fog" style="margin-bottom:20px;">
+          <div class="grid-2" style="align-items:center;">
+            <input id="lib-search-input" type="search" class="input-pill" placeholder="Cari bahan atau topik: udang, kopi, sambal, diskon ojol, fifo, kemasan..." />
+            <div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;">
+              <button type="button" id="lib-fav-only-btn" class="btn btn-outline btn-sm">Tampilkan Favorit Saja (0)</button>
+              <span class="pill-tag" id="lib-count-badge">120 SOP Ditampilkan</span>
+            </div>
+          </div>
+          <div id="lib-cat-pills" class="cat-filter-row"></div>
+        </div>
+
+        <div id="lib-cards-grid" class="lib-grid"></div>
+      </section>
+
+      <!-- 5. RIWAYAT RESEP & FAVORIT -->
+      <section id="view-history" class="app-view hidden">
+        <div class="topbar">
+          <div>
+            <h1 class="page-title">
+              <span class="accent-green">Riwayat Resep</span> &amp; SOP Favorit Kedai
+            </h1>
+            <p class="page-sub">Buka kembali perhitungan menu yang sudah disimpan atau cetak ulang kartu SOP kapan saja.</p>
+          </div>
+        </div>
+
+        <div class="card-fog" style="margin-bottom:24px;">
+          <h3 style="margin:0 0 12px;font-size:20px;font-weight:800;">Daftar Resep Menu Tersimpan</h3>
+          <div id="history-recipes-list" style="display:flex;flex-direction:column;gap:12px;"></div>
+        </div>
+
+        <div class="card-white">
+          <h3 style="margin:0 0 12px;font-size:20px;font-weight:800;">Daftar SOP Dapur Favorit</h3>
+          <div id="history-favs-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+        </div>
+      </section>
+
+      <!-- 6. PENGATURAN KEDAI -->
+      <section id="view-settings" class="app-view hidden">
+        <div class="topbar">
+          <div>
+            <h1 class="page-title">
+              <span class="accent-orange">Pengaturan Kedai</span> &amp; Cadangan Data
+            </h1>
+            <p class="page-sub">Identitas kedai ini otomatis tercantum pada cetakan Kartu SOP PDF dan Poster Menu PNG.</p>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card-white">
+            <h3 style="margin:0 0 16px;font-size:20px;font-weight:800;">Profil Kedai / Dapur</h3>
+            <form id="settings-form" style="display:flex;flex-direction:column;gap:14px;">
+              <div class="field-group">
+                <label class="field-label" for="set-owner">Nama Pemilik / Penanggung Jawab</label>
+                <input id="set-owner" type="text" class="input-pill" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="set-shop">Nama Kedai / Brand Kuliner</label>
+                <input id="set-shop" type="text" class="input-pill" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="set-city">Kota / Cabang Dapur</label>
+                <input id="set-city" type="text" class="input-pill" placeholder="Contoh: Bandung Selatan" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="set-phone">Nomor WhatsApp / Info Pesanan (Tampil di Poster PNG)</label>
+                <input id="set-phone" type="text" class="input-pill" placeholder="Contoh: WA 0812-3456-7890" />
+              </div>
+              <button type="submit" class="btn btn-orange">Simpan Profil Kedai</button>
+            </form>
+          </div>
+
+          <div class="card-fog" style="display:flex;flex-direction:column;justify-content:space-between;gap:18px;">
+            <div>
+              <h3 style="margin:0 0 8px;font-size:20px;font-weight:800;">Tampilan &amp; Cadangan Data Lokal</h3>
+              <p style="margin:0 0 16px;font-size:14px;color:var(--text-muted);">
+                Seluruh resep dan perhitunganmu tersimpan pribadi di browser perangkat ini tanpa dikirim ke server luar. Unduh cadangan JSON bila ingin memindahkan ke laptop/HP lain.
+              </p>
+
+              <div style="display:flex;flex-direction:column;gap:10px;">
+                <button type="button" id="settings-theme-btn" class="btn btn-graphite btn-block">Ubah Tema Terang / Gelap</button>
+                <button type="button" id="backup-json-btn" class="btn btn-outline btn-block">Unduh Cadangan Data Kedai (.JSON)</button>
+                <label class="btn btn-outline btn-block" style="cursor:pointer;">
+                  Pulihkan dari File Cadangan (.JSON)
+                  <input id="restore-json-input" type="file" accept=".json,application/json" class="hidden" />
+                </label>
+              </div>
+            </div>
+
+            <div style="padding-top:16px;border-top:1px solid var(--border-subtle);">
+              <button type="button" id="settings-logout-btn" class="btn btn-fog btn-block" style="color:var(--color-signal-red-orange);">Keluar dari Sesi Lisensi</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- NAVIGASI BAWAH KHUSUS HP (FOODNOMS TAB BAR) -->
+    <nav class="mobile-tabbar" aria-label="Navigasi Bawah">
+      <button type="button" class="mob-tab active" data-view="dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        Beranda
+      </button>
+      <button type="button" class="mob-tab" data-view="wizard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v18"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Wizard HPP
+      </button>
+      <button type="button" class="mob-tab" data-view="belanja">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/></svg>
+        Belanja
+      </button>
+      <button type="button" class="mob-tab" data-view="library">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+        120 SOP
+      </button>
+      <button type="button" class="mob-tab" data-view="history">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+        Riwayat
+      </button>
+    </nav>
+  </div>
+
+  <!-- MODAL DETAIL PUSTAKA 120 SOP -->
+  <div id="lib-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="lib-modal-title">
+    <div class="modal-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;">
+        <span id="lib-modal-badge" class="pill-tag pill-tag-orange">SOP DAPUR</span>
+        <button type="button" id="lib-modal-close" class="btn btn-fog btn-sm">Tutup (Esc)</button>
+      </div>
+      <h2 id="lib-modal-title" style="margin:0 0 12px;font-size:24px;font-weight:800;line-height:1.25;">Judul SOP</h2>
+
+      <div class="card-fog" style="padding:18px;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:800;color:var(--text-muted);margin-bottom:4px;">PENJELASAN &amp; STANDAR DAPUR</div>
+        <p id="lib-modal-summary" style="margin:0;font-size:15px;line-height:1.6;"></p>
+      </div>
+
+      <div class="card-white" style="padding:18px;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:800;color:var(--color-ember-orange);margin-bottom:4px;">CONTOH HITUNGAN NYATA</div>
+        <p id="lib-modal-example" style="margin:0;font-size:15px;font-weight:700;line-height:1.6;"></p>
+      </div>
+
+      <div class="card-fog" style="padding:18px;margin-bottom:20px;">
+        <div style="font-size:12px;font-weight:800;color:var(--color-verdant-green);margin-bottom:4px;">TIPS PRAKTIK LANGSUNG DI KEDAI</div>
+        <p id="lib-modal-tip" style="margin:0;font-size:14.5px;line-height:1.6;"></p>
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button type="button" id="lib-modal-copy" class="btn btn-graphite btn-sm">Salin Panduan</button>
+        <button type="button" id="lib-modal-fav" class="btn btn-outline btn-sm">Simpan ke Favorit</button>
+        <button type="button" id="lib-modal-apply" class="btn btn-orange btn-sm">Tempel ke Catatan SOP Resep</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast-pill" class="toast-pill hidden" role="status" aria-live="polite">Berhasil disimpan</div>
+
+  <script src="./data/dapur-library.js"></script>
+  <script src="./exporter.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
