@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BerkasSah Studio — Generator Surat Perjanjian Resmi, BAST &amp; Kwitansi Materai</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23141b29'/%3E%3Cpath d='M16 6l8 3.5v6.5c0 5.2-3.4 9.6-8 11-4.6-1.4-8-5.8-8-11V9.5L16 6z' fill='%231d4ed8'/%3E%3Cpath d='M12.5 16l2.3 2.3 4.8-4.8' stroke='%23fff' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Source+Serif+4:wght@600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <!-- GERBANG LISENSI PEMBELI -->
+  <section id="login-screen" class="login-screen">
+    <div class="login-shell">
+      <div class="login-hero-box">
+        <div>
+          <div class="brand-lockup">
+            <span class="brand-seal" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M12 3L19 6V11.5C19 16.2 15.9 20.1 12 21.5C8.1 20.1 5 16.2 5 11.5V6L12 3Z" stroke="#60a5fa" stroke-width="2"/>
+                <path d="M9 12.2L11 14.2L15.2 10" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            <span class="brand-name">BerkasSah Studio</span>
+            <span class="seal-badge seal-badge-emerald">100% Tanpa AI</span>
+          </div>
+
+          <h1 class="login-title">
+            Rakit <span class="text-blue">Surat Perjanjian Mengikat</span> &amp; Kwitansi Materai dalam 3 Menit.
+          </h1>
+          <p style="margin:0;color:var(--text-muted);font-size:15.5px;">
+            Lindungi uang sewa ruko/kos, modal patungan bisnis, piutang cicilan, kontrak kerja staf PKWT, hingga jual beli mobil/motor dengan pasal pengaman lengkap, kalimat Terbilang otomatis, dan kotak Materai Rp 10.000.
+          </p>
+        </div>
+
+        <div class="login-highlights">
+          <div class="login-mini-card">
+            <strong class="text-blue">8 Kontrak Utama</strong>
+            <span>Sewa, bagi hasil, utang, jual-beli, PKWT, borongan, konsinyasi</span>
+          </div>
+          <div class="login-mini-card">
+            <strong class="text-emerald">10 Pasal Pintar</strong>
+            <span>Centang deposit, denda harian, agunan, NDA &amp; wanprestasi</span>
+          </div>
+          <div class="login-mini-card">
+            <strong class="text-crimson">4 File Resmi</strong>
+            <span>PDF Kontrak, PDF BAST+Kwitansi, Word RTF &amp; Kwitansi WA PNG</span>
+          </div>
+          <div class="login-mini-card">
+            <strong>120 Klausul Hukum</strong>
+            <span>Pustaka pasal pelindung siap tempel tanpa biaya konsultan</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="login-form-card">
+        <span class="seal-badge" style="align-self:flex-start;margin-bottom:10px;">AKSES RUANG DOKUMEN</span>
+        <h2 style="margin:0 0 6px;font-size:24px;font-weight:800;">Masuk ke BerkasSah</h2>
+        <p style="margin:0 0 20px;font-size:14px;color:var(--text-muted);">Masukkan identitas pengguna dan kode lisensi dari bukti pembelianmu.</p>
+
+        <div id="login-error" class="login-error hidden" role="alert"></div>
+
+        <form id="login-form" novalidate style="display:flex;flex-direction:column;gap:13px;">
+          <div class="grid-2">
+            <div class="field-group">
+              <label class="field-label" for="login-name">Nama Lengkap Pengguna</label>
+              <input id="login-name" type="text" class="folio-input" placeholder="Contoh: Hendra Pratama" />
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="login-org">Nama Usaha / Instansi (Opsional)</label>
+              <input id="login-org" type="text" class="folio-input" placeholder="Contoh: Usaha Mandiri Jaya" />
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="login-email">Email Pembeli</label>
+            <input id="login-email" type="email" class="folio-input" placeholder="nama@email.com" />
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="login-code">Kode Lisensi Akses</label>
+            <input id="login-code" type="password" class="folio-input" placeholder="Tempel kode lisensi resmi di sini" autocomplete="off" />
+          </div>
+
+          <button type="submit" class="btn btn-blue btn-block" style="margin-top:6px;padding:13px 22px;font-size:15.5px;">
+            Buka Studio Perjanjian Sekarang &rarr;
+          </button>
+        </form>
+
+        <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border-folio);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--text-muted);">
+          <span>Belum punya kode lisensi?</span>
+          <a href="https://nifari-berkassah-lp.pages.dev#demo-coba" style="font-weight:800;color:var(--seal-blue);">Coba Rakit Kontrak Gratis di LP &rarr;</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RUANG KERJA APLIKASI -->
+  <div id="app-shell" class="app-layout hidden">
+    <!-- TOPBAR MOBILE -->
+    <header class="mobile-topbar">
+      <div class="brand-lockup">
+        <span class="brand-seal" style="width:32px;height:32px;">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+            <path d="M12 3L19 6V11.5C19 16.2 15.9 20.1 12 21.5C8.1 20.1 5 16.2 5 11.5V6L12 3Z" stroke="#60a5fa" stroke-width="2"/>
+            <path d="M9 12.2L11 14.2L15.2 10" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="brand-name" style="font-size:16.5px;">BerkasSah</span>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button type="button" id="mob-theme-btn" class="btn btn-stone btn-sm">Tema</button>
+        <button type="button" id="mob-menu-btn" class="btn btn-oxford btn-sm">Menu</button>
+      </div>
+    </header>
+
+    <!-- LACI MENU MOBILE -->
+    <div id="mobile-drawer-backdrop" class="mobile-drawer-backdrop hidden">
+      <div class="mobile-drawer">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+          <span class="brand-name">BerkasSah Studio</span>
+          <button type="button" id="mob-drawer-close" class="btn btn-stone btn-sm">Tutup</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <button type="button" class="nav-btn mob-nav-link" data-view="dashboard">Beranda &amp; Cek Cepat</button>
+          <button type="button" class="nav-btn mob-nav-link" data-view="wizard">Wizard Surat Perjanjian</button>
+          <button type="button" class="nav-btn mob-nav-link" data-view="termin">Kalkulator Termin &amp; Kwitansi</button>
+          <button type="button" class="nav-btn mob-nav-link" data-view="library">Pustaka 120 Klausul</button>
+          <button type="button" class="nav-btn mob-nav-link" data-view="history">Arsip &amp; Favorit</button>
+          <button type="button" class="nav-btn mob-nav-link" data-view="settings">Pengaturan Identitas</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SIDEBAR DESKTOP -->
+    <aside class="sidebar">
+      <div>
+        <div class="brand-lockup" style="padding:0 6px;">
+          <span class="brand-seal">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M12 3L19 6V11.5C19 16.2 15.9 20.1 12 21.5C8.1 20.1 5 16.2 5 11.5V6L12 3Z" stroke="#60a5fa" stroke-width="2"/>
+              <path d="M9 12.2L11 14.2L15.2 10" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <div>
+            <div class="brand-name">BerkasSah</div>
+            <div style="font-size:11.5px;font-weight:700;color:var(--text-muted);">Kontrak &amp; Kwitansi Materai</div>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav" aria-label="Menu Utama">
+          <button type="button" class="nav-btn active" data-view="dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+            Beranda Dokumen
+          </button>
+          <button type="button" class="nav-btn" data-view="wizard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+            Wizard Perjanjian
+          </button>
+          <button type="button" class="nav-btn" data-view="termin">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Termin &amp; Terbilang
+          </button>
+          <button type="button" class="nav-btn" data-view="library">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+            120 Klausul Hukum
+          </button>
+          <button type="button" class="nav-btn" data-view="history">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+            Arsip &amp; Favorit
+          </button>
+          <button type="button" class="nav-btn" data-view="settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+            Pengaturan Pihak 1
+          </button>
+        </nav>
+      </div>
+
+      <div class="sidebar-profile">
+        <div id="side-org-name" style="font-size:14.5px;font-weight:800;">Ruang Dokumen Resmi</div>
+        <div id="side-user-name" style="font-size:12.5px;color:var(--text-muted);margin-bottom:10px;">Pengguna</div>
+        <div style="display:flex;gap:8px;">
+          <button type="button" id="theme-toggle-btn" class="btn btn-stone btn-sm" style="flex:1;">Tema Gelap</button>
+          <button type="button" id="logout-btn" class="btn btn-outline btn-sm">Keluar</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- AREA UTAMA -->
+    <main class="main-area">
+      <!-- 1. BERANDA DOKUMEN -->
+      <section id="view-dashboard" class="app-view">
+        <div class="topbar">
+          <div>
+            <h1 class="page-title" id="dash-greeting">Selamat Datang — Siapkan Perjanjian Tertulis</h1>
+            <p class="page-sub" id="dash-subtitle">Pastikan setiap kesepakatan uang, sewa, dan bisnis memiliki bukti tertulis bermaterai dan saksi yang kuat.</p>
+          </div>
+          <button type="button" id="dash-start-wizard-btn" class="btn btn-blue">
+            Buat Surat Perjanjian Baru &rarr;
+          </button>
+        </div>
+
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Arsip Perjanjian</div>
+            <div class="kpi-value" id="kpi-saved-docs">0 Surat</div>
+            <div class="kpi-foot">Tersimpan aman di perangkat</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Berkas Dicetak</div>
+            <div class="kpi-value text-blue" id="kpi-export-files">0 Berkas</div>
+            <div class="kpi-foot">PDF, Word RTF &amp; PNG</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Skor Pengaman Draf Aktif</div>
+            <div class="kpi-value text-emerald" id="kpi-audit-score">8/8 Aman</div>
+            <div class="kpi-foot" id="kpi-active-pasal">Pasal pelindung aktif</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Nilai Kontrak Aktif</div>
+            <div class="kpi-value text-crimson" id="kpi-active-nominal">Rp 0</div>
+            <div class="kpi-foot" id="kpi-active-preset">Siap cetak 2 rangkap</div>
+          </div>
+        </div>
+
+        <div class="dash-split">
+          <!-- KIRI: KONVERTER TERBILANG & DENDA KILAT 30 DETIK -->
+          <div class="card-white">
+            <span class="seal-badge seal-badge-blue">ALAT KILAT 30 DETIK</span>
+            <h2 style="margin:10px 0 6px;font-size:20px;font-weight:800;">Konversi Kalimat Terbilang &amp; Simulasi Cicilan</h2>
+            <p style="margin:0 0 14px;font-size:13.5px;color:var(--text-muted);">
+              Cegah salah ketik nol pada kontrak dan kwitansi. Ketik nilai transaksi untuk menyalin kalimat Terbilang resmi.
+            </p>
+
+            <div class="grid-2" style="margin-bottom:12px;">
+              <div class="field-group">
+                <label class="field-label" for="qc-nominal">Nilai Kesepakatan / Kontrak (Rp)</label>
+                <input id="qc-nominal" type="number" class="folio-input" value="36000000" min="0" step="500000" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="qc-termin">Bagi Berapa Kali Bayar / Termin</label>
+                <input id="qc-termin" type="number" class="folio-input" value="3" min="1" max="36" step="1" />
+              </div>
+            </div>
+
+            <div class="card-stone" style="padding:16px;margin-bottom:14px;">
+              <div style="font-size:11.5px;font-weight:800;color:var(--text-muted);margin-bottom:4px;">KALIMAT TERBILANG RESMI AKTA:</div>
+              <div id="qc-terbilang-out" style="font-family:var(--font-serif);font-size:17px;font-weight:700;color:var(--seal-blue);margin-bottom:8px;">
+                # Tiga Puluh Enam Juta Rupiah #
+              </div>
+              <div id="qc-cicilan-out" style="font-size:13.5px;font-weight:700;">
+                Estimasi per Termin: Rp 12.000.000 / tahap (Wajib Materai Rp 10.000 untuk transaksi di atas Rp 5.000.000)
+              </div>
+            </div>
+
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button type="button" id="qc-copy-terbilang-btn" class="btn btn-stone btn-sm">Salin Kalimat Terbilang</button>
+              <button type="button" id="qc-send-wizard-btn" class="btn btn-oxford btn-sm">Gunakan Angka Ini di Wizard &rarr;</button>
+            </div>
+          </div>
+
+          <!-- KANAN: 8 TEMPLATE KONTRAK SIAP PAKAI -->
+          <div class="card-stone">
+            <span class="seal-badge">8 DRAF PERJANJIAN POPULER</span>
+            <h2 style="margin:10px 0 6px;font-size:20px;font-weight:800;">Pilih Cepat Jenis Perjanjian</h2>
+            <p style="margin:0 0 12px;font-size:13.5px;color:var(--text-muted);">
+              Klik salah satu skenario di bawah untuk memuat struktur pasal dan pengaman hukumnya ke Wizard.
+            </p>
+            <div id="dash-preset-cards" style="display:flex;flex-direction:column;gap:8px;"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. WIZARD SURAT PERJANJIAN (3 LANGKAH) -->
+      <section id="view-wizard" class="app-view hidden">
+        <div class="topbar">
+          <div>
+            <h1 class="page-title">Wizard Perakit Surat Perjanjian &amp; BAST</h1>
+            <p class="page-sub">Isi identitas Para Pihak di Langkah 1, centang pasal pelindung di Langkah 2, lalu unduh 4 dokumen resmi di Langkah 3.</p>
+          </div>
+          <button type="button" id="wiz-save-top-btn" class="btn btn-emerald btn-sm">Simpan ke Arsip</button>
+        </div>
+
+        <div class="stepper-bar" role="tablist">
+          <button type="button" class="step-pill active" data-step="1">
+            <span class="step-num">1</span>
+            <div>
+              <strong style="display:block;font-size:14px;">Para Pihak &amp; Objek</strong>
+              <span style="font-size:12px;opacity:0.8;">Identitas KTP, nilai &amp; durasi</span>
+            </div>
+          </button>
+          <button type="button" class="step-pill" data-step="2">
+            <span class="step-num">2</span>
+            <div>
+              <strong style="display:block;font-size:14px;">Pasal Pengaman &amp; Termin</strong>
+              <span style="font-size:12px;opacity:0.8;">10 klausul pintar &amp; 8 audit sah</span>
+            </div>
+          </button>
+          <button type="button" class="step-pill" data-step="3">
+            <span class="step-num">3</span>
+            <div>
+              <strong style="display:block;font-size:14px;">Pratinjau &amp; Unduh 4 File</strong>
+              <span style="font-size:12px;opacity:0.8;">PDF Kontrak, BAST, Word &amp; PNG</span>
+            </div>
+          </button>
+        </div>
+
+        <!-- LANGKAH 1 -->
+        <div id="wiz-step-1">
+          <div class="card-stone" style="margin-bottom:18px;">
+            <strong style="font-size:14px;">Pilih Template Skenario Perjanjian (8 Preset Siap Edit):</strong>
+            <div id="wiz-preset-chips" class="preset-strip"></div>
+          </div>
+
+          <div class="card-white" style="margin-bottom:18px;">
+            <h3 style="margin:0 0 14px;font-size:18px;font-weight:800;">Judul Dokumen, Tempat &amp; Tanggal Tanda Tangan</h3>
+            <div class="grid-3">
+              <div class="field-group">
+                <label class="field-label" for="doc-heading">Judul Resmi di Kepala Surat</label>
+                <input id="doc-heading" type="text" class="folio-input" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="sign-city">Kota Penandatanganan</label>
+                <input id="sign-city" type="text" class="folio-input" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="sign-date">Tanggal Perjanjian</label>
+                <input id="sign-date" type="date" class="folio-input" />
+              </div>
+            </div>
+          </div>
+
+          <div class="grid-2" style="margin-bottom:18px;">
+            <div class="card-white">
+              <span class="seal-badge seal-badge-blue" style="margin-bottom:10px;">IDENTITAS PIHAK PERTAMA</span>
+              <div style="display:flex;flex-direction:column;gap:10px;">
+                <div class="field-group">
+                  <label class="field-label" for="p1-name">Nama Lengkap Sesuai KTP</label>
+                  <input id="p1-name" type="text" class="folio-input" />
+                </div>
+                <div class="grid-2">
+                  <div class="field-group">
+                    <label class="field-label" for="p1-nik">NIK KTP / No. Identitas</label>
+                    <input id="p1-nik" type="text" class="folio-input" />
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="p1-phone">Nomor WhatsApp / Telp</label>
+                    <input id="p1-phone" type="text" class="folio-input" />
+                  </div>
+                </div>
+                <div class="field-group">
+                  <label class="field-label" for="p1-role">Kedudukan / Jabatan (Contoh: Pemilik Bangunan)</label>
+                  <input id="p1-role" type="text" class="folio-input" />
+                </div>
+                <div class="field-group">
+                  <label class="field-label" for="p1-address">Alamat Lengkap Domisili</label>
+                  <input id="p1-address" type="text" class="folio-input" />
+                </div>
+              </div>
+            </div>
+
+            <div class="card-white">
+              <span class="seal-badge seal-badge-emerald" style="margin-bottom:10px;">IDENTITAS PIHAK KEDUA</span>
+              <div style="display:flex;flex-direction:column;gap:10px;">
+                <div class="field-group">
+                  <label class="field-label" for="p2-name">Nama Lengkap Sesuai KTP</label>
+                  <input id="p2-name" type="text" class="folio-input" />
+                </div>
+                <div class="grid-2">
+                  <div class="field-group">
+                    <label class="field-label" for="p2-nik">NIK KTP / No. Identitas</label>
+                    <input id="p2-nik" type="text" class="folio-input" />
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="p2-phone">Nomor WhatsApp / Telp</label>
+                    <input id="p2-phone" type="text" class="folio-input" />
+                  </div>
+                </div>
+                <div class="field-group">
+                  <label class="field-label" for="p2-role">Kedudukan / Jabatan (Contoh: Penyewa / Pengelola)</label>
+                  <input id="p2-role" type="text" class="folio-input" />
+                </div>
+                <div class="field-group">
+                  <label class="field-label" for="p2-address">Alamat Lengkap Domisili</label>
+                  <input id="p2-address" type="text" class="folio-input" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-stone" style="margin-bottom:18px;">
+            <h3 style="margin:0 0 12px;font-size:18px;font-weight:800;">Objek Kesepakatan, Nilai Rupiah &amp; Saksi</h3>
+            <div class="field-group" style="margin-bottom:12px;">
+              <label class="field-label" for="object-title">Rincian Objek Perjanjian (Bangunan / Usaha / Kendaraan / Lingkup Kerja)</label>
+              <input id="object-title" type="text" class="folio-input" />
+            </div>
+
+            <div class="grid-3" style="margin-bottom:12px;">
+              <div class="field-group">
+                <label class="field-label" for="contract-value">Nilai Total Perjanjian (Rp)</label>
+                <input id="contract-value" type="number" class="folio-input" min="0" step="250000" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="termin-count">Jumlah Tahap Pembayaran (Termin)</label>
+                <input id="termin-count" type="number" class="folio-input" min="1" max="36" step="1" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="duration-text">Jangka Waktu / Masa Berlaku</label>
+                <input id="duration-text" type="text" class="folio-input" />
+              </div>
+            </div>
+
+            <div class="card-white" style="padding:12px 16px;margin-bottom:12px;">
+              <span style="font-size:12px;font-weight:800;color:var(--text-muted);">OTOMATIS TERBILANG RUPIAH: </span>
+              <strong id="step1-terbilang-live" class="text-blue" style="font-family:var(--font-serif);font-size:16px;">Nol Rupiah</strong>
+            </div>
+
+            <div class="field-group" style="margin-bottom:12px;">
+              <label class="field-label" for="core-scope-text">Isi Pokok Kesepakatan Utama (Otomatis Menjadi Pasal Ruang Lingkup)</label>
+              <textarea id="core-scope-text" class="folio-input"></textarea>
+            </div>
+
+            <div class="grid-3">
+              <div class="field-group">
+                <label class="field-label" for="witness-1">Nama Saksi Pertama</label>
+                <input id="witness-1" type="text" class="folio-input" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="witness-2">Nama Saksi Kedua</label>
+                <input id="witness-2" type="text" class="folio-input" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="handover-items">Barang/Dokumen di Berita Acara (BAST)</label>
+                <input id="handover-items" type="text" class="folio-input" />
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;justify-content:flex-end;">
+            <button type="button" class="btn btn-blue wiz-go-step" data-target="2">
+              Lanjut ke Langkah 2: Pilih Pasal Pelindung &amp; Termin &rarr;
+            </button>
+          </div>
+        </div>
+
+        <!-- LANGKAH 2 -->
+        <div id="wiz-step-2" class="hidden">
+          <div class="card-white" style="margin-bottom:18px;">
+            <h3 style="margin:0 0 12px;font-size:18px;font-weight:800;">Parameter Angka Pengaman (Deposit, Denda, Agunan &amp; Pengadilan)</h3>
+            <div class="grid-2" style="margin-bottom:12px;">
+              <div class="field-group">
+                <label class="field-label" for="deposit-value">Nominal Uang Deposit / Retensi Jaminan (Rp)</label>
+                <input id="deposit-value" type="number" class="folio-input" min="0" step="100000" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="late-fee-day">Nominal Denda Keterlambatan per Hari (Rp)</label>
+                <input id="late-fee-day" type="number" class="folio-input" min="0" step="10000" />
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="field-group">
+                <label class="field-label" for="collateral-desc">Rincian Barang / Dokumen Jaminan Agunan (Jika Ada)</label>
+                <input id="collateral-desc" type="text" class="folio-input" placeholder="Contoh: BPKB Asli Motor / Sertifikat / Kosongkan jika tidak pakai" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="court-city">Domisili Pengadilan Negeri Penyelesaian Sengketa</label>
+                <input id="court-city" type="text" class="folio-input" />
+              </div>
+            </div>
+          </div>
+
+          <div class="card-stone" style="margin-bottom:18px;">
+            <span class="seal-badge seal-badge-blue">MESIN PERAKIT PASAL OTOMATIS</span>
+            <h3 style="margin:8px 0 4px;font-size:19px;font-weight:800;">Centang Klausul Pengaman yang Ingin Dimasukkan ke Surat</h3>
+            <p style="margin:0;font-size:13.5px;color:var(--text-muted);">Nomor urut Pasal 1, Pasal 2, dst. akan diurutkan otomatis tanpa lompat nomor.</p>
+            <div id="smart-clauses-grid" class="clauses-check-grid"></div>
+          </div>
+
+          <div class="card-white" style="margin-bottom:18px;">
+            <div class="field-group">
+              <label class="field-label" for="custom-extra-clause">Pasal Tambahan Khusus (Bisa Diketik Sendiri atau Ditempel dari Pustaka 120 Klausul)</label>
+              <textarea id="custom-extra-clause" class="folio-input" placeholder="Opsional: Tambahkan kesepakatan khusus tambahan di sini bila diperlukan..."></textarea>
+            </div>
+          </div>
+
+          <div class="card-stone" style="margin-bottom:20px;">
+            <span class="seal-badge seal-badge-emerald">8 INDIKATOR KEABSAHAN &amp; KEAMANAN KONTRAK</span>
+            <h3 style="margin:8px 0 4px;font-size:19px;font-weight:800;">Audit Perlindungan Hak &amp; Bukti Hukum</h3>
+            <div id="legal-audit-grid" class="audit-grid"></div>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <button type="button" class="btn btn-stone wiz-go-step" data-target="1">&larr; Kembali ke Identitas Pihak</button>
+            <button type="button" class="btn btn-blue wiz-go-step" data-target="3">Lanjut ke Langkah 3: Pratinjau Akta &amp; Cetak 4 File &rarr;</button>
+          </div>
+        </div>
+
+        <!-- LANGKAH 3 -->
+        <div id="wiz-step-3" class="hidden">
+          <div class="export-grid-4">
+            <div class="card-stone" style="display:flex;flex-direction:column;justify-content:space-between;gap:12px;">
+              <div>
+                <span class="seal-badge seal-badge-blue">BERKAS 1 • PDF A4 RESMI</span>
+                <h3 style="margin:8px 0 4px;font-size:18px;font-weight:800;">Surat Perjanjian Lengkap + Kotak Materai</h3>
+                <p style="margin:0;font-size:13.5px;color:var(--text-muted);">Format akta bawah tangan siap cetak 2 rangkap lengkap seluruh Pasal, Tabel Termin, Saksi &amp; Materai Rp 10.000.</p>
+              </div>
+              <button type="button" id="btn-dl-contract-pdf" class="btn btn-blue btn-block">Unduh Surat Perjanjian (.PDF)</button>
+            </div>
+
+            <div class="card-stone" style="display:flex;flex-direction:column;justify-content:space-between;gap:12px;">
+              <div>
+                <span class="seal-badge seal-badge-crimson">BERKAS 2 • PDF A4 BAST + KWITANSI</span>
+                <h3 style="margin:8px 0 4px;font-size:18px;font-weight:800;">Berita Acara Serah Terima &amp; Kwitansi Resmi</h3>
+                <p style="margin:0;font-size:13.5px;color:var(--text-muted);">1 halaman berisi Berita Acara penyerahan kunci/uang/barang di atas dan Kwitansi bermaterai di bawah.</p>
+              </div>
+              <button type="button" id="btn-dl-bast-pdf" class="btn btn-crimson btn-block">Unduh BAST &amp; Kwitansi (.PDF)</button>
+            </div>
+
+            <div class="card-stone" style="display:flex;flex-direction:column;justify-content:space-between;gap:12px;">
+              <div>
+                <span class="seal-badge">BERKAS 3 • DOKUMEN MS WORD (.RTF)</span>
+                <h3 style="margin:8px 0 4px;font-size:18px;font-weight:800;">Draf Kontrak Siap Edit di Microsoft Word</h3>
+                <p style="margin:0;font-size:13.5px;color:var(--text-muted);">Terbuka mulus di MS Word, Google Docs &amp; LibreOffice bila kamu ingin menambah kop surat perusahaan.</p>
+              </div>
+              <button type="button" id="btn-dl-word-rtf" class="btn btn-oxford btn-block">Unduh Dokumen Word (.RTF)</button>
+            </div>
+
+            <div class="card-stone" style="display:flex;flex-direction:column;justify-content:space-between;gap:12px;">
+              <div>
+                <span class="seal-badge seal-badge-emerald">BERKAS 4 • GAMBAR WA 1080x1350</span>
+                <h3 style="margin:8px 0 4px;font-size:18px;font-weight:800;">Kartu Ringkasan Kesepakatan &amp; Kwitansi WA</h3>
+                <p style="margin:0;font-size:13.5px;color:var(--text-muted);">Gambar bukti kesepakatan resolusi tinggi siap dikirim langsung ke chat WhatsApp lawan transaksi.</p>
+              </div>
+              <button type="button" id="btn-dl-wa-png" class="btn btn-emerald btn-block">Unduh Kwitansi WhatsApp (.PNG)</button>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+            <button type="button" class="btn btn-oxford btn-sm prev-mode-btn" data-pmode="contract">Pratinjau Naskah Perjanjian</button>
+            <button type="button" class="btn btn-stone btn-sm prev-mode-btn" data-pmode="bast">Pratinjau BAST &amp; Kwitansi</button>
+          </div>
+
+          <div id="step3-folio-preview" class="legal-paper-sheet" style="margin-bottom:20px;"></div>
+
+          <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <button type="button" class="btn btn-stone wiz-go-step" data-target="2">&larr; Kembali ke Pengaturan Pasal</button>
+            <button type="button" id="wiz-save-bottom-btn" class="btn btn-emerald">Simpan Perjanjian ke Arsip</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. KALKULATOR TERMIN CICILAN & KWITANSI CEPAT -->
+      <section id="view-termin" class="app-view hidden">
+        <div class="topbar">
+          <div>
+            <h1 class="page-title">Jadwal Termin Pembayaran &amp; Cetak Kwitansi</h1>
+            <p class="page-sub">Rincian pembagian tahap pembayaran otomatis beserta kalimat Terbilang Rupiah untuk draf kontrak aktifmu.</p>
+          </div>
+          <button type="button" id="termin-print-kwitansi-btn" class="btn btn-crimson">Cetak PDF BAST &amp; Kwitansi</button>
+        </div>
+
+        <div id="termin-kpi-summary" class="kpi-grid"></div>
+
+        <div class="card-white">
+          <h3 style="margin:0 0 10px;font-size:18px;font-weight:800;" id="termin-table-title">Tabel Jadwal Jatuh Tempo Pembayaran</h3>
+          <div class="clean-table-scroll">
+            <table class="clean-table">
+              <thead>
+                <tr>
+                  <th>Tahap</th>
+                  <th>Tanggal Jatuh Tempo</th>
+                  <th>Nominal Rupiah</th>
+                  <th>Kalimat Terbilang</th>
+                  <th>Keterangan</th>
+                </tr>
+              </thead>
+              <tbody id="termin-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. PUSTAKA 120 KLAUSUL PELINDUNG -->
+      <section id="view-library" class="app-view hidden">
+        <div class="topbar">
+          <div>
+            <h1 class="page-title">Pustaka 120 Klausul Pelindung Kontrak Bisnis</h1>
+            <p class="page-sub">Kumpulan bunyi pasal siap tempel untuk menutup celah sengketa sewa, patungan usaha, piutang, PKWT, borongan, dan jual beli aset.</p>
+          </div>
+        </div>
+
+        <div class="card-stone" style="margin-bottom:18px;">
+          <div class="grid-2" style="align-items:center;">
+            <input id="lib-search-input" type="search" class="folio-input" placeholder="Cari klausul: deposit, sublease, bagi hasil, bpkb, jaminan, retensi, kasir..." />
+            <div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;">
+              <button type="button" id="lib-fav-btn" class="btn btn-outline btn-sm">Favorit Saja (0)</button>
+              <span class="seal-badge" id="lib-count-pill">120 Klausul</span>
+            </div>
+          </div>
+          <div id="lib-cat-strip" class="preset-strip" style="margin-top:12px;"></div>
+        </div>
+
+        <div id="lib-cards-grid" class="lib-grid"></div>
+      </section>
+
+      <!-- 5. ARSIP & FAVORIT -->
+      <section id="view-history" class="app-view hidden">
+        <div class="topbar">
+          <div>
+            <h1 class="page-title">Arsip Surat Perjanjian &amp; Klausul Favorit</h1>
+            <p class="page-sub">Panggil ulang draf kontrak yang pernah kamu simpan atau cetak ulang PDF/Word kapan saja.</p>
+          </div>
+        </div>
+
+        <div class="card-stone" style="margin-bottom:22px;">
+          <h3 style="margin:0 0 12px;font-size:18px;font-weight:800;">Daftar Surat Perjanjian Tersimpan</h3>
+          <div id="history-docs-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+        </div>
+
+        <div class="card-white">
+          <h3 style="margin:0 0 12px;font-size:18px;font-weight:800;">Klausul Pelindung Favorit</h3>
+          <div id="history-favs-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+      </section>
+
+      <!-- 6. PENGATURAN IDENTITAS DEFAULT -->
+      <section id="view-settings" class="app-view hidden">
+        <div class="topbar">
+          <div>
+            <h1 class="page-title">Pengaturan Identitas Default &amp; Cadangan Lokal</h1>
+            <p class="page-sub">Simpan data Pihak Pertama milikmu supaya otomatis terisi setiap membuat surat perjanjian baru.</p>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card-white">
+            <h3 style="margin:0 0 14px;font-size:18px;font-weight:800;">Profil Default Pihak Pertama</h3>
+            <form id="settings-form" style="display:flex;flex-direction:column;gap:12px;">
+              <div class="field-group">
+                <label class="field-label" for="set-name">Nama Lengkap Pihak Pertama</label>
+                <input id="set-name" type="text" class="folio-input" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="set-org">Nama Usaha / Perusahaan</label>
+                <input id="set-org" type="text" class="folio-input" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="set-nik">NIK KTP Default</label>
+                <input id="set-nik" type="text" class="folio-input" />
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="set-city">Kota Default Penandatanganan</label>
+                <input id="set-city" type="text" class="folio-input" />
+              </div>
+              <button type="submit" class="btn btn-blue">Simpan Profil Default</button>
+            </form>
+          </div>
+
+          <div class="card-stone" style="display:flex;flex-direction:column;justify-content:space-between;gap:16px;">
+            <div>
+              <h3 style="margin:0 0 8px;font-size:18px;font-weight:800;">Privasi 100% Lokal &amp; Cadangan JSON</h3>
+              <p style="margin:0 0 14px;font-size:13.5px;color:var(--text-muted);">
+                Seluruh NIK, nominal kontrak, dan isi perjanjianmu hanya tersimpan di dalam browser perangkatmu sendiri (tidak pernah dikirim ke server mana pun).
+              </p>
+              <div style="display:flex;flex-direction:column;gap:10px;">
+                <button type="button" id="settings-theme-btn" class="btn btn-oxford btn-block">Ganti Tema Terang / Gelap</button>
+                <button type="button" id="backup-json-btn" class="btn btn-outline btn-block">Unduh Cadangan Arsip (.JSON)</button>
+                <label class="btn btn-outline btn-block" style="cursor:pointer;">
+                  Pulihkan dari File Cadangan (.JSON)
+                  <input id="restore-json-input" type="file" accept=".json,application/json" class="hidden" />
+                </label>
+              </div>
+            </div>
+
+            <div style="padding-top:14px;border-top:1px solid var(--border-folio);">
+              <button type="button" id="settings-logout-btn" class="btn btn-outline btn-block text-crimson">Keluar dari Sesi Lisensi</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- NAVIGASI BAWAH MOBILE -->
+    <nav class="mobile-tabbar" aria-label="Navigasi Bawah">
+      <button type="button" class="mob-tab active" data-view="dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        Beranda
+      </button>
+      <button type="button" class="mob-tab" data-view="wizard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Wizard
+      </button>
+      <button type="button" class="mob-tab" data-view="termin">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Termin
+      </button>
+      <button type="button" class="mob-tab" data-view="library">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+        120 Pasal
+      </button>
+      <button type="button" class="mob-tab" data-view="history">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+        Arsip
+      </button>
+    </nav>
+  </div>
+
+  <!-- MODAL DETAIL KLAUSUL -->
+  <div id="lib-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="lib-modal-title">
+    <div class="modal-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;">
+        <span id="lib-modal-badge" class="seal-badge seal-badge-blue">KLAUSUL</span>
+        <button type="button" id="lib-modal-close" class="btn btn-stone btn-sm">Tutup (Esc)</button>
+      </div>
+      <h2 id="lib-modal-title" style="margin:0 0 12px;font-size:21px;font-weight:800;line-height:1.3;">Judul Klausul</h2>
+
+      <div class="card-stone" style="padding:15px;margin-bottom:12px;">
+        <div style="font-size:11.5px;font-weight:800;color:var(--text-muted);margin-bottom:4px;">RISIKO YANG DICEGAH</div>
+        <p id="lib-modal-summary" style="margin:0;font-size:14.5px;"></p>
+      </div>
+
+      <div class="card-white" style="padding:15px;margin-bottom:12px;border-color:var(--seal-blue);">
+        <div style="font-size:11.5px;font-weight:800;color:var(--seal-blue);margin-bottom:4px;">BUNYI NASKAH PASAL SIAP TEMPEL</div>
+        <p id="lib-modal-clause" style="margin:0;font-family:var(--font-serif);font-size:15.5px;font-weight:600;line-height:1.65;"></p>
+      </div>
+
+      <div class="card-stone" style="padding:15px;margin-bottom:18px;">
+        <div style="font-size:11.5px;font-weight:800;color:var(--emerald-valid);margin-bottom:4px;">TIPS PELAKSANAAN DI LAPANGAN</div>
+        <p id="lib-modal-tip" style="margin:0;font-size:14px;"></p>
+      </div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" id="lib-modal-copy" class="btn btn-oxford btn-sm">Salin Bunyi Pasal</button>
+        <button type="button" id="lib-modal-fav" class="btn btn-outline btn-sm">Simpan Favorit</button>
+        <button type="button" id="lib-modal-insert" class="btn btn-blue btn-sm">Masukkan ke Pasal Tambahan Kontrak</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-pill" class="toast-pill hidden" role="status" aria-live="polite">Berhasil disimpan</div>
+
+  <script src="./data/berkas-library.js"></script>
+  <script src="./exporter.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
