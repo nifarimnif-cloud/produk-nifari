@@ -7,7 +7,7 @@
   1. Banyak penjual online menentukan harga jual hanya pakai kira-kira ("HPP dikali dua"), lupa menghitung potongan admin kategori + Gratis Ongkir/Promo Xtra + biaya tetap per resi Rp1.250 + kardus kemasan + cadangan retur COD, sehingga barang laris tapi saldo rekening jalan di tempat.
   2. Banyak seller menyalakan iklan pencarian atau GMV Max tanpa tahu angka pasti **ROAS Impas** dan **ROAS Sehat**, sehingga mengira ROAS 4x sudah untung besar padahal toko diam-diam nombok di setiap pesanan.
   3. Saat kampanye tanggal kembar (9.9 / 11.11 / 12.12) atau Flash Sale, diskon tambahan sering bertumpuk dengan voucher toko, komisi affiliate kreator, dan biaya iklan sekaligus. Daripada mengeluarkan Rp600.000–Rp1.800.000 untuk kursus iklan marketplace yang penuh teori panjang, penjual langsung mendapatkan mesin hitung praktis yang mencetak 4 dokumen resmi pegangan tim admin toko dalam 3 menit.
-- **Harga Jual yang Diusulkan:** **Rp119.000** (sekali bayar untuk akses penuh aplikasi web seumur hidup di seluruh SKU toko, tanpa biaya langganan bulanan & berjalan 100% mandiri di browser tanpa kuota API berbayar).
+- **Harga Jual yang Diusulkan:** **Rp 99.000** (sekali bayar untuk akses penuh aplikasi web seumur hidup di seluruh SKU toko, tanpa biaya langganan bulanan & berjalan 100% mandiri di browser tanpa kuota API berbayar).
 
 ---
 

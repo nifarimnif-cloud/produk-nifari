@@ -7,7 +7,7 @@
   1. Penyedia jasa sering diminta **"harga teman"** atau ditawar sadis karena hanya mengirim nominal harga berupa teks chat polosan tanpa pilihan paket dan rincian resmi.
   2. Lingkup kerja sering melebar (*revisi beranak pinak*), klien tiba-tiba meminta file mentah gratis, atau pembayaran uang muka (DP) molor karena tidak ada surat kesepakatan kerja tertulis sejak hari pertama.
   3. Banyak pekerja lepas sudah terlanjur keluar uang Rp500.000–Rp1.200.000 membeli kursus online yang isinya hanya video teori panjang, tetapi tetap bingung menyusun dokumen penawaran, kartu harga, dan tagihan resmi saat ada prospek klien masuk.
-- **Harga Jual yang Diusulkan:** **Rp129.000** (sekali bayar untuk akses penuh aplikasi web seumur hidup, tanpa biaya langganan bulanan & berjalan 100% mandiri di browser tanpa kuota API berbayar).
+- **Harga Jual yang Diusulkan:** **Rp 99.000** (sekali bayar untuk akses penuh aplikasi web seumur hidup, tanpa biaya langganan bulanan & berjalan 100% mandiri di browser tanpa kuota API berbayar).
 
 ---
 

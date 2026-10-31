@@ -7,7 +7,7 @@
   1. Guru kehabisan waktu istirahat di malam hari untuk merapikan tabel Modul Ajar, menghitung pembagian menit Jam Pelajaran (JP), dan mengganti identitas sekolah/NIP secara berulang menjelang supervisi kepala sekolah.
   2. Kesulitan merangkai urutan sintaks Kegiatan Inti sesuai model pembelajaran (*Problem Based Learning*, *Project Based Learning*, *Discovery Learning*, *Berdiferensiasi*), menyusun tabel Rubrik Penilaian 4 Skala, serta menyiapkan lembar LKPD dari nol.
   3. Kelelahan merangkai puluhan kalimat deskripsi capaian kompetensi dan saran bimbingan yang santun satu per satu saat pengisian e-Rapor akhir semester.
-- **Harga Jual yang Diusulkan:** **Rp129.000** (sekali bayar untuk akses penuh aplikasi web selamanya, tanpa biaya langganan bulanan & berjalan mandiri 100% tanpa perlu kunci API berbayar).
+- **Harga Jual yang Diusulkan:** **Rp 99.000** (sekali bayar untuk akses penuh aplikasi web selamanya, tanpa biaya langganan bulanan & berjalan mandiri 100% tanpa perlu kunci API berbayar).
 
 ---
 

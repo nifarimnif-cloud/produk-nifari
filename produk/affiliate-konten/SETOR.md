@@ -7,7 +7,7 @@
   1. Banyak kreator affiliate bengong lama di depan barang sampel karena bingung merangkai kalimat **3 detik pertama** supaya penonton tidak langsung geser layar (*skip*).
   2. Banyak yang canggung tampil muka di kamera, baru bikin 1–2 video untuk satu barang sudah kehabisan ide sudut bahasan, atau tidak sengaja memakai frasa klaim berlebihan yang menyebabkan jangkauan video dibatasi platform.
   3. Banyak pemula sudah terlanjur mengeluarkan Rp500.000–Rp1.200.000 membeli kelas/webinar affiliate yang isinya hanya rekaman teori panjang, padahal yang dibutuhkan malam ini adalah naskah siap baca, contekan syuting HP, dan kalender konten sebulan penuh.
-- **Harga Jual yang Diusulkan:** **Rp99.000** (sekali bayar untuk akses penuh aplikasi web seumur hidup, tanpa biaya langganan bulanan & berjalan 100% mandiri di browser tanpa kuota API berbayar).
+- **Harga Jual yang Diusulkan:** **Rp 99.000** (sekali bayar untuk akses penuh aplikasi web seumur hidup, tanpa biaya langganan bulanan & berjalan 100% mandiri di browser tanpa kuota API berbayar).
 
 ---
 

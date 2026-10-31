@@ -8,7 +8,7 @@
   2. Kebingungan menghitung THR proporsional bagi staf dengan masa kerja di bawah 12 bulan serta penulisan kalimat Terbilang Rupiah pada slip gaji.
   3. Uang laci kasir tercampur pengeluaran operasional tanpa indikator rasio beban gaji terhadap omzet (ideal `< 25–30%`).
   4. Belum tersedianya dokumen Laporan Laba-Rugi formal beserta hitungan kapasitas aman angsuran KUR Bank (`30% x Laba Bersih`) ketika disurvei petugas bank.
-- **Harga yang Diusulkan:** **Rp129.000** (sekali bayar untuk selamanya, `0%` ketergantungan AI / tanpa biaya API / tanpa tagihan bulanan).
+- **Harga yang Diusulkan:** **Rp 99.000** (sekali bayar untuk selamanya, `0%` ketergantungan AI / tanpa biaya API / tanpa tagihan bulanan).
 
 ## 2. Tautan Produksi (Cloudflare Pages)
 - **Landing Page (LP):** https://nifari-gajikas-lp.pages.dev

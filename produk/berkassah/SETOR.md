@@ -8,7 +8,7 @@
   2. Comot draf kontrak seadanya dari internet yang bolong pasal krusialnya — lupa mengatur uang deposit jaminan tunggakan PLN/PAM, larangan oper sewa (*sublease*) diam-diam, pemisahan rekening usaha, denda harian, hingga retensi garansi tukang `5%`.
   3. Rawan salah ketik nol atau selisih antara angka nominal dan ejaan huruf kalimat Terbilang Rupiah pada surat perjanjian maupun kwitansi tanda terima.
   4. Biaya jasa pembuatan draf kontrak satuan di konsultan yang mencapai `Rp 1.500.000 – Rp 3.000.000` per satu surat, padahal pelaku UMKM membutuhkan banyak jenis dokumen sehari-hari.
-- **Harga yang Diusulkan:** **Rp 149.000** (sekali bayar untuk selamanya, `100%` mandiri berbasis mesin aturan deterministik tanpa ketergantungan AI / tanpa API key / tanpa biaya bulanan, `100%` privat di browser pengguna).
+- **Harga yang Diusulkan:** **Rp 99.000** (sekali bayar untuk selamanya, `100%` mandiri berbasis mesin aturan deterministik tanpa ketergantungan AI / tanpa API key / tanpa biaya bulanan, `100%` privat di browser pengguna).
 
 ## 2. Tautan Produksi (Cloudflare Pages)
 - **Landing Page (LP):** https://nifari-berkassah-lp.pages.dev

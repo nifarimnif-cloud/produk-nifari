@@ -8,7 +8,7 @@
   2. Terjebak menaikkan harga menu GoFood, GrabFood, dan ShopeeFood cuma `+20%` biasa sehingga uang yang cair ke rekening kedai lebih kecil dari harga warung dan tekor saat mengikuti promo diskon coret.
   3. Kebingungan menghitung berapa kilogram kotor bahan yang harus dibeli di pasar pagi (serta berapa nominal wajib DP `50%`) saat menerima pesanan katering `50–250` boks mendadak.
   4. Takaran bumbu serta porsi kru dapur berubah-ubah setiap ganti shift karena belum adanya Kartu Standar Resep (SOP Gramasi) tercetak di meja racik.
-- **Harga yang Diusulkan:** **Rp129.000** (sekali bayar untuk selamanya, `100%` mandiri berbasis rumus pasti tanpa ketergantungan AI / tanpa API key / tanpa biaya bulanan).
+- **Harga yang Diusulkan:** **Rp 99.000** (sekali bayar untuk selamanya, `100%` mandiri berbasis rumus pasti tanpa ketergantungan AI / tanpa API key / tanpa biaya bulanan).
 
 ## 2. Tautan Produksi (Cloudflare Pages)
 - **Landing Page (LP):** https://nifari-dapuruntung-lp.pages.dev

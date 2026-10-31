@@ -7,7 +7,7 @@
   1. Banyak pelamar gagal dipanggil wawancara bukan karena kurang mampu, melainkan karena memakai template CV dua kolom penuh ikon/tabel yang gagal dibaca sistem penyaring HRD (ATS) serta hanya menulis daftar tugas harian tanpa angka pencapaian.
   2. Ketika HRD bertanya *"Berapa ekspektasi gaji Anda?"* atau menawar di bawah harapan, pelamar sering gugup dan menjawab *"terserah standar perusahaan"* sehingga kehilangan potensi selisih gaji jutaan rupiah per tahun.
   3. Banyak pencari kerja enggan atau kecewa mengeluarkan Rp500.000–Rp1.500.000 untuk kelas/webinar karier yang hanya berisi video teori berjam-jam, padahal yang dibutuhkan malam ini adalah dokumen CV rapi, surat lamaran resmi, dan contekan skrip negosiasi gaji siap pakai.
-- **Harga Jual yang Diusulkan:** **Rp99.000** (sekali bayar untuk akses penuh aplikasi web seumur hidup, tanpa biaya langganan bulanan & berjalan 100% mandiri di browser tanpa kuota API berbayar).
+- **Harga Jual yang Diusulkan:** **Rp 99.000** (sekali bayar untuk akses penuh aplikasi web seumur hidup, tanpa biaya langganan bulanan & berjalan 100% mandiri di browser tanpa kuota API berbayar).
 
 ---
 

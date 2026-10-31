@@ -7,7 +7,7 @@
   1. Pemborong sering telat mengirim penawaran harga habis survei lokasi karena harus merapikan rumus Excel berjam-jam di malam hari, sehingga proyek keburu diambil kompetitor.
   2. Mengirim angka borongan gelondongan lewat chat WhatsApp tanpa rincian item & jadwal termin resmi membuat pemilik rumah ragu dan menawar terlalu rendah.
   3. Keuntungan proyek sering tergerus (boncos) akibat lupa menghitung item kecil, salah menaksir belanja material fisik ke toko bangunan, atau tidak memakai Surat Perjanjian Kerja Borongan (SPK) tertulis untuk mengawal pekerjaan tambah-kurang (*addendum*).
-- **Harga Jual yang Diusulkan:** **Rp149.000** (sekali bayar untuk akses penuh aplikasi web, tanpa biaya langganan bulanan & berjalan 100% mandiri tanpa perlu API key berbayar).
+- **Harga Jual yang Diusulkan:** **Rp 99.000** (sekali bayar untuk akses penuh aplikasi web, tanpa biaya langganan bulanan & berjalan 100% mandiri tanpa perlu API key berbayar).
 
 ---
 
