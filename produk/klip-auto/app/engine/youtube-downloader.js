@@ -426,16 +426,31 @@ function base64ToUint8Array(b64) {
   return out;
 }
 
-async function fetchSingleServerChunk({ videoId, itag, start, end, signal }) {
+async function fetchExactChunkBytes({
+  videoId,
+  itag,
+  start,
+  end,
+  lockedClen = 0,
+  clientName = '',
+  requireExactSpan = false,
+  signal,
+  onProgressDelta = null
+}) {
   let lastErr = null;
-  for (let attempt = 0; attempt < 5; attempt++) {
+  const expectedSpan = end - start + 1;
+
+  for (let attempt = 0; attempt < 6; attempt++) {
     if (signal?.aborted) {
       throw new DOMException('Proses link YouTube dibatalkan.', 'AbortError');
     }
+    let attemptDelta = 0;
     try {
+      const clenParam = lockedClen > 0 ? `&clen=${encodeURIComponent(lockedClen)}` : '';
+      const clientParam = clientName ? `&client=${encodeURIComponent(clientName)}` : '';
       const url = `./api/youtube/stream?v=${encodeURIComponent(videoId)}&itag=${encodeURIComponent(
         itag
-      )}&start=${start}&end=${end}&att=${attempt + 1}`;
+      )}&start=${start}&end=${end}${clenParam}${clientParam}&att=${attempt + 1}`;
       const res = await fetch(url, {
         method: 'GET',
         credentials: 'same-origin',
@@ -447,12 +462,67 @@ async function fetchSingleServerChunk({ videoId, itag, start, end, signal }) {
         const errJson = await res.json().catch(() => ({}));
         throw new Error(errJson.error || `Gagal mengambil potongan video (${res.status}).`);
       }
-      return res;
+
+      let headerTotal = Number(res.headers.get('X-Total-Bytes') || 0);
+      if (!headerTotal) {
+        const cr = res.headers.get('Content-Range') || '';
+        const m = cr.match(/\/(\d+)/);
+        if (m) headerTotal = Number(m[1]);
+      }
+
+      if (lockedClen > 0 && headerTotal > 0 && headerTotal !== lockedClen) {
+        throw new Error(`Representasi ukuran aliran berubah (${headerTotal} vs ${lockedClen}), mengulang...`);
+      }
+
+      const pieces = [];
+      let totalRead = 0;
+      if (res.body && typeof res.body.getReader === 'function') {
+        const reader = res.body.getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (value && value.byteLength > 0) {
+            pieces.push(value);
+            totalRead += value.byteLength;
+            attemptDelta += value.byteLength;
+            if (onProgressDelta) onProgressDelta(value.byteLength, headerTotal);
+          }
+        }
+      } else {
+        const buf = new Uint8Array(await res.arrayBuffer());
+        if (buf.byteLength > 0) {
+          pieces.push(buf);
+          totalRead = buf.byteLength;
+          attemptDelta = buf.byteLength;
+          if (onProgressDelta) onProgressDelta(buf.byteLength, headerTotal);
+        }
+      }
+
+      if (requireExactSpan && totalRead !== expectedSpan) {
+        throw new Error(`Potongan byte terputus (${totalRead}/${expectedSpan}), mengulang...`);
+      }
+
+      let mergedChunk;
+      if (pieces.length === 1) {
+        mergedChunk = pieces[0];
+      } else {
+        mergedChunk = new Uint8Array(totalRead);
+        let off = 0;
+        for (const p of pieces) {
+          mergedChunk.set(p, off);
+          off += p.byteLength;
+        }
+      }
+
+      return { bytes: mergedChunk, headerTotal, status: res.status };
     } catch (err) {
+      if (attemptDelta > 0 && onProgressDelta) {
+        onProgressDelta(-attemptDelta, 0);
+      }
       if (err?.name === 'AbortError' || signal?.aborted) throw err;
       lastErr = err;
-      if (attempt < 4) {
-        await new Promise((r) => setTimeout(r, 320 * (attempt + 1)));
+      if (attempt < 5) {
+        await new Promise((r) => setTimeout(r, 280 * (attempt + 1)));
       }
     }
   }
@@ -463,78 +533,125 @@ async function downloadFormatViaServerStream({
   videoId,
   itag,
   expectedBytes,
+  clientName = '',
   mimeType,
   signal,
   onBytes
 }) {
+  let parts = [];
   let downloaded = 0;
-  let totalKnown = Number(expectedBytes || 0);
-  const parts = [];
+  let lockedClen = 0;
+  let lockedClient = '';
+  let uiEstimateTotal = Number(expectedBytes || 0);
+  let consecutiveErrors = 0;
+  let fullRestarts = 0;
 
-  let pos = 0;
   while (true) {
     if (signal?.aborted) {
       throw new DOMException('Proses link YouTube dibatalkan.', 'AbortError');
     }
 
-    const reqEnd =
-      totalKnown > 0 ? Math.min(totalKnown - 1, pos + CHUNK_SIZE - 1) : pos + CHUNK_SIZE - 1;
-    const res = await fetchSingleServerChunk({
-      videoId,
-      itag,
-      start: pos,
-      end: reqEnd,
-      signal
-    });
+    try {
+      const clenParam = downloaded > 0 && lockedClen > 0 ? `&clen=${encodeURIComponent(lockedClen)}` : '';
+      const effectiveClient = downloaded > 0 ? lockedClient : lockedClient || clientName;
+      const clientParam = effectiveClient ? `&client=${encodeURIComponent(effectiveClient)}` : '';
+      const streamUrl = `./api/youtube/stream?v=${encodeURIComponent(
+        videoId
+      )}&itag=${encodeURIComponent(itag)}&full=1&start=${downloaded}${clenParam}${clientParam}&att=${
+        consecutiveErrors + 1
+      }`;
 
-    const headerTotal = Number(res.headers.get('X-Total-Bytes') || 0);
-    if (headerTotal > 0) {
-      totalKnown = headerTotal;
-    } else if (!totalKnown) {
-      const cr = res.headers.get('Content-Range') || '';
-      const m = cr.match(/\/(\d+)/);
-      if (m) totalKnown = Number(m[1]);
-    }
+      const res = await fetch(streamUrl, {
+        method: 'GET',
+        credentials: 'same-origin',
+        cache: 'no-store',
+        signal
+      });
 
-    let chunkByteLen = 0;
-    if (res.body && typeof res.body.getReader === 'function') {
-      const reader = res.body.getReader();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (value && value.byteLength > 0) {
-          parts.push(value);
-          chunkByteLen += value.byteLength;
-          downloaded += value.byteLength;
-          if (onBytes) onBytes(downloaded, totalKnown || downloaded);
+      const ct = (res.headers.get('Content-Type') || '').toLowerCase();
+      if ((!res.ok && res.status !== 206) || ct.includes('application/json')) {
+        const errJson = await res.json().catch(() => ({}));
+        const e = new Error(errJson.error || `Gagal mengalirkan video YouTube (${res.status}).`);
+        e.code = errJson.code || 'STREAM_HTTP_ERROR';
+        throw e;
+      }
+
+      let headerTotal = Number(res.headers.get('X-Total-Bytes') || 0);
+      if (!headerTotal) {
+        const cr = res.headers.get('Content-Range') || '';
+        const m = cr.match(/\/(\d+)/);
+        if (m) headerTotal = Number(m[1]);
+      }
+      const streamClient = (res.headers.get('X-Stream-Client') || '').trim();
+
+      if (downloaded === 0) {
+        if (headerTotal > 0) {
+          lockedClen = headerTotal;
+          uiEstimateTotal = headerTotal;
+        }
+        if (streamClient) {
+          lockedClient = streamClient;
+        }
+      } else if (lockedClen > 0 && headerTotal > 0 && headerTotal !== lockedClen) {
+        throw new Error(`Ukuran aliran berubah saat melanjutkan (${headerTotal} vs ${lockedClen}).`);
+      }
+
+      let gotInThisPass = 0;
+      if (res.body && typeof res.body.getReader === 'function') {
+        const reader = res.body.getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (value && value.byteLength > 0) {
+            parts.push(value);
+            downloaded += value.byteLength;
+            gotInThisPass += value.byteLength;
+            consecutiveErrors = 0;
+            if (onBytes) onBytes(downloaded, lockedClen || uiEstimateTotal || downloaded);
+          }
+        }
+      } else {
+        const buf = new Uint8Array(await res.arrayBuffer());
+        if (buf.byteLength > 0) {
+          parts.push(buf);
+          downloaded += buf.byteLength;
+          gotInThisPass += buf.byteLength;
+          consecutiveErrors = 0;
+          if (onBytes) onBytes(downloaded, lockedClen || uiEstimateTotal || downloaded);
         }
       }
-    } else {
-      const buf = new Uint8Array(await res.arrayBuffer());
-      if (buf.byteLength > 0) {
-        parts.push(buf);
-        chunkByteLen = buf.byteLength;
-        downloaded += buf.byteLength;
-        if (onBytes) onBytes(downloaded, totalKnown || downloaded);
+
+      // Selesai penuh apabila ukuran terkunci tercapai, atau server tidak mengirim panjang total dan aliran berhenti normal
+      if ((lockedClen > 0 && downloaded >= lockedClen) || (lockedClen === 0 && gotInThisPass > 0)) {
+        return new Blob(parts, { type: mimeType });
       }
-    }
 
-    if (chunkByteLen === 0) break;
-    pos += chunkByteLen;
+      if (gotInThisPass === 0) {
+        throw new Error('Aliran terputus tanpa data baru.');
+      }
+    } catch (err) {
+      if (err?.name === 'AbortError' || signal?.aborted) throw err;
+      consecutiveErrors++;
 
-    // Jika sudah mencapai totalKnown, selesai!
-    if (res.status === 200 && pos === chunkByteLen && totalKnown > 0 && downloaded >= totalKnown) {
-      break;
-    }
-    if (totalKnown > 0 && pos >= totalKnown) {
-      break;
-    }
-    if (chunkByteLen < CHUNK_SIZE && totalKnown === 0) {
-      break;
+      // Bila saat resume (downloaded > 0) YouTube kebetulan merotasi varian transcode A/B sehingga clen lama tidak ditawarkan lagi,
+      // mulai ulang bersih dari byte 0 sekali agar unduhan tetap berhasil!
+      if (downloaded > 0 && consecutiveErrors >= 3 && fullRestarts < 1) {
+        fullRestarts++;
+        consecutiveErrors = 0;
+        parts = [];
+        downloaded = 0;
+        lockedClen = 0;
+        lockedClient = '';
+        if (onBytes) onBytes(0, uiEstimateTotal);
+        continue;
+      }
+
+      if (consecutiveErrors >= 5) {
+        throw err;
+      }
+      await new Promise((r) => setTimeout(r, 320 * consecutiveErrors));
     }
   }
-
-  return new Blob(parts, { type: mimeType });
 }
 
 async function downloadFormatViaBridge({ videoId, itag, expectedBytes, mimeType, signal, onBytes }) {
@@ -703,19 +820,20 @@ export async function downloadYoutubeAsMp4File({
 
   saveYoutubeTranscriptCache(info);
 
-  if (quality.mode === 'progressive') {
+  const runProgressiveDownload = async (progItag, progExpectedBytes, progClient, progLabel) => {
     const mp4Blob = await downloadSingleStreamFormat({
       transportMode,
       videoId: info.videoId,
-      itag: quality.videoItag,
-      expectedBytes: quality.totalBytes,
+      itag: progItag,
+      expectedBytes: progExpectedBytes,
+      clientName: progClient || '',
       mimeType: 'video/mp4',
       signal,
       onBytes: (done, total) => {
         if (!onProgress) return;
         const pct = total > 0 ? Math.min(98, Math.round((done / total) * 94) + 4) : 50;
         onProgress({
-          phase: `Mengunduh video YouTube ${quality.shortLabel} (${formatBytesReadable(done)}${
+          phase: `Mengunduh video YouTube ${progLabel} (${formatBytesReadable(done)}${
             total > 0 ? ` / ${formatBytesReadable(total)}` : ''
           })...`,
           percent: pct
@@ -737,64 +855,98 @@ export async function downloadYoutubeAsMp4File({
       heatmap: info.heatmap || [],
       allWords
     };
+  };
+
+  if (quality.mode === 'progressive') {
+    return runProgressiveDownload(
+      quality.videoItag,
+      quality.totalBytes,
+      quality.clientName || '',
+      quality.shortLabel
+    );
   }
 
-  const videoBlob = await downloadSingleStreamFormat({
-    transportMode,
-    videoId: info.videoId,
-    itag: quality.videoItag,
-    expectedBytes: quality.videoBytes,
-    mimeType: 'video/mp4',
-    signal,
-    onBytes: (done, total) => {
+  try {
+    let vDone = 0;
+    let aDone = 0;
+    let vTotal = Number(quality.videoBytes || 0);
+    let aTotal = Number(quality.audioBytes || 0);
+
+    const emitCombinedProgress = () => {
       if (!onProgress) return;
-      const denom = Math.max(1, (total || quality.videoBytes || 1) + (quality.audioBytes || 0));
-      const pct = Math.min(76, Math.max(4, Math.round((done / denom) * 76)));
+      const sumDone = vDone + aDone;
+      const sumTotal = Math.max(1, vTotal + aTotal);
+      const pct = Math.min(92, Math.max(4, Math.round((sumDone / sumTotal) * 90) + 2));
       onProgress({
-        phase: `Mengunduh gambar ${quality.shortLabel} (${formatBytesReadable(done)}${
-          total > 0 ? ` / ${formatBytesReadable(total)}` : ''
+        phase: `Mengunduh video ${quality.shortLabel} + suara jernih (${formatBytesReadable(sumDone)}${
+          vTotal + aTotal > 0 ? ` / ${formatBytesReadable(vTotal + aTotal)}` : ''
         })...`,
         percent: pct
       });
-    }
-  });
+    };
 
-  const audioBlob = await downloadSingleStreamFormat({
-    transportMode,
-    videoId: info.videoId,
-    itag: quality.audioItag,
-    expectedBytes: quality.audioBytes,
-    mimeType: 'audio/mp4',
-    signal,
-    onBytes: (done, total) => {
-      if (!onProgress) return;
-      const ratio = total > 0 ? done / total : 0.5;
+    // Unduh jalur suara lebih dulu (ukuran kecil, selesai ~1-2 detik) lalu jalur video HD secara berurutan
+    // agar koneksi HTTP/2 memakai ulang isolate Edge hangat yang sama dari `/api/youtube/info` (0 panggilan ganda)!
+    const audioBlob = await downloadSingleStreamFormat({
+      transportMode,
+      videoId: info.videoId,
+      itag: quality.audioItag,
+      expectedBytes: quality.audioBytes,
+      clientName: quality.clientName || '',
+      mimeType: 'audio/mp4',
+      signal,
+      onBytes: (done, total) => {
+        aDone = done;
+        if (total > 0) aTotal = total;
+        emitCombinedProgress();
+      }
+    });
+
+    const videoBlob = await downloadSingleStreamFormat({
+      transportMode,
+      videoId: info.videoId,
+      itag: quality.videoItag,
+      expectedBytes: quality.videoBytes,
+      clientName: quality.clientName || '',
+      mimeType: 'video/mp4',
+      signal,
+      onBytes: (done, total) => {
+        vDone = done;
+        if (total > 0) vTotal = total;
+        emitCombinedProgress();
+      }
+    });
+
+    if (onProgress) {
+      onProgress({ phase: 'Menyatukan gambar HD & suara AAC ke MP4 utuh...', percent: 96 });
+    }
+    const merged = await remuxVideoAndAudioToMp4(videoBlob, audioBlob, signal);
+
+    if (onProgress) {
+      onProgress({ phase: 'File MP4 selesai disiapkan!', percent: 100 });
+    }
+
+    return {
+      cacheKey: `${info.videoId}:${quality.id}`,
+      file: new File([merged], fileName, { type: 'video/mp4' }),
+      fileName,
+      quality,
+      qualityLabel: quality.shortLabel,
+      moments: info.moments || [],
+      heatmap: info.heatmap || [],
+      allWords
+    };
+  } catch (adapErr) {
+    if (adapErr?.name === 'AbortError' || signal?.aborted) throw adapErr;
+    // Jaring pengaman otomatis bila aliran adaptif panjang dibatasi GVS di tengah jalan: beralih ke aliran MP4 utuh bebas batas
+    if (onProgress) {
       onProgress({
-        phase: `Mengunduh jalur suara jernih AAC (${formatBytesReadable(done)})...`,
-        percent: Math.min(92, 76 + Math.round(ratio * 16))
+        phase: 'Menyesuaikan jalur unduhan stabil untuk video durasi panjang...',
+        percent: 8
       });
     }
-  });
-
-  if (onProgress) {
-    onProgress({ phase: 'Menyatukan gambar HD & suara AAC ke MP4 utuh...', percent: 96 });
+    return runProgressiveDownload(18, 0, 'ANDROID', quality.shortLabel);
   }
-  const merged = await remuxVideoAndAudioToMp4(videoBlob, audioBlob, signal);
-
-  if (onProgress) {
-    onProgress({ phase: 'File MP4 selesai disiapkan!', percent: 100 });
-  }
-
-  return {
-    cacheKey: `${info.videoId}:${quality.id}`,
-    file: new File([merged], fileName, { type: 'video/mp4' }),
-    fileName,
-    quality,
-    qualityLabel: quality.shortLabel,
-    moments: info.moments || [],
-    heatmap: info.heatmap || [],
-    allWords
-  };
 }
 
 /**

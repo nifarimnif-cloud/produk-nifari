@@ -13,7 +13,8 @@ const SESSION_COOKIE_NAME = 'klip_lic_session';
 const SEVEN_DAYS_SEC = 7 * 24 * 3600;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PLAYER_CACHE_TTL_MS = 14 * 60 * 1000;
-const MAX_STREAM_CHUNK_BYTES = 6 * 1024 * 1024;
+const MAX_STREAM_CHUNK_BYTES = 10 * 1024 * 1024;
+const DEFAULT_UPSTREAM_SLICE_BYTES = 9 * 1024 * 1024;
 
 // Registri ikatan perangkat & cache sesi pemutar dalam isolate Edge
 const memoryDeviceRegistry = new Map();
@@ -744,37 +745,62 @@ function buildConverterOnlyQualityOptions(durationSec) {
   ];
 }
 
+function extractExactClenFromUrl(rawUrl) {
+  try {
+    const m = String(rawUrl || '').match(/[?&]clen=(\d+)/);
+    return m ? Number(m[1]) || 0 : 0;
+  } catch {
+    return 0;
+  }
+}
+
 function buildQualityOptionsFromFormats(allFormats, durationSec) {
   const direct = allFormats.filter((f) => f && typeof f.url === 'string' && f.url.startsWith('http'));
-  if (direct.length === 0) return { qualities: [], formatsByItag: new Map() };
+  if (direct.length === 0) return { qualities: [], formatsByItag: new Map(), formatsList: [] };
 
   const formatsByItag = new Map();
+  const formatsList = [];
   for (const f of direct) {
     const itag = Number(f.itag);
-    if (!formatsByItag.has(itag)) {
-      const mime = String(f.mimeType || 'video/mp4');
-      const h = Number(f.height || 0);
-      const w = Number(f.width || 0);
-      const shortSide = w > 0 && h > 0 ? Math.min(w, h) : h;
-      const approxBytes =
-        Number(f.contentLength || 0) ||
-        (f.bitrate && durationSec > 0 ? Math.round((Number(f.bitrate) / 8) * durationSec) : 0);
-      formatsByItag.set(itag, {
-        itag,
-        url: f.url,
-        mimeType: mime,
-        height: h,
-        width: w,
-        shortSide,
-        bitrate: Number(f.bitrate || 0),
-        contentLength: approxBytes,
-        hasVideo: Boolean(h || mime.startsWith('video/')),
-        hasAudio: Boolean(
-          mime.startsWith('audio/') || (mime.startsWith('video/') && mime.includes('mp4a'))
-        ),
-        isAvc: mime.includes('avc1') || (!mime.includes('codecs=') && mime.startsWith('video/mp4')),
-        isM4a: mime.includes('mp4a') || (!mime.includes('codecs=') && mime.startsWith('audio/mp4'))
-      });
+    const mime = String(f.mimeType || 'video/mp4');
+    const h = Number(f.height || 0);
+    const w = Number(f.width || 0);
+    const shortSide = w > 0 && h > 0 ? Math.min(w, h) : h;
+    const exactBytes = Number(f.contentLength || 0) || extractExactClenFromUrl(f.url);
+    const estimatedBytes =
+      exactBytes || (f.bitrate && durationSec > 0 ? Math.round((Number(f.bitrate) / 8) * durationSec) : 0);
+    const trackId = String(f?.audioTrack?.id || '').toLowerCase();
+    const trackDisplay = String(f?.audioTrack?.displayName || '').toLowerCase();
+    const isDrcAudio = Boolean(f?.isDrc || trackId.includes('drc'));
+    const isAutoDubbed = Boolean(
+      f?.audioTrack?.isAutoDubbed || /dubbed|sulih suara/i.test(trackDisplay)
+    );
+    const fmtObj = {
+      itag,
+      url: f.url,
+      mimeType: mime,
+      height: h,
+      width: w,
+      shortSide,
+      bitrate: Number(f.bitrate || 0),
+      contentLength: exactBytes,
+      estimatedBytes,
+      isDrcAudio,
+      isAutoDubbed,
+      hasVideo: Boolean(h || mime.startsWith('video/')),
+      hasAudio: Boolean(
+        mime.startsWith('audio/') || (mime.startsWith('video/') && mime.includes('mp4a'))
+      ),
+      isAvc: mime.includes('avc1') || (!mime.includes('codecs=') && mime.startsWith('video/mp4')),
+      isM4a: mime.includes('mp4a') || (!mime.includes('codecs=') && mime.startsWith('audio/mp4'))
+    };
+    formatsList.push(fmtObj);
+
+    const existing = formatsByItag.get(itag);
+    const rankAudioFmt = (item) =>
+      (item.isAutoDubbed ? 0 : 10) + (item.isDrcAudio ? 0 : 4);
+    if (!existing || rankAudioFmt(fmtObj) > rankAudioFmt(existing)) {
+      formatsByItag.set(itag, fmtObj);
     }
   }
 
@@ -782,8 +808,15 @@ function buildQualityOptionsFromFormats(allFormats, durationSec) {
   const bestAudio =
     list
       .filter((f) => !f.hasVideo && f.hasAudio && f.isM4a)
-      .sort((a, b) => b.bitrate - a.bitrate)[0] ||
-    list.filter((f) => !f.hasVideo && f.hasAudio).sort((a, b) => b.bitrate - a.bitrate)[0] ||
+      .sort(
+        (a, b) =>
+          Number(a.isAutoDubbed) - Number(b.isAutoDubbed) ||
+          Number(a.isDrcAudio) - Number(b.isDrcAudio) ||
+          b.bitrate - a.bitrate
+      )[0] ||
+    list
+      .filter((f) => !f.hasVideo && f.hasAudio)
+      .sort((a, b) => Number(a.isAutoDubbed) - Number(b.isAutoDubbed) || b.bitrate - a.bitrate)[0] ||
     null;
 
   const formatMb = (bytes) => (bytes > 0 ? ` · ~${(bytes / (1024 * 1024)).toFixed(1)} MB` : '');
@@ -800,26 +833,26 @@ function buildQualityOptionsFromFormats(allFormats, durationSec) {
     qualities.push({
       id: '1080p-fhd',
       shortLabel: '1080p Full HD',
-      label: `1080p Full HD — Sangat Tajam${formatMb(v1080Prog.contentLength)}`,
+      label: `1080p Full HD — Sangat Tajam${formatMb(v1080Prog.estimatedBytes)}`,
       mode: 'progressive',
       converterFormat: '1080',
       videoItag: v1080Prog.itag,
-      totalBytes: v1080Prog.contentLength,
+      totalBytes: v1080Prog.contentLength || v1080Prog.estimatedBytes,
       recommended: false
     });
   } else if (v1080Adap && bestAudio) {
-    const total = (v1080Adap.contentLength || 0) + (bestAudio.contentLength || 0);
+    const dispTotal = (v1080Adap.estimatedBytes || 0) + (bestAudio.estimatedBytes || 0);
     qualities.push({
       id: '1080p-fhd',
       shortLabel: '1080p Full HD',
-      label: `1080p Full HD — Sangat Tajam${formatMb(total)}`,
+      label: `1080p Full HD — Sangat Tajam${formatMb(dispTotal)}`,
       mode: 'adaptive',
       converterFormat: '1080',
       videoItag: v1080Adap.itag,
       audioItag: bestAudio.itag,
       videoBytes: v1080Adap.contentLength,
       audioBytes: bestAudio.contentLength,
-      totalBytes: total,
+      totalBytes: dispTotal,
       recommended: false
     });
   }
@@ -833,31 +866,32 @@ function buildQualityOptionsFromFormats(allFormats, durationSec) {
     .sort((a, b) => b.bitrate - a.bitrate)[0];
   const MAX_REC_720_BYTES = 240 * 1024 * 1024;
   if (v720Prog) {
-    const rec = !v720Prog.contentLength || v720Prog.contentLength <= MAX_REC_720_BYTES;
+    const dispTotal = v720Prog.estimatedBytes;
+    const rec = !dispTotal || dispTotal <= MAX_REC_720_BYTES;
     qualities.push({
       id: '720p-hd',
       shortLabel: '720p HD',
-      label: `720p HD — Tajam & Cepat${rec ? ' (Rekomendasi)' : ''}${formatMb(v720Prog.contentLength)}`,
+      label: `720p HD — Tajam & Cepat${rec ? ' (Rekomendasi)' : ''}${formatMb(dispTotal)}`,
       mode: 'progressive',
       converterFormat: '720',
       videoItag: v720Prog.itag,
-      totalBytes: v720Prog.contentLength,
+      totalBytes: v720Prog.contentLength || dispTotal,
       recommended: rec
     });
   } else if (v720Adap && bestAudio) {
-    const total = (v720Adap.contentLength || 0) + (bestAudio.contentLength || 0);
-    const rec = !total || total <= MAX_REC_720_BYTES;
+    const dispTotal = (v720Adap.estimatedBytes || 0) + (bestAudio.estimatedBytes || 0);
+    const rec = !dispTotal || dispTotal <= MAX_REC_720_BYTES;
     qualities.push({
       id: '720p-hd',
       shortLabel: '720p HD',
-      label: `720p HD — Tajam & Cepat${rec ? ' (Rekomendasi)' : ''}${formatMb(total)}`,
+      label: `720p HD — Tajam & Cepat${rec ? ' (Rekomendasi)' : ''}${formatMb(dispTotal)}`,
       mode: 'adaptive',
       converterFormat: '720',
       videoItag: v720Adap.itag,
       audioItag: bestAudio.itag,
       videoBytes: v720Adap.contentLength,
       audioBytes: bestAudio.contentLength,
-      totalBytes: total,
+      totalBytes: dispTotal,
       recommended: rec
     });
   }
@@ -867,18 +901,18 @@ function buildQualityOptionsFromFormats(allFormats, durationSec) {
     .filter((f) => f.hasVideo && !f.hasAudio && f.isAvc && f.shortSide >= 440 && f.shortSide <= 540)
     .sort((a, b) => b.bitrate - a.bitrate)[0];
   if (v480Adap && bestAudio) {
-    const total = (v480Adap.contentLength || 0) + (bestAudio.contentLength || 0);
+    const dispTotal = (v480Adap.estimatedBytes || 0) + (bestAudio.estimatedBytes || 0);
     qualities.push({
       id: '480p-sd',
       shortLabel: '480p SD',
-      label: `480p SD — Seimbang${formatMb(total)}`,
+      label: `480p SD — Seimbang${formatMb(dispTotal)}`,
       mode: 'adaptive',
       converterFormat: '480',
       videoItag: v480Adap.itag,
       audioItag: bestAudio.itag,
       videoBytes: v480Adap.contentLength,
       audioBytes: bestAudio.contentLength,
-      totalBytes: total,
+      totalBytes: dispTotal,
       recommended: !qualities.some((q) => q.recommended)
     });
   }
@@ -896,31 +930,32 @@ function buildQualityOptionsFromFormats(allFormats, durationSec) {
       .sort((a, b) => b.shortSide - a.shortSide || b.bitrate - a.bitrate)[0];
 
   if (v360Prog) {
+    const dispTotal = v360Prog.estimatedBytes;
     const tag = v360Prog.shortSide && v360Prog.shortSide < 300 ? `${v360Prog.shortSide}p Cepat` : '360p Cepat';
     qualities.push({
       id: '360p-fast',
       shortLabel: tag,
-      label: `${tag} — Hemat Kuota & Instan${formatMb(v360Prog.contentLength)}`,
+      label: `${tag} — Hemat Kuota & Instan${formatMb(dispTotal)}`,
       mode: 'progressive',
       converterFormat: '360',
       videoItag: v360Prog.itag,
-      totalBytes: v360Prog.contentLength,
+      totalBytes: v360Prog.contentLength || dispTotal,
       recommended: !qualities.some((q) => q.recommended)
     });
   } else if (v360Adap && bestAudio) {
-    const total = (v360Adap.contentLength || 0) + (bestAudio.contentLength || 0);
+    const dispTotal = (v360Adap.estimatedBytes || 0) + (bestAudio.estimatedBytes || 0);
     const tag = v360Adap.shortSide && v360Adap.shortSide < 300 ? `${v360Adap.shortSide}p Cepat` : '360p Cepat';
     qualities.push({
       id: '360p-fast',
       shortLabel: tag,
-      label: `${tag} — Hemat Kuota & Instan${formatMb(total)}`,
+      label: `${tag} — Hemat Kuota & Instan${formatMb(dispTotal)}`,
       mode: 'adaptive',
       converterFormat: '360',
       videoItag: v360Adap.itag,
       audioItag: bestAudio.itag,
       videoBytes: v360Adap.contentLength,
       audioBytes: bestAudio.contentLength,
-      totalBytes: total,
+      totalBytes: dispTotal,
       recommended: !qualities.some((q) => q.recommended)
     });
   }
@@ -935,26 +970,26 @@ function buildQualityOptionsFromFormats(allFormats, durationSec) {
       qualities.push({
         id: '360p-fast',
         shortLabel: `${anyProg.shortSide || 360}p MP4`,
-        label: `${anyProg.shortSide || 360}p MP4 — Siap Unduh & Potong${formatMb(anyProg.contentLength)}`,
+        label: `${anyProg.shortSide || 360}p MP4 — Siap Unduh & Potong${formatMb(anyProg.estimatedBytes)}`,
         mode: 'progressive',
         converterFormat: '360',
         videoItag: anyProg.itag,
-        totalBytes: anyProg.contentLength,
+        totalBytes: anyProg.contentLength || anyProg.estimatedBytes,
         recommended: true
       });
     } else if (anyAdap && bestAudio) {
-      const total = (anyAdap.contentLength || 0) + (bestAudio.contentLength || 0);
+      const dispTotal = (anyAdap.estimatedBytes || 0) + (bestAudio.estimatedBytes || 0);
       qualities.push({
         id: '360p-fast',
         shortLabel: `${anyAdap.shortSide || 360}p MP4`,
-        label: `${anyAdap.shortSide || 360}p MP4 — Siap Unduh & Potong${formatMb(total)}`,
+        label: `${anyAdap.shortSide || 360}p MP4 — Siap Unduh & Potong${formatMb(dispTotal)}`,
         mode: 'adaptive',
         converterFormat: '360',
         videoItag: anyAdap.itag,
         audioItag: bestAudio.itag,
         videoBytes: anyAdap.contentLength,
         audioBytes: bestAudio.contentLength,
-        totalBytes: total,
+        totalBytes: dispTotal,
         recommended: true
       });
     }
@@ -964,7 +999,7 @@ function buildQualityOptionsFromFormats(allFormats, durationSec) {
     qualities[0].recommended = true;
   }
 
-  return { qualities, formatsByItag };
+  return { qualities, formatsByItag, formatsList };
 }
 
 const visitorCacheByHost = new Map();
@@ -1124,22 +1159,141 @@ async function resolveViaConfiguredUpstream(videoId, upstreamCfg, fallbackMeta) 
   };
 }
 
+const inflightEdgeResolves = new Map();
+
+function findBestMatchingFormat(entry, requestedItag, { strict = false, expectedClen = 0 } = {}) {
+  const numItag = Number(requestedItag);
+  const numClen = Number(expectedClen || 0);
+
+  if (numClen > 0 && Array.isArray(entry?.formatsList) && entry.formatsList.length > 0) {
+    const exactMatch = entry.formatsList.find(
+      (f) => f && f.url && f.itag === numItag && f.contentLength === numClen
+    );
+    if (exactMatch) return exactMatch;
+    if (strict) {
+      const anyItag = entry.formatsList.find((f) => f && f.url && f.itag === numItag);
+      if (anyItag && anyItag.contentLength > 0 && anyItag.contentLength !== numClen) {
+        return null;
+      }
+    }
+  }
+
+  const direct = entry?.formatsByItag?.get(numItag);
+  if (direct && direct.url) {
+    if (numClen > 0 && direct.contentLength > 0 && direct.contentLength !== numClen) {
+      return null;
+    }
+    return direct;
+  }
+  if (strict) return null;
+  if (!entry?.formatsByItag || entry.formatsByItag.size === 0) return null;
+
+  const list = Array.from(entry.formatsByItag.values()).filter((f) => f && f.url);
+  const wantAudioOnly = [139, 140, 141, 249, 250, 251].includes(numItag);
+  if (wantAudioOnly) {
+    return (
+      list.filter((f) => !f.hasVideo && f.hasAudio && f.isM4a).sort((a, b) => b.bitrate - a.bitrate)[0] ||
+      list.filter((f) => !f.hasVideo && f.hasAudio).sort((a, b) => b.bitrate - a.bitrate)[0] ||
+      null
+    );
+  }
+  const targetHeightMap = { 18: 360, 133: 240, 134: 360, 135: 480, 136: 720, 137: 1080 };
+  const targetH = targetHeightMap[numItag] || 360;
+  return (
+    list
+      .filter((f) => f.hasVideo && f.isAvc)
+      .sort(
+        (a, b) =>
+          Math.abs((a.shortSide || a.height || 360) - targetH) -
+          Math.abs((b.shortSide || b.height || 360) - targetH)
+      )[0] || null
+  );
+}
+
+function entryMatchesRequiredStream(entry, requiredItag = 0, requiredClen = 0, requiredClient = '') {
+  if (!entry || !entry.formatsByItag || entry.formatsByItag.size === 0) return false;
+  if (requiredClient && entry.clientName && entry.clientName !== requiredClient) return false;
+  if (!requiredItag) return true;
+  const fmt = findBestMatchingFormat(entry, requiredItag, {
+    strict: true,
+    expectedClen: requiredClen
+  });
+  return Boolean(fmt && fmt.url);
+}
+
 async function resolveYoutubeMediaOnEdge(
   videoId,
   env,
-  { forceRefresh = false, skipMetadataSignals = false, attemptOffset = 0 } = {}
+  {
+    forceRefresh = false,
+    skipMetadataSignals = false,
+    attemptOffset = 0,
+    requiredItag = 0,
+    requiredClen = 0,
+    requiredClient = '',
+    preferredClient = ''
+  } = {}
 ) {
-  const cached = edgePlayerCache.get(videoId);
-  if (
-    !forceRefresh &&
-    cached &&
-    cached.formatsByItag?.size > 0 &&
-    Date.now() - cached.createdAt < PLAYER_CACHE_TTL_MS &&
-    (skipMetadataSignals || cached.metadataHydrated)
-  ) {
-    return cached;
+  const hintClient = requiredClient || preferredClient;
+  const cacheKey = hintClient ? `${videoId}:${hintClient}` : videoId;
+
+  if (!forceRefresh) {
+    const cached = edgePlayerCache.get(cacheKey) || (!requiredClient ? edgePlayerCache.get(videoId) : null);
+    if (
+      cached &&
+      Date.now() - cached.createdAt < PLAYER_CACHE_TTL_MS &&
+      (skipMetadataSignals || cached.metadataHydrated) &&
+      entryMatchesRequiredStream(cached, requiredItag, requiredClen, requiredClient)
+    ) {
+      return cached;
+    }
+
+    const inflight = inflightEdgeResolves.get(cacheKey);
+    if (inflight) {
+      try {
+        const sharedRes = await inflight;
+        if (entryMatchesRequiredStream(sharedRes, requiredItag, requiredClen, requiredClient)) {
+          return sharedRes;
+        }
+      } catch {}
+    }
   }
 
+  const runPromise = resolveYoutubeMediaOnEdgeInternal(videoId, env, {
+    cacheKey,
+    forceRefresh,
+    skipMetadataSignals,
+    attemptOffset,
+    requiredItag,
+    requiredClen,
+    requiredClient,
+    preferredClient
+  });
+
+  inflightEdgeResolves.set(cacheKey, runPromise);
+  try {
+    return await runPromise;
+  } finally {
+    if (inflightEdgeResolves.get(cacheKey) === runPromise) {
+      inflightEdgeResolves.delete(cacheKey);
+    }
+  }
+}
+
+async function resolveYoutubeMediaOnEdgeInternal(
+  videoId,
+  env,
+  {
+    cacheKey,
+    forceRefresh = false,
+    skipMetadataSignals = false,
+    attemptOffset = 0,
+    requiredItag = 0,
+    requiredClen = 0,
+    requiredClient = '',
+    preferredClient = ''
+  } = {}
+) {
   let watchSignals = {
     oembed: null,
     oembedStatus: 200,
@@ -1150,13 +1304,30 @@ async function resolveYoutubeMediaOnEdge(
     htmlDurationSec: 0
   };
 
+  const androidBase = {
+    name: 'ANDROID',
+    clientId: 3,
+    apiHost: 'https://www.youtube.com',
+    sendClientHeaders: false,
+    hl: 'id',
+    gl: 'ID',
+    ua: 'com.google.android.youtube/20.10.38 (Linux; U; Android 14) gzip',
+    client: {
+      clientName: 'ANDROID',
+      clientVersion: '20.10.38',
+      androidSdkVersion: 34,
+      osName: 'Android',
+      osVersion: '14'
+    }
+  };
+
   const iosBase = {
     name: 'IOS',
     clientId: 5,
+    apiHost: 'https://www.youtube.com',
     sendClientHeaders: false,
-    useEmbedVisitor: true,
-    hl: 'en',
-    gl: 'US',
+    hl: 'id',
+    gl: 'ID',
     ua: 'com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU iOS 18_2 like Mac OS X;)',
     client: {
       clientName: 'IOS',
@@ -1171,14 +1342,14 @@ async function resolveYoutubeMediaOnEdge(
   const vrBase = {
     name: 'ANDROID_VR',
     clientId: 28,
+    apiHost: 'https://www.youtube.com',
     sendClientHeaders: false,
-    useEmbedVisitor: true,
-    hl: 'en',
-    gl: 'US',
-    ua: 'com.google.android.apps.youtube.vr.oculus/1.60.19 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip',
+    hl: 'id',
+    gl: 'ID',
+    ua: 'com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip',
     client: {
       clientName: 'ANDROID_VR',
-      clientVersion: '1.60.19',
+      clientVersion: '1.65.10',
       deviceMake: 'Oculus',
       deviceModel: 'Quest 3',
       androidSdkVersion: 32,
@@ -1187,29 +1358,13 @@ async function resolveYoutubeMediaOnEdge(
     }
   };
 
-  const clientsToTry = [
-    { ...vrBase, apiHost: 'https://www.youtube.com' },
-    { ...iosBase, apiHost: 'https://www.youtube.com' },
-    { ...vrBase, apiHost: 'https://m.youtube.com' },
-    { ...iosBase, apiHost: 'https://m.youtube.com' },
-    { ...iosBase, apiHost: 'https://www.youtube-nocookie.com' },
-    {
-      name: 'ANDROID',
-      clientId: 3,
-      apiHost: 'https://www.youtube.com',
-      sendClientHeaders: false,
-      useEmbedVisitor: true,
-      hl: 'en',
-      gl: 'US',
-      ua: 'com.google.android.youtube/20.10.38 (Linux; U; Android 14) gzip',
-      client: {
-        clientName: 'ANDROID',
-        clientVersion: '20.10.38',
-        androidSdkVersion: 34,
-        osName: 'Android',
-        osVersion: '14'
-      }
-    },
+  const allClients = [
+    { ...androidBase, apiHost: 'https://www.youtube.com', useEmbedVisitor: true },
+    { ...androidBase, apiHost: 'https://m.youtube.com', useEmbedVisitor: true },
+    { ...vrBase, apiHost: 'https://www.youtube.com', useEmbedVisitor: true },
+    { ...iosBase, apiHost: 'https://www.youtube.com', useEmbedVisitor: true },
+    { ...vrBase, apiHost: 'https://m.youtube.com', useEmbedVisitor: true },
+    { ...iosBase, apiHost: 'https://m.youtube.com', useEmbedVisitor: true },
     {
       name: 'WEB_EMBEDDED_PLAYER',
       clientId: 56,
@@ -1229,8 +1384,17 @@ async function resolveYoutubeMediaOnEdge(
     }
   ];
 
+  const priorityClient = requiredClient || preferredClient;
+  const clientsToTry = priorityClient
+    ? [
+        ...allClients.filter((c) => c.name === priorityClient),
+        ...allClients.filter((c) => c.name !== priorityClient)
+      ]
+    : allClients;
+
   let chosenPlayer = null;
   let chosenUa = WEB_DESKTOP_UA;
+  let chosenClientName = '';
   let builtQualities = null;
   let harvestedVideoDetails = null;
   let harvestedCaptionTracks = [];
@@ -1270,8 +1434,16 @@ async function resolveYoutubeMediaOnEdge(
       );
       const qData = buildQualityOptionsFromFormats(allFormats, dur);
       if (qData.qualities.length > 0) {
+        if (requiredItag > 0) {
+          const reqFmt = findBestMatchingFormat(qData, requiredItag, {
+            strict: true,
+            expectedClen: requiredClen
+          });
+          if (!reqFmt || !reqFmt.url) continue;
+        }
         chosenPlayer = pJson;
         chosenUa = clientDef.ua;
+        chosenClientName = clientDef.name;
         builtQualities = qData;
         break;
       }
@@ -1280,8 +1452,108 @@ async function resolveYoutubeMediaOnEdge(
     }
   }
 
-  // Ambil sinyal pelengkap (Most-Replayed heatmap & oEmbed) SETELAH koneksi mobile IOS bersih selesai,
-  // sehingga scraping HTML desktop tidak pernah memicu blokir IP sebelum stream video didapat!
+  // Untuk video durasi menengah/panjang, uji apakah aliran adaptif YouTube terkena batas GVS PO-Token di tengah jalan.
+  // Bila ya, arahkan otomatis ke aliran MP4 utuh `itag 18` (ANDROID) yang 100% bebas batas hingga akhir video!
+  if (!skipMetadataSignals && builtQualities) {
+    const primaryAdap =
+      builtQualities.qualities.find((q) => q.mode === 'adaptive' && q.recommended) ||
+      builtQualities.qualities.find((q) => q.mode === 'adaptive');
+    if (
+      primaryAdap &&
+      (Number(primaryAdap.videoBytes || 0) > 8500000 || Number(primaryAdap.audioBytes || 0) > 1500000)
+    ) {
+      const vFmtProbe = builtQualities.formatsByItag.get(Number(primaryAdap.videoItag));
+      const aFmtProbe = builtQualities.formatsByItag.get(Number(primaryAdap.audioItag));
+      const probeTasks = [];
+      if (vFmtProbe && vFmtProbe.url && Number(primaryAdap.videoBytes || 0) > 8900128) {
+        probeTasks.push(
+          fetchSingleRangeFromFmt(vFmtProbe, chosenUa, 8900000, 8900063).catch(() => null)
+        );
+      }
+      if (aFmtProbe && aFmtProbe.url && Number(primaryAdap.audioBytes || 0) > 1600128) {
+        probeTasks.push(
+          fetchSingleRangeFromFmt(aFmtProbe, chosenUa, 1600000, 1600063).catch(() => null)
+        );
+      }
+
+      if (probeTasks.length > 0) {
+        const probeResults = await Promise.all(probeTasks);
+        const hitGvsCutoff = probeResults.some(
+          (r) => !r || (!r.ok && r.status !== 206) || r.status === 403
+        );
+        if (hitGvsCutoff) {
+          let vProg =
+            builtQualities.formatsByItag.get(18) ||
+            Array.from(builtQualities.formatsByItag.values()).find(
+              (f) => f && f.url && f.hasVideo && f.hasAudio && f.isAvc
+            );
+          let progClientName = chosenClientName;
+
+          if (!vProg && chosenClientName !== 'ANDROID') {
+            try {
+              const androidClientDef = {
+                ...androidBase,
+                apiHost: 'https://www.youtube.com',
+                useEmbedVisitor: true
+              };
+              const andVis =
+                (await mintClientVisitorData(androidClientDef.apiHost, androidClientDef, {
+                  forceFresh: true
+                })) || '';
+              const andJson = await callInnerTubePlayer(videoId, androidClientDef, andVis);
+              if (andJson?.playabilityStatus?.status === 'OK') {
+                const andAll = [
+                  ...(andJson?.streamingData?.formats || []),
+                  ...(andJson?.streamingData?.adaptiveFormats || [])
+                ];
+                const andQ = buildQualityOptionsFromFormats(andAll, 0);
+                const found18 = andQ.formatsByItag.get(18);
+                if (found18 && found18.url) {
+                  vProg = found18;
+                  progClientName = 'ANDROID';
+                  chosenUa = androidClientDef.ua;
+                  chosenClientName = 'ANDROID';
+                  builtQualities.formatsByItag.set(18, found18);
+                  builtQualities.formatsList.push(found18);
+                }
+              }
+            } catch {}
+          }
+
+          if (vProg && vProg.url) {
+            const progBytes = Number(vProg.contentLength || vProg.estimatedBytes || 0);
+            const progMb = progBytes > 0 ? ` · ~${(progBytes / (1024 * 1024)).toFixed(1)} MB` : '';
+            builtQualities.qualities = [
+              {
+                id: '720p-hd',
+                shortLabel: '720p HD',
+                label: `720p HD — Studio Vertikal Jernih & Stabil (Rekomendasi)${progMb}`,
+                mode: 'progressive',
+                converterFormat: '720',
+                videoItag: vProg.itag,
+                totalBytes: progBytes,
+                clientName: progClientName,
+                recommended: true
+              },
+              {
+                id: '360p-fast',
+                shortLabel: '360p Cepat',
+                label: `360p Cepat — Hemat Kuota & Kilat${progMb}`,
+                mode: 'progressive',
+                converterFormat: '360',
+                videoItag: vProg.itag,
+                totalBytes: progBytes,
+                clientName: progClientName,
+                recommended: false
+              }
+            ];
+          }
+        }
+      }
+    }
+  }
+
+  // Ambil sinyal pelengkap (Most-Replayed heatmap & oEmbed) SETELAH koneksi mobile bersih selesai
   if (!skipMetadataSignals) {
     watchSignals = await fetchWatchPageAndOembedSignals(videoId).catch(() => watchSignals);
     if (
@@ -1325,6 +1597,7 @@ async function resolveYoutubeMediaOnEdge(
       const capRes = await fetchCaptionWordsFromTracks(capTracks, WEB_DESKTOP_UA);
       const entry = {
         ...upResolved,
+        formatsList: Array.from(upResolved.formatsByItag.values()),
         heatmap: watchSignals.heatmap || [],
         words: capRes.words,
         captionMeta: capRes.captionMeta,
@@ -1373,8 +1646,13 @@ async function resolveYoutubeMediaOnEdge(
     durationSec: resolvedDur,
     thumbnailUrl: bestThumb,
     ua: chosenUa,
+    clientName: chosenClientName,
     formatsByItag: builtQualities.formatsByItag,
-    qualities: builtQualities.qualities,
+    formatsList: builtQualities.formatsList || [],
+    qualities: builtQualities.qualities.map((q) => ({
+      ...q,
+      clientName: q.clientName || chosenClientName
+    })),
     heatmap: watchSignals.heatmap || [],
     words: capRes.words,
     captionMeta: capRes.captionMeta,
@@ -1382,62 +1660,27 @@ async function resolveYoutubeMediaOnEdge(
     createdAt: Date.now()
   };
 
+  edgePlayerCache.set(cacheKey, entry);
+  if (chosenClientName) {
+    edgePlayerCache.set(`${videoId}:${chosenClientName}`, entry);
+  }
   if (!skipMetadataSignals || !edgePlayerCache.has(videoId)) {
     edgePlayerCache.set(videoId, entry);
-  } else {
-    const prev = edgePlayerCache.get(videoId);
-    edgePlayerCache.set(videoId, {
-      ...prev,
-      ua: chosenUa,
-      formatsByItag: builtQualities.formatsByItag,
-      qualities: builtQualities.qualities,
-      createdAt: Date.now()
-    });
   }
-  if (edgePlayerCache.size > 40) {
+  if (edgePlayerCache.size > 60) {
     const oldestKey = edgePlayerCache.keys().next().value;
     if (oldestKey) edgePlayerCache.delete(oldestKey);
   }
   return entry;
 }
 
-function findBestMatchingFormat(entry, requestedItag) {
-  const direct = entry.formatsByItag?.get(Number(requestedItag));
-  if (direct && direct.url) return direct;
-  if (!entry.formatsByItag || entry.formatsByItag.size === 0) return null;
-
-  const list = Array.from(entry.formatsByItag.values()).filter((f) => f && f.url);
-  const wantAudioOnly = [139, 140, 141, 249, 250, 251].includes(Number(requestedItag));
-  if (wantAudioOnly) {
-    return (
-      list.filter((f) => !f.hasVideo && f.hasAudio && f.isM4a).sort((a, b) => b.bitrate - a.bitrate)[0] ||
-      list.filter((f) => !f.hasVideo && f.hasAudio).sort((a, b) => b.bitrate - a.bitrate)[0] ||
-      null
-    );
-  }
-  const targetHeightMap = { 18: 360, 133: 240, 134: 360, 135: 480, 136: 720, 137: 1080 };
-  const targetH = targetHeightMap[Number(requestedItag)] || 360;
-  return (
-    list
-      .filter((f) => f.hasVideo && f.isAvc)
-      .sort(
-        (a, b) =>
-          Math.abs((a.shortSide || a.height || 360) - targetH) -
-          Math.abs((b.shortSide || b.height || 360) - targetH)
-      )[0] || null
-  );
-}
-
-async function fetchUpstreamFormatRange(entry, itag, rangeStart, rangeEnd) {
-  const fmt = findBestMatchingFormat(entry, itag);
-  if (!fmt || !fmt.url) return { response: null, fmt: null };
-
+async function fetchSingleRangeFromFmt(fmt, ua, rangeStart, rangeEnd) {
   const headers = {
-    'User-Agent': entry.ua || WEB_DESKTOP_UA,
+    'User-Agent': ua || WEB_DESKTOP_UA,
     Accept: '*/*'
   };
 
-  // Untuk adaptive stream YouTube, parameter query `&range=start-end` jauh lebih cepat & tidak memicu preflight
+  // Untuk adaptive stream YouTube, parameter query `&range=start-end` jauh lebih cepat & tanpa throttle!
   let targetUrl = fmt.url;
   if (!fmt.hasAudio || !fmt.hasVideo) {
     if (rangeStart != null && rangeEnd != null && rangeEnd >= rangeStart) {
@@ -1450,11 +1693,24 @@ async function fetchUpstreamFormatRange(entry, itag, rangeStart, rangeEnd) {
     headers.Range = `bytes=${rangeStart}-`;
   }
 
-  const response = await fetch(targetUrl, {
+  return fetch(targetUrl, {
     method: 'GET',
     headers,
     redirect: 'follow'
   });
+}
+
+async function fetchUpstreamFormatRange(
+  entry,
+  itag,
+  rangeStart,
+  rangeEnd,
+  { strictItag = false, expectedClen = 0 } = {}
+) {
+  const fmt = findBestMatchingFormat(entry, itag, { strict: strictItag, expectedClen });
+  if (!fmt || !fmt.url) return { response: null, fmt: null };
+
+  const response = await fetchSingleRangeFromFmt(fmt, entry.ua || WEB_DESKTOP_UA, rangeStart, rangeEnd);
   return { response, fmt };
 }
 
@@ -1601,29 +1857,209 @@ async function handleApiRequest(request, env, ctx = null) {
     if (url.pathname === '/api/youtube/stream' && request.method === 'GET') {
       const videoId = extractYoutubeVideoId(url.searchParams.get('v') || '');
       const itag = Number(url.searchParams.get('itag') || 0);
+      const expectedClen = Math.max(0, Number(url.searchParams.get('clen') || 0));
+      const requestedClient = String(url.searchParams.get('client') || '').trim();
+      const strictClenOnZero = url.searchParams.get('strictClen') === '1';
+      const fullMode = url.searchParams.get('full') === '1';
       const start = Math.max(0, Number(url.searchParams.get('start') || 0));
-      const requestedEnd = Number(url.searchParams.get('end') || start + MAX_STREAM_CHUNK_BYTES - 1);
-      const end = Math.min(start + MAX_STREAM_CHUNK_BYTES - 1, Math.max(start, requestedEnd));
 
       if (!videoId || !itag) {
         return jsonResponse({ ok: false, error: 'Parameter video atau kualitas tidak lengkap.' }, 400);
       }
 
+      const mustMatchClen = start > 0 || strictClenOnZero ? expectedClen : 0;
+      const mustMatchClient = start > 0 || strictClenOnZero ? requestedClient : '';
+
       try {
+        if (fullMode) {
+          let entry = await resolveYoutubeMediaOnEdge(videoId, env, {
+            forceRefresh: false,
+            skipMetadataSignals: true,
+            requiredItag: itag,
+            requiredClen: mustMatchClen,
+            requiredClient: mustMatchClient,
+            preferredClient: requestedClient
+          });
+          let fmt = findBestMatchingFormat(entry, itag, {
+            strict: true,
+            expectedClen: mustMatchClen
+          });
+
+          const computeFirstSliceEnd = (fObj) => {
+            const known = Number(fObj?.contentLength || 0);
+            const sliceSpan =
+              known > 0
+                ? Math.max(DEFAULT_UPSTREAM_SLICE_BYTES, Math.ceil(known / 34))
+                : DEFAULT_UPSTREAM_SLICE_BYTES;
+            const sEnd =
+              known > 0 ? Math.min(known - 1, start + sliceSpan - 1) : start + sliceSpan - 1;
+            return { known, sliceSpan, sEnd };
+          };
+
+          let { known: knownTotal, sliceSpan, sEnd: firstSliceEnd } = computeFirstSliceEnd(fmt);
+          let firstRes =
+            fmt && fmt.url
+              ? await fetchSingleRangeFromFmt(fmt, entry.ua || WEB_DESKTOP_UA, start, firstSliceEnd)
+              : null;
+          const initialStatus = firstRes ? firstRes.status : 0;
+
+          if (!firstRes || firstRes.status === 401 || firstRes.status === 403 || firstRes.status === 410) {
+            entry = await resolveYoutubeMediaOnEdge(videoId, env, {
+              forceRefresh: true,
+              skipMetadataSignals: true,
+              requiredItag: itag,
+              requiredClen: mustMatchClen,
+              requiredClient: mustMatchClient,
+              preferredClient: requestedClient
+            });
+            fmt = findBestMatchingFormat(entry, itag, {
+              strict: true,
+              expectedClen: mustMatchClen
+            });
+            ({ known: knownTotal, sliceSpan, sEnd: firstSliceEnd } = computeFirstSliceEnd(fmt));
+            firstRes =
+              fmt && fmt.url
+                ? await fetchSingleRangeFromFmt(fmt, entry.ua || WEB_DESKTOP_UA, start, firstSliceEnd)
+                : null;
+          }
+
+          if (!firstRes || (!firstRes.ok && firstRes.status !== 206)) {
+            return jsonResponse(
+              {
+                ok: false,
+                code: 'UPSTREAM_STREAM_ERROR',
+                firstStatus: initialStatus,
+                retryStatus: firstRes ? firstRes.status : 0,
+                error: `Aliran video mengembalikan status ${firstRes ? firstRes.status : 'kosong'}.`
+              },
+              200
+            );
+          }
+
+          const crHeader = firstRes.headers.get('Content-Range') || '';
+          const crSlash = crHeader.match(/\/(\d+)/);
+          let exactTotal = knownTotal;
+          if (crSlash) {
+            exactTotal = Number(crSlash[1]);
+          } else if (!exactTotal && start === 0) {
+            const clHeader = Number(firstRes.headers.get('Content-Length') || 0);
+            if (clHeader > 0 && clHeader < firstSliceEnd - start + 1) {
+              exactTotal = clHeader;
+            }
+          }
+
+          const respHeaders = new Headers();
+          respHeaders.set('Content-Type', fmt?.mimeType?.split(';')[0] || 'video/mp4');
+          respHeaders.set('Cache-Control', 'private, no-store');
+          respHeaders.set('Accept-Ranges', 'bytes');
+          if (entry.clientName) respHeaders.set('X-Stream-Client', entry.clientName);
+          if (exactTotal > 0) {
+            respHeaders.set('X-Total-Bytes', String(exactTotal));
+            respHeaders.set('Content-Length', String(Math.max(0, exactTotal - start)));
+            if (start > 0) {
+              respHeaders.set('Content-Range', `bytes ${start}-${exactTotal - 1}/${exactTotal}`);
+            }
+          }
+
+          // Bila seluruh sisa stream muat dalam 1 slice pertama, kembalikan langsung tanpa overhead!
+          if (exactTotal > 0 && firstSliceEnd >= exactTotal - 1) {
+            return new Response(firstRes.body, {
+              status: start > 0 ? 206 : 200,
+              headers: respHeaders
+            });
+          }
+
+          const lockedFmt = fmt;
+          const lockedUa = entry.ua || WEB_DESKTOP_UA;
+          const { readable, writable } = new TransformStream();
+
+          const pumpPromise = (async () => {
+            const writer = writable.getWriter();
+            const pipeResBody = async (resObj) => {
+              if (!resObj || !resObj.body) throw new Error('Body aliran kosong.');
+              const reader = resObj.body.getReader();
+              let count = 0;
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                if (value && value.byteLength > 0) {
+                  await writer.write(value);
+                  count += value.byteLength;
+                }
+              }
+              return count;
+            };
+
+            try {
+              const firstCount = await pipeResBody(firstRes);
+              let pos = start + firstCount;
+
+              while (exactTotal > 0 ? pos < exactTotal : firstCount >= sliceSpan) {
+                const nextEnd =
+                  exactTotal > 0 ? Math.min(exactTotal - 1, pos + sliceSpan - 1) : pos + sliceSpan - 1;
+                let sliceRes = null;
+                for (let sAtt = 0; sAtt < 3; sAtt++) {
+                  const candidate = await fetchSingleRangeFromFmt(lockedFmt, lockedUa, pos, nextEnd);
+                  if (candidate && (candidate.ok || candidate.status === 206)) {
+                    sliceRes = candidate;
+                    break;
+                  }
+                  await new Promise((r) => setTimeout(r, 200 * (sAtt + 1)));
+                }
+                if (!sliceRes) {
+                  throw new Error(`Gagal mengambil irisan aliran pada byte ${pos}`);
+                }
+                const got = await pipeResBody(sliceRes);
+                if (got === 0) break;
+                pos += got;
+                if (exactTotal === 0 && got < sliceSpan) break;
+              }
+              await writer.close();
+            } catch (pumpErr) {
+              try {
+                await writer.abort(pumpErr);
+              } catch {}
+            }
+          })();
+
+          if (ctx && typeof ctx.waitUntil === 'function') {
+            ctx.waitUntil(pumpPromise);
+          }
+
+          return new Response(readable, {
+            status: start > 0 ? 206 : 200,
+            headers: respHeaders
+          });
+        }
+
+        const requestedEnd = Number(url.searchParams.get('end') || start + MAX_STREAM_CHUNK_BYTES - 1);
+        const end = Math.min(start + MAX_STREAM_CHUNK_BYTES - 1, Math.max(start, requestedEnd));
+
         let entry = await resolveYoutubeMediaOnEdge(videoId, env, {
           forceRefresh: false,
-          skipMetadataSignals: true
+          skipMetadataSignals: true,
+          requiredItag: itag,
+          requiredClen: mustMatchClen,
+          requiredClient: mustMatchClient
         });
-        let { response: upRes, fmt } = await fetchUpstreamFormatRange(entry, itag, start, end);
+        let { response: upRes, fmt } = await fetchUpstreamFormatRange(entry, itag, start, end, {
+          strictItag: start > 0 || strictClenOnZero,
+          expectedClen: mustMatchClen
+        });
         const firstStatus = upRes ? upRes.status : 0;
 
-        // Bila pindah isolate IP atau link kadaluarsa, segarkan sekali langsung di isolate ini!
         if (!upRes || upRes.status === 401 || upRes.status === 403 || upRes.status === 410) {
           entry = await resolveYoutubeMediaOnEdge(videoId, env, {
             forceRefresh: true,
-            skipMetadataSignals: true
+            skipMetadataSignals: true,
+            requiredItag: itag,
+            requiredClen: mustMatchClen,
+            requiredClient: mustMatchClient
           });
-          const retry = await fetchUpstreamFormatRange(entry, itag, start, end);
+          const retry = await fetchUpstreamFormatRange(entry, itag, start, end, {
+            strictItag: start > 0 || strictClenOnZero,
+            expectedClen: mustMatchClen
+          });
           upRes = retry.response;
           fmt = retry.fmt;
         }
@@ -1659,6 +2095,7 @@ async function handleApiRequest(request, env, ctx = null) {
         respHeaders.set('Content-Type', fmt?.mimeType?.split(';')[0] || 'video/mp4');
         respHeaders.set('Cache-Control', 'private, no-store');
         respHeaders.set('Accept-Ranges', 'bytes');
+        if (entry.clientName) respHeaders.set('X-Stream-Client', entry.clientName);
         if (contentRange) respHeaders.set('Content-Range', contentRange);
         if (totalBytes > 0) respHeaders.set('X-Total-Bytes', String(totalBytes));
 

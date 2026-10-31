@@ -236,6 +236,8 @@ export async function renderClipToMp4({
         renderCanvas.width = targetWidth;
         renderCanvas.height = targetHeight;
         const renderCtx = renderCanvas.getContext('2d', { alpha: false });
+        renderCtx.imageSmoothingEnabled = true;
+        renderCtx.imageSmoothingQuality = 'high';
 
         const bufferTarget = new BufferTarget();
         attemptOutput = new Output({
@@ -262,8 +264,9 @@ export async function renderClipToMp4({
         let frameIndex = 0;
         let lastValidCanvas = null;
         const encodeStartMs = performance.now();
+        const loopCanvasSink = new CanvasSink(videoTrack);
 
-        for await (const wrapped of canvasSink.canvasesAtTimestamps(timestamps)) {
+        for await (const wrapped of loopCanvasSink.canvasesAtTimestamps(timestamps)) {
           checkAbort();
 
           const absTimeSec = timestamps[frameIndex];

@@ -854,7 +854,14 @@ export async function runAutonomousClipAgent({
         )}) — melanjutkan render klip berikutnya di batch ini...`
       );
       if (onClipFailed) {
-        onClipFailed({ index: clipOrdinal, moment: m, error: errMsg });
+        onClipFailed({
+          index: clipOrdinal,
+          title: m.title,
+          startSec: m.startSec,
+          endSec: m.endSec,
+          moment: m,
+          error: errMsg
+        });
       }
     }
   }
