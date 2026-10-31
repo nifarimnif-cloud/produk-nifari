@@ -1,0 +1,21 @@
+{
+  "testedAt": "2026-10-31T09:29:57.821Z",
+  "linkGagal": {
+    "passed": true,
+    "message": "Video YouTube ini bersifat Pribadi (Private), sudah dihapus, atau dibatasi pemilik channel sehingga tidak bisa diakses. Silakan pilih file rekaman video lokal (.mp4, .mov, .mkv) dari perangkatmu."
+  },
+  "internetPutus": {
+    "passed": true,
+    "message": "Koneksi internet perangkatmu sedang terputus. Nyalakan kembali internet untuk memproses link YouTube, atau langsung pilih file video lokal (.mp4, .mov, .mkv) dari laptopmu — Klip Auto tetap berjalan offline!"
+  },
+  "diskPenuh": {
+    "passed": true,
+    "message": "Ruang penyimpanan disk perangkat/browser hampir penuh (tersisa ~8 MB, butuh minimal 65 MB agar file MP4 utuh dan tidak rusak). Kosongkan ruang disk atau hapus file unduhan lama terlebih dahulu."
+  },
+  "laporanErrorTanpaDataPribadi": {
+    "ok": true,
+    "reportId": "KLIP-ERR-MVW79QZ0",
+    "receivedAt": "2026-10-31T09:29:52.332Z",
+    "message": "Laporan log teknis (tanpa video & tanpa data pribadi) berhasil diterima."
+  }
+}

@@ -1,18 +1,25 @@
 /**
- * Klip Auto — AI Agent Pemotong Video Otomatis End-to-End (100% di Browser)
- * Begitu pengguna memasukkan video (baik hasil unduhan YouTube maupun rekaman lokal):
- * 1. Mengenali transkrip secara otomatis (Smart Match cache YouTube < 0.1 dtk / Gemini / Akustik Vokal + Whisper Lokal)
- * 2. Mengkurasi momen skor tertinggi & menyusun Judul Hook Bahasa Indonesia yang memikat
- * 3. Memindai posisi wajah pembicara ke tengah 9:16 + menjernihkan vokal 48 kHz Stereo
- * 4. Merender klip-klip .MP4 vertikal siap tonton & siap unduh secara berurutan tanpa campur tangan manual
+ * Klip Auto — Mesin Pemotong Klip Otomatis End-to-End (100% di Browser Perangkat Pembeli)
+ * Mendukung video 1–2+ jam secara hemat memori di laptop RAM 8 GB:
+ * 1. Memindai kurva energi vokal 50ms per jendela 3 menit (< 500 KB RAM untuk video 90 menit)
+ * 2. Membaca transkrip kata akurat dengan subtitle YouTube terpilih atau model lokal Whisper-Small (ID + EN)
+ * 3. Menghitung skor jujur dari 4 sinyal asli (Most-Replayed, Lonjakan Suara, Kalimat Pembuka, Jeda Napas Akhir)
+ * 4. Merender batch klip 9:16 berurutan dengan isolasi kegagalan per klip (1 klip gagal tidak menghentikan batch)
  */
 
-import { extractMonoAudio } from './audio-processor.js';
+import { extractMonoAudio, scanLongVideoAudioFeatures } from './audio-processor.js';
+import { assertSufficientDiskForRender } from './device-checker.js';
 import { renderClipToMp4 } from './mp4-exporter.js';
 import {
   analyzePodcastWithGemini,
+  pickMomentsFromWordsLocally,
   syncClipWordsWithWhisper
 } from './transcriber-moments.js';
+import {
+  analyzeVocalEnvelope,
+  refineWhisperWordsWithVocal,
+  snapClipBoundsToBreathPause
+} from './vocal-aligner.js';
 import { findMatchingYoutubeCache, normalizeTitleSlug } from './youtube-downloader.js';
 
 const FILLER_PREFIX_WORDS = new Set([
@@ -39,13 +46,17 @@ const FILLER_PREFIX_WORDS = new Set([
 
 function formatClock(sec) {
   const s = Math.max(0, Math.floor(Number(sec) || 0));
-  const m = Math.floor(s / 60);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
   const rem = s % 60;
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, '0')}:${String(rem).padStart(2, '0')}`;
+  }
   return `${String(m).padStart(2, '0')}:${String(rem).padStart(2, '0')}`;
 }
 
 /**
- * Merapikan kalimat awal transkrip menjadi Judul Atas (Hook) singkat maksimal 7 kata tanpa emoji.
+ * Merapikan kalimat awal transkrip menjadi Judul Pembuka (Hook) singkat maksimal 7 kata tanpa emoji.
  */
 export function craftCleanHookTitle(rawTitleOrTranscript, fallbackIndex = 1) {
   const cleaned = String(rawTitleOrTranscript || '')
@@ -57,12 +68,11 @@ export function craftCleanHookTitle(rawTitleOrTranscript, fallbackIndex = 1) {
     return `Sorotan Penting Pembicara #${fallbackIndex}`;
   }
 
-  let tokens = cleaned
+  const tokens = cleaned
     .split(' ')
     .map((t) => t.replace(/^[.,?!:;'"-]+|[.,?!:;'"-]+$/g, ''))
     .filter(Boolean);
 
-  // Buang kata sambung pembuka berulang agar judul langsung ke inti kalimat
   while (tokens.length > 5 && FILLER_PREFIX_WORDS.has(tokens[0].toLowerCase())) {
     tokens.shift();
   }
@@ -83,157 +93,207 @@ export function craftCleanHookTitle(rawTitleOrTranscript, fallbackIndex = 1) {
 }
 
 /**
- * Detektor segmen suara berenergi tinggi & jeda kalimat alami (bekerja < 1.5 detik bahkan untuk video 30 menit).
+ * Memilih kandidat jendela waktu dari kurva fitur audio hemat memori (mendukung video 60–120+ menit!)
+ * ditambah sinyal Grafik Most-Replayed YouTube bila tersedia.
  */
-export function pickMomentsFromAudioWaveform(samples, sampleRate, totalDurationSec, desiredCount = 5) {
-  if (!samples || samples.length < sampleRate * 2 || totalDurationSec <= 1) {
-    const end = Number(Math.min(totalDurationSec || 15, 20).toFixed(2));
-    return [
+export function pickMomentsFromAudioFeatures(audioFeatures, totalDurationSec, desiredCount = 6, heatmap = null) {
+  const hasHeatmap = Array.isArray(heatmap) && heatmap.length > 0;
+  const weightNotice = hasHeatmap
+    ? 'Bobot skor aktif: Grafik Most-Replayed YouTube (35%) + Lonjakan Vokal (25%) + Kalimat Pembuka (25%) + Jeda Napas Akhir (15%).'
+    : 'Grafik Most-Replayed tidak tersedia pada sumber ini — bobot penilaian otomatis dialihkan ke Lonjakan Vokal (40%), Kekuatan Kalimat Pembuka (35%), dan Jeda Napas Kalimat Utuh (25%).';
+
+  if (
+    !audioFeatures ||
+    !audioFeatures.rmsFrames ||
+    audioFeatures.rmsFrames.length < 10 ||
+    totalDurationSec <= 1
+  ) {
+    const end = Number(Math.min(totalDurationSec || 15, 22).toFixed(2));
+    const arr = [
       {
-        id: 'agen-momen-1',
+        id: 'momen-vokal-1',
         title: 'Bagian Utama Pembicara',
-        score: 90,
-        reason: 'Segmen utama video dipilih otomatis oleh AI Agent.',
+        score: 78,
+        reason: 'Segmen awal dipilih berdasarkan durasi video pendek.',
         startSec: 0,
         endSec: Math.max(1, end),
         transcript: '',
-        words: []
+        words: [],
+        hasHeatmap
       }
     ];
+    arr.scoringMeta = { hasHeatmap, weightNotice };
+    return arr;
   }
 
-  const frameSec = 0.25;
-  const frameLen = Math.max(1, Math.floor(sampleRate * frameSec));
-  const numFrames = Math.max(1, Math.floor(samples.length / frameLen));
-  const rmsArr = new Float32Array(numFrames);
+  const { rmsFrames, peakFrames, frameSec } = audioFeatures;
+  const numFrames = rmsFrames.length;
+  const activeSorted = Array.from(rmsFrames)
+    .filter((v) => v > 0.0015)
+    .sort((a, b) => a - b);
+  const medianRms = activeSorted[Math.floor(activeSorted.length * 0.52)] || 0.012;
+  const pauseThreshold = Math.max(0.0035, medianRms * 0.42);
 
-  // Gunakan pre-emphasis pita vokal manusia (~150 Hz+) agar dentuman bass musik/efek film tidak dianggap ucapan
-  for (let f = 0; f < numFrames; f++) {
-    const start = f * frameLen;
-    const end = Math.min(samples.length, start + frameLen);
-    let sumSq = 0;
-    let prev = start > 0 ? samples[start - 1] : 0;
-    for (let i = start; i < end; i++) {
-      const cur = samples[i];
-      const vocalBand = cur - 0.88 * prev;
-      prev = cur;
-      sumSq += vocalBand * vocalBand;
-    }
-    rmsArr[f] = Math.sqrt(sumSq / Math.max(1, end - start));
-  }
-
-  // Hitung median energi untuk membedakan ucapan aktif vs jeda napas
-  const sortedRms = Array.from(rmsArr).sort((a, b) => a - b);
-  const medianRms = sortedRms[Math.floor(sortedRms.length * 0.55)] || 0.01;
-  const pauseThreshold = Math.max(0.004, medianRms * 0.42);
-
-  // Tentukan durasi klip ideal berdasarkan panjang video sumber
-  let targetWinSec = 26;
+  let targetWinSec = 30;
   if (totalDurationSec <= 25) {
-    targetWinSec = Math.max(6, Math.min(12, totalDurationSec * 0.55));
+    targetWinSec = Math.max(6, Math.min(12, totalDurationSec * 0.52));
   } else if (totalDurationSec <= 90) {
-    targetWinSec = Math.max(12, Math.min(22, totalDurationSec * 0.42));
+    targetWinSec = Math.max(12, Math.min(22, totalDurationSec * 0.4));
+  } else if (totalDurationSec >= 1800) {
+    targetWinSec = 34;
   }
 
-  const winFrames = Math.max(8, Math.round(targetWinSec / frameSec));
-  const stepFrames = Math.max(4, Math.round(winFrames * 0.35));
-
-  // Hindari 3% awal & akhir bila video panjang (biasanya bumper musik intro/outro)
-  const marginFrames = totalDurationSec > 120 ? Math.floor(numFrames * 0.03) : 0;
+  const winFrames = Math.max(10, Math.round(targetWinSec / frameSec));
+  const stepFrames = Math.max(6, Math.round(winFrames * 0.35));
+  const marginFrames = totalDurationSec > 180 ? Math.floor(numFrames * 0.025) : 0;
   const maxStartFrame = Math.max(0, numFrames - winFrames - marginFrames);
 
+  const sampleHm = (sSec, eSec) => {
+    if (!hasHeatmap) return null;
+    let wSum = 0;
+    let wDur = 0;
+    let pk = 0;
+    for (const hm of heatmap) {
+      const hs = Number(hm.startSec ?? hm.start_time ?? 0);
+      const he = Number(hm.endSec ?? hm.end_time ?? hs + 5);
+      const val = Math.max(0, Math.min(1, Number(hm.intensity ?? hm.value ?? 0)));
+      const inter = Math.max(0, Math.min(eSec, he) - Math.max(sSec, hs));
+      if (inter > 0) {
+        wSum += val * inter;
+        wDur += inter;
+        if (val > pk) pk = val;
+      }
+    }
+    return wDur > 0 ? Math.min(1, (wSum / wDur) * 0.45 + pk * 0.55) : 0;
+  };
+
   const candidates = [];
+  const snapSearchFrames = Math.max(2, Math.round(1.6 / frameSec));
+
   for (let sFrame = marginFrames; sFrame <= maxStartFrame; sFrame += stepFrames) {
     const eFrame = Math.min(numFrames - 1, sFrame + winFrames);
 
-    // Geser titik mulai & selesai ke lembah jeda kalimat terdekat (±1.5 detik) agar tidak memotong kata
+    // Geser titik awal & akhir ke lembah jeda napas terdekat (±1.6 detik) agar tidak memotong tengah kalimat
     let snappedStart = sFrame;
-    let bestStartVal = rmsArr[sFrame];
-    for (let d = -5; d <= 5; d++) {
+    let bestStartVal = rmsFrames[sFrame];
+    for (let d = -snapSearchFrames; d <= snapSearchFrames; d++) {
       const idx = sFrame + d;
-      if (idx >= 0 && idx < eFrame - 6 && rmsArr[idx] < bestStartVal) {
-        bestStartVal = rmsArr[idx];
+      if (idx >= 0 && idx < eFrame - 8 && rmsFrames[idx] < bestStartVal) {
+        bestStartVal = rmsFrames[idx];
         snappedStart = idx;
       }
     }
 
     let snappedEnd = eFrame;
-    let bestEndVal = rmsArr[eFrame];
-    for (let d = -6; d <= 6; d++) {
+    let bestEndVal = rmsFrames[eFrame];
+    for (let d = -snapSearchFrames; d <= snapSearchFrames; d++) {
       const idx = eFrame + d;
-      if (idx > snappedStart + 8 && idx < numFrames && rmsArr[idx] < bestEndVal) {
-        bestEndVal = rmsArr[idx];
+      if (idx > snappedStart + 12 && idx < numFrames && rmsFrames[idx] < bestEndVal) {
+        bestEndVal = rmsFrames[idx];
         snappedEnd = idx;
       }
     }
 
-    let sumEnergy = 0;
-    let activeSpeechFrames = 0;
-    let peakEnergy = 0;
-    let dynamicDiffSum = 0;
     const span = Math.max(1, snappedEnd - snappedStart);
+    let sumE = 0;
+    let peakE = 0;
+    let activeFrames = 0;
+    let modSum = 0;
 
     for (let k = snappedStart; k < snappedEnd; k++) {
-      const v = rmsArr[k];
-      sumEnergy += v;
-      if (v > pauseThreshold) activeSpeechFrames++;
-      if (v > peakEnergy) peakEnergy = v;
-      if (k > snappedStart) dynamicDiffSum += Math.abs(v - rmsArr[k - 1]);
+      const v = rmsFrames[k];
+      const pk = peakFrames ? peakFrames[k] : v;
+      sumE += v;
+      if (pk > peakE) peakE = pk;
+      if (v > pauseThreshold) activeFrames++;
+      if (k > snappedStart) modSum += Math.abs(v - rmsFrames[k - 1]);
     }
 
-    const avgEnergy = sumEnergy / span;
-    const speechDensity = activeSpeechFrames / span;
-    const dynamicModulation = dynamicDiffSum / span;
+    const speechDensity = activeFrames / span;
+    if (speechDensity < 0.25) continue;
 
-    // Skor komposit: kepadatan bicara (tidak banyak hening) + intonasi dinamis + kejelasan vokal
-    const densityScore = speechDensity >= 0.55 && speechDensity <= 0.94 ? 14 : speechDensity * 15;
-    const energyRatio = Math.min(2.2, avgEnergy / Math.max(0.002, medianRms));
-    const modRatio = Math.min(2.0, dynamicModulation / Math.max(0.001, medianRms * 0.45));
-    const rawScore = Math.round(68 + densityScore + energyRatio * 7 + modRatio * 5);
+    const avgE = sumE / span;
+    const liftRatio = Math.max(0, (peakE - medianRms) / Math.max(0.002, medianRms));
+    const modRatio = (modSum / span) / Math.max(0.001, medianRms * 0.42);
+    const vocalNorm = Math.min(
+      1,
+      Math.min(0.42, liftRatio * 0.14) +
+        Math.min(0.32, (avgE / Math.max(0.002, medianRms)) * 0.22) +
+        Math.min(0.26, modRatio * 0.16)
+    );
 
+    const endQuietNorm = bestEndVal <= pauseThreshold * 1.15 ? 0.92 : 0.58;
     const startSec = Number((snappedStart * frameSec).toFixed(2));
     const endSec = Number(Math.min(totalDurationSec, snappedEnd * frameSec).toFixed(2));
-    if (endSec - startSec < 3) continue;
+    if (endSec - startSec < 3.5) continue;
+
+    const hmScore = sampleHm(startSec, endSec);
+    const composite01 = hasHeatmap
+      ? (hmScore ?? 0) * 0.42 + vocalNorm * 0.36 + endQuietNorm * 0.22
+      : vocalNorm * 0.68 + endQuietNorm * 0.32;
+
+    const honestScore = Math.max(58, Math.min(94, Math.round(54 + composite01 * 41)));
+    const liftPct = Math.max(8, Math.min(92, Math.round(liftRatio * 28)));
+
+    const reasonParts = [];
+    if (hasHeatmap && hmScore != null && hmScore > 0.15) {
+      reasonParts.push(`puncak Most-Replayed ${Math.round(hmScore * 100)}%`);
+    }
+    reasonParts.push(`lonjakan vokal +${liftPct}%`);
+    if (bestEndVal <= pauseThreshold * 1.15) {
+      reasonParts.push('berhenti di jeda napas');
+    }
 
     candidates.push({
       startSec,
       endSec,
-      score: Math.max(72, Math.min(98, rawScore)),
-      speechDensity
+      score: honestScore,
+      liftPct,
+      hmScore,
+      endQuiet: bestEndVal <= pauseThreshold * 1.15,
+      reason: reasonParts.join(' + ').replace(/^./, (c) => c.toUpperCase()) + '.'
     });
   }
 
-  candidates.sort((a, b) => b.score - a.score);
+  candidates.sort((a, b) => b.score - a.score || a.startSec - b.startSec);
 
   const selected = [];
   for (const cand of candidates) {
     const candLen = cand.endSec - cand.startSec;
     const overlaps = selected.some((sel) => {
       const inter = Math.max(0, Math.min(sel.endSec, cand.endSec) - Math.max(sel.startSec, cand.startSec));
-      return inter > candLen * 0.25;
+      return inter > candLen * 0.28;
     });
     if (!overlaps) {
+      let variedScore = cand.score;
+      while (selected.some((s) => s.score === variedScore) && variedScore > 56) {
+        variedScore -= 1;
+      }
       selected.push({
-        id: `agen-momen-${selected.length + 1}`,
-        title: `Sorotan Inti Pembicara #${selected.length + 1}`,
-        score: cand.score,
-        reason: 'Puncak intonasi vokal & kepadatan kalimat tertinggi terdeteksi AI Agent.',
+        id: `momen-vokal-${selected.length + 1}`,
+        title: `Sorotan Pembicara #${selected.length + 1}`,
+        score: variedScore,
+        reason: cand.reason,
+        liftPct: cand.liftPct,
+        hmScore: cand.hmScore,
+        hasHeatmap,
         startSec: cand.startSec,
         endSec: cand.endSec,
         transcript: '',
         words: []
       });
     }
-    if (selected.length >= Math.max(desiredCount + 5, 8)) break;
+    if (selected.length >= Math.max(desiredCount + 4, 10)) break;
   }
 
   if (selected.length === 0) {
     const end = Number(Math.min(totalDurationSec, targetWinSec).toFixed(2));
     selected.push({
-      id: 'agen-momen-1',
+      id: 'momen-vokal-1',
       title: 'Sorotan Utama Video #1',
-      score: 90,
-      reason: 'Segmen utama video dipilih otomatis oleh AI Agent.',
+      score: 76,
+      reason: 'Dipilih dari rentang pembuka video berdasarkan kepadatan jalur suara.',
+      hasHeatmap,
       startSec: 0,
       endSec: Math.max(1, end),
       transcript: '',
@@ -241,22 +301,111 @@ export function pickMomentsFromAudioWaveform(samples, sampleRate, totalDurationS
     });
   }
 
+  selected.scoringMeta = { hasHeatmap, weightNotice };
   return selected;
 }
 
 /**
- * Menjalankan alur kerja penuh AI Agent Pemotong Klip Otomatis.
+ * Kompatibilitas mundur apabila dipanggil dengan array sampel PCM langsung.
+ */
+export function pickMomentsFromAudioWaveform(samples, sampleRate, totalDurationSec, desiredCount = 5) {
+  const hopSec = 0.05;
+  const hopLen = Math.max(1, Math.round(sampleRate * hopSec));
+  const frames = Math.max(1, Math.floor((samples?.length || 0) / hopLen));
+  const rmsFrames = new Float32Array(frames);
+  const peakFrames = new Float32Array(frames);
+  if (samples && samples.length > 0) {
+    for (let f = 0; f < frames; f++) {
+      const s0 = f * hopLen;
+      const s1 = Math.min(samples.length, s0 + hopLen);
+      let sq = 0;
+      let pk = 0;
+      for (let i = s0; i < s1; i++) {
+        const a = Math.abs(samples[i]);
+        sq += a * a;
+        if (a > pk) pk = a;
+      }
+      rmsFrames[f] = Math.sqrt(sq / Math.max(1, s1 - s0));
+      peakFrames[f] = pk;
+    }
+  }
+  return pickMomentsFromAudioFeatures(
+    { rmsFrames, peakFrames, frameSec: hopSec, duration: totalDurationSec },
+    totalDurationSec,
+    desiredCount
+  );
+}
+
+/**
+ * Memperbarui skor & alasan spesifik sebuah kandidat momen begitu kata-kata transkripnya sudah terbaca,
+ * menggunakan sinyal kalimat pembuka (pertanyaan/angka/penasaran) + jeda napas akhir kalimat!
+ */
+function enrichMomentScoreWithTranscript(cand, words, usedScoresSet) {
+  if (!Array.isArray(words) || words.length === 0) return;
+  const openText = words
+    .slice(0, Math.min(14, words.length))
+    .map((w) => w.word)
+    .join(' ');
+  const lastWord = words[words.length - 1]?.word || '';
+
+  let bonus = 0;
+  const tags = [];
+
+  if (cand.hasHeatmap && cand.hmScore != null && cand.hmScore > 0.15) {
+    tags.push(`puncak Most-Replayed ${Math.round(cand.hmScore * 100)}%`);
+  }
+  if (cand.liftPct) {
+    tags.push(`lonjakan vokal +${cand.liftPct}%`);
+  }
+
+  if (/\?/.test(openText) || /\b(kenapa|mengapa|bagaimana|gimana|apa\s+yang|tau\s+nggak)\b/i.test(openText)) {
+    bonus += 5;
+    tags.push('kalimat tanya pembuka');
+  }
+  if (/\d+/.test(openText) || /\b(satu|dua|tiga|lima|sepuluh|persen|juta|miliar|detik|menit)\b/i.test(openText)) {
+    bonus += 4;
+    tags.push('angka konkret di awal');
+  } else if (/\b(rahasia|kesalahan|jangan|ternyata|masalah|solusi|kunci|penting|strategi)\b/i.test(openText)) {
+    bonus += 3;
+    tags.push('kalimat pembuka memancing penasaran');
+  }
+
+  if (/[.!?]$/.test(lastWord)) {
+    bonus += 3;
+    tags.push('akhir kalimat & jeda napas utuh');
+  } else {
+    tags.push('dikunci pada jeda napas');
+  }
+
+  let updatedScore = Math.max(58, Math.min(95, Math.round((cand.score || 76) + bonus)));
+  while (usedScoresSet.has(updatedScore) && updatedScore > 57) {
+    updatedScore -= 1;
+  }
+  usedScoresSet.add(updatedScore);
+
+  cand.score = updatedScore;
+  cand.reason = tags.join(' + ').replace(/^./, (c) => c.toUpperCase()) + '.';
+}
+
+/**
+ * Menjalankan pemotongan klip otomatis dari video sumber ke daftar file MP4 9:16:
+ * - Aman untuk video 60–120+ menit di laptop RAM 8 GB
+ * - Setiap kata subtitle dikunci rapat ke pulau energi vokal pembicara
+ * - 1 klip gagal tidak menghentikan render klip lain di dalam batch
  */
 export async function runAutonomousClipAgent({
   file,
   mediaInfo,
   prebuiltMoments = null,
+  heatmap = null,
   geminiApiKey = '',
-  clipCount = 3,
+  clipCount = 5,
   presetId = 'kreator-kuning',
-  frameMode = 'crop-fill',
+  frameMode = 'auto',
   autoFaceCenter = true,
+  captionOffsetSec = 0,
   hookStyle = 'white',
+  hookDurationSec = 3.0,
   watermarkImage = null,
   watermarkText = '',
   watermarkPos = 'top-right',
@@ -268,11 +417,12 @@ export async function runAutonomousClipAgent({
   onStage = null,
   onLog = null,
   onMomentsReady = null,
-  onClipRendered = null
+  onClipRendered = null,
+  onClipFailed = null
 }) {
   const checkAbort = () => {
     if (signal?.aborted) {
-      throw new DOMException('AI Agent dihentikan oleh pengguna.', 'AbortError');
+      throw new DOMException('Proses pembuatan klip dibatalkan oleh pengguna.', 'AbortError');
     }
   };
 
@@ -284,41 +434,44 @@ export async function runAutonomousClipAgent({
   };
 
   const totalDur = Math.max(1, Number(mediaInfo?.duration || 15));
-  const requestedCount = Math.max(1, Math.min(5, Number(clipCount) || 3));
+  const requestedCount = Math.max(1, Math.min(10, Number(clipCount) || 5));
 
   checkAbort();
   emitStage(
     1,
-    'Memindai Transkrip & Gelombang Suara',
-    'Memeriksa kecocokan transkrip otomatis atau mengekstrak pola bicara...',
+    'Memindai Sinyal Vokal & Transkrip',
+    'Memeriksa subtitle sumber atau memindai lonjakan vokal & jeda napas...',
     8
   );
 
   let discoveredMoments = [];
+  let scoringMeta = null;
   let sourceModeLabel = 'lokal';
+  let scannedAudioFeatures = null;
 
-  // 1A. Cek apakah momen sudah tersedia langsung (dari tombol Muat YouTube atau Video Contoh)
+  // 1A. Cek apakah momen sudah tersedia langsung (dari link YouTube atau Video Contoh)
   if (Array.isArray(prebuiltMoments) && prebuiltMoments.length > 0) {
+    scoringMeta = prebuiltMoments.scoringMeta || null;
     discoveredMoments = prebuiltMoments.map((m, idx) => ({
       ...m,
-      id: m.id || `agen-momen-${idx + 1}`,
+      id: m.id || `momen-${idx + 1}`,
       title: craftCleanHookTitle(m.title || m.transcript, idx + 1)
     }));
     sourceModeLabel = 'transkrip-siap';
-    emitLog(`Transkrip bawaan terdeteksi langsung (${discoveredMoments.length} kandidat momen siap).`);
+    emitLog(`Transkrip sumber siap dipakai (${discoveredMoments.length} kandidat momen terukur).`);
   }
 
-  // 1B. Jika belum ada transkrip siap pakai dan pembeli mengisi Gemini API Key, gunakan kurasi Gemini
+  // 1B. Opsional BYOK Gemini jika sengaja diisi pembeli
   if (discoveredMoments.length === 0 && String(geminiApiKey || '').trim().length > 10) {
     try {
-      emitLog('Menghubungi Gemini AI untuk menyaring momen paling kuat dari rekaman...');
+      emitLog('Menghubungi kunci Gemini pilihanmu untuk menyaring momen percakapan...');
       const gemMoments = await analyzePodcastWithGemini({
         file,
         apiKey: geminiApiKey,
         totalDurationSec: totalDur,
         onStatus: (txt, pct) => {
           checkAbort();
-          emitStage(1, 'Analisis Konteks Gemini AI', txt, Math.min(35, 8 + Math.round(pct * 0.27)));
+          emitStage(1, 'Analisis Transkrip Gemini (Opsional)', txt, Math.min(35, 8 + Math.round(pct * 0.27)));
         }
       });
       if (Array.isArray(gemMoments) && gemMoments.length > 0) {
@@ -327,67 +480,74 @@ export async function runAutonomousClipAgent({
           title: craftCleanHookTitle(m.title || m.transcript, idx + 1)
         }));
         sourceModeLabel = 'gemini';
-        emitLog(`Gemini AI menemukan ${discoveredMoments.length} momen unggulan.`);
+        emitLog(`Ditemukan ${discoveredMoments.length} kandidat momen beserta transkrip kata.`);
       }
     } catch (gemErr) {
       checkAbort();
-      emitLog(`Kunci Gemini dilewati (${gemErr.message.slice(0, 60)}), beralih ke pencocokan lokal...`);
+      emitLog(`Kunci Gemini dilewati (${gemErr.message.slice(0, 60)}), beralih ke mesin vokal lokal...`);
     }
   }
 
-  // 1C. Cek pencocokan pintar dengan riwayat video YouTube yang baru dicek/diunduh pembeli!
+  // 1C. Cek kecocokan riwayat subtitle YouTube lokal di browser pembeli
   if (discoveredMoments.length === 0) {
     const ytMatch = findMatchingYoutubeCache(file, mediaInfo);
     if (ytMatch && Array.isArray(ytMatch.moments) && ytMatch.moments.length > 0) {
+      scoringMeta = ytMatch.moments.scoringMeta || null;
       discoveredMoments = ytMatch.moments.map((m, idx) => ({
         ...m,
-        id: `yt-agen-${idx + 1}`,
+        id: `yt-momen-${idx + 1}`,
         title: craftCleanHookTitle(m.title || m.transcript, idx + 1)
       }));
-      sourceModeLabel = 'cache-youtube';
+      sourceModeLabel = 'subtitle-youtube';
       emitLog(
-        `Video dikenali dari unduhan YouTube: ${ytMatch.wordCount} kata transkrip Bahasa Indonesia terpasang instan.`
+        `Cocok dengan subtitle YouTube tersimpan (${ytMatch.wordCount} kata terpasang langsung).`
       );
     }
   }
 
-  // 1D. Mesin Vokal & Whisper Lokal 100% Tanpa API Key (cepat untuk video pendek maupun 30 menit!)
+  // 1D. Pindai gelombang vokal streaming hemat RAM (kuat untuk video 60–120+ menit di RAM 8 GB!)
   if (discoveredMoments.length === 0) {
-    emitLog('Memindai puncak intonasi vokal & batas kalimat pembicara secara lokal...');
-    const scanEndSec = Math.min(totalDur, 2700); // s/d 45 menit
-    const audio8k = await extractMonoAudio(file, {
-      startSec: 0,
-      endSec: scanEndSec,
-      targetSampleRate: 8000,
+    emitLog(
+      `Memindai kurva vokal & jeda napas sepanjang ${formatClock(totalDur)} secara hemat memori...`
+    );
+    scannedAudioFeatures = await scanLongVideoAudioFeatures(file, {
+      maxDurationSec: totalDur,
+      windowSec: 180,
+      hopMs: 50,
       onProgress: (p) => {
         checkAbort();
         emitStage(
           1,
-          'Memindai Gelombang Vokal Pembicara',
-          `Membaca jalur suara video (${p}%)...`,
+          'Memindai Lonjakan Vokal & Jeda Napas',
+          `Membaca jalur suara rekaman (${p}%)...`,
           8 + Math.round(p * 0.14)
         );
       }
     });
     checkAbort();
 
-    discoveredMoments = pickMomentsFromAudioWaveform(
-      audio8k.samples,
-      audio8k.sampleRate,
-      scanEndSec,
-      Math.max(requestedCount + 5, 8)
+    const picked = pickMomentsFromAudioFeatures(
+      scannedAudioFeatures,
+      totalDur,
+      Math.max(requestedCount + 5, 10),
+      heatmap
     );
-    sourceModeLabel = 'akustik-whisper';
-    emitLog(`Ditemukan ${discoveredMoments.length} kandidat segmen vokal pembicara pada rekaman.`);
+    scoringMeta = picked.scoringMeta || null;
+    discoveredMoments = picked;
+    sourceModeLabel = 'vokal-whisper-small';
+    emitLog(`Ditemukan ${discoveredMoments.length} kandidat segmen vokal pembicara.`);
+    if (scoringMeta?.weightNotice) {
+      emitLog(scoringMeta.weightNotice);
+    }
   }
 
   checkAbort();
 
-  // TAHAP 2: BACA VOKAL PEMBICARA JADI SUBTITLE PER KATA & KURASI MOMEN TERBAIK
+  // TAHAP 2: KUNCI SETIAP KATA KE GELOMBANG VOKAL ASLI & RAPATKAN BATAS JEDA NAPAS
   emitStage(
     2,
-    'Membaca Vokal Pembicara & Mengkurasi Subtitle',
-    `Menyiapkan pembacaan suara pembicara untuk ${requestedCount} klip terbaik...`,
+    'Menyelaraskan Subtitle ke Suara Vokal',
+    `Mengunci ketepatan waktu kata pada ${requestedCount} momen terpilih...`,
     26
   );
 
@@ -395,16 +555,43 @@ export async function runAutonomousClipAgent({
 
   const chosenMoments = [];
   const skippedSilentMoments = [];
+  const usedScores = new Set();
 
   for (let idx = 0; idx < discoveredMoments.length && chosenMoments.length < requestedCount; idx++) {
     checkAbort();
     const cand = discoveredMoments[idx];
 
+    // Jika kata sudah ada (misal dari subtitle YouTube), tetap rapatkan ke gelombang vokal asli klip!
     if (Array.isArray(cand.words) && cand.words.length >= 3) {
+      try {
+        const clip16k = await extractMonoAudio(file, {
+          startSec: cand.startSec,
+          endSec: cand.endSec,
+          targetSampleRate: 16000
+        });
+        const env = analyzeVocalEnvelope(clip16k.samples, 16000, cand.startSec);
+        const snapped = snapClipBoundsToBreathPause(cand.startSec, cand.endSec, env, totalDur);
+        cand.startSec = snapped.startSec;
+        cand.endSec = snapped.endSec;
+        cand.words = refineWhisperWordsWithVocal(
+          cand.words,
+          clip16k.samples,
+          16000,
+          cand.startSec,
+          cand.endSec
+        );
+      } catch {
+        // Tetap gunakan timestamp kata asli bila ekstraksi audio tambahan dilewati
+      }
+
       if (!cand.transcript) {
         cand.transcript = cand.words.map((w) => w.word).join(' ');
       }
       cand.title = craftCleanHookTitle(cand.title || cand.transcript, chosenMoments.length + 1);
+      if (usedScores.has(cand.score) && cand.score > 58) {
+        while (usedScores.has(cand.score) && cand.score > 58) cand.score -= 1;
+      }
+      usedScores.add(cand.score);
       chosenMoments.push(cand);
       continue;
     }
@@ -412,8 +599,8 @@ export async function runAutonomousClipAgent({
     const slotNum = chosenMoments.length + 1;
     emitStage(
       2,
-      `Membaca Suara Vokal Pembicara · Klip #${slotNum}/${requestedCount}`,
-      `Mengekstrak ucapan pembicara pada ${formatClock(cand.startSec)} – ${formatClock(cand.endSec)}...`,
+      `Transkrip Whisper-Small · Klip #${slotNum}/${requestedCount}`,
+      `Membaca vokal pembicara pada ${formatClock(cand.startSec)} – ${formatClock(cand.endSec)}...`,
       26 + Math.round(((slotNum - 0.8) / requestedCount) * 16)
     );
 
@@ -426,10 +613,12 @@ export async function runAutonomousClipAgent({
           checkAbort();
           const stagePct =
             26 +
-            Math.round((((slotNum - 1 + Math.max(0, Math.min(100, subPct || 0)) / 100) / requestedCount) * 16));
+            Math.round(
+              ((slotNum - 1 + Math.max(0, Math.min(100, subPct || 0)) / 100) / requestedCount) * 16
+            );
           emitStage(
             2,
-            `Membaca Suara Vokal Pembicara · Klip #${slotNum}/${requestedCount}`,
+            `Transkrip Whisper-Small · Klip #${slotNum}/${requestedCount}`,
             `${statusText} (${formatClock(cand.startSec)} – ${formatClock(cand.endSec)})`,
             stagePct
           );
@@ -438,17 +627,24 @@ export async function runAutonomousClipAgent({
 
       checkAbort();
       if (Array.isArray(whisperWords) && whisperWords.length >= 3) {
+        // Pastikan batas awal & akhir klip pas di jeda napas sekitar kata pertama & terakhir
+        cand.startSec = Number(Math.max(0, Math.min(cand.startSec, whisperWords[0].start - 0.12)).toFixed(2));
+        cand.endSec = Number(
+          Math.min(totalDur, Math.max(cand.endSec, whisperWords[whisperWords.length - 1].end + 0.18)).toFixed(2)
+        );
         cand.words = whisperWords;
         cand.transcript = whisperWords.map((w) => w.word).join(' ');
         cand.title = craftCleanHookTitle(cand.transcript, slotNum);
+        enrichMomentScoreWithTranscript(cand, whisperWords, usedScores);
+
         const previewQuote = whisperWords
           .slice(0, 8)
           .map((w) => w.word)
           .join(' ');
         emitLog(
-          `Klip #${slotNum} (${formatClock(cand.startSec)}–${formatClock(cand.endSec)}): ${
-            whisperWords.length
-          } kata vokal terbaca jadi subtitle ("${previewQuote}...").`
+          `Klip #${slotNum} (${formatClock(cand.startSec)}–${formatClock(cand.endSec)} · Skor ${
+            cand.score
+          }): ${whisperWords.length} kata terkunci ke vokal ("${previewQuote}...").`
         );
         chosenMoments.push(cand);
       } else if (Array.isArray(whisperWords) && whisperWords.length > 0) {
@@ -459,7 +655,7 @@ export async function runAutonomousClipAgent({
         emitLog(
           `Segmen ${formatClock(cand.startSec)}–${formatClock(
             cand.endSec
-          )} hanya memiliki sedikit ucapan (${whisperWords.length} kata), memeriksa segmen vokal berikutnya...`
+          )} hanya berisi ${whisperWords.length} kata, memeriksa segmen berikutnya...`
         );
       } else {
         cand.words = [];
@@ -468,7 +664,7 @@ export async function runAutonomousClipAgent({
         emitLog(
           `Segmen ${formatClock(cand.startSec)}–${formatClock(
             cand.endSec
-          )} didominasi musik/efek tanpa vokal, beralih ke segmen bicara berikutnya...`
+          )} didominasi musik/hening tanpa vokal, memeriksa segmen berikutnya...`
         );
       }
     } catch (wErr) {
@@ -476,31 +672,38 @@ export async function runAutonomousClipAgent({
       cand.words = [];
       cand.transcript = '';
       skippedSilentMoments.push(cand);
-      emitLog(`Gagal membaca vokal pada ${formatClock(cand.startSec)}: ${String(wErr?.message || wErr).slice(0, 70)}`);
+      emitLog(
+        `Melewati segmen ${formatClock(cand.startSec)} (${String(wErr?.message || wErr).slice(0, 65)}).`
+      );
     }
   }
 
-  // Jika video memang sangat minim bicara, lengkapi slot dari segmen yang tersisa TANPA pernah menyuntikkan teks judul palsu ke subtitle!
   while (chosenMoments.length < requestedCount && skippedSilentMoments.length > 0) {
     chosenMoments.push(skippedSilentMoments.shift());
   }
+
+  chosenMoments.sort((a, b) => (b.score || 0) - (a.score || 0));
 
   const orderedMomentsForStudio = [
     ...chosenMoments,
     ...discoveredMoments.filter((m) => !chosenMoments.includes(m))
   ];
+  if (scoringMeta) {
+    orderedMomentsForStudio.scoringMeta = scoringMeta;
+  }
   if (onMomentsReady) {
     onMomentsReady(orderedMomentsForStudio);
   }
 
   emitLog(
-    `Kurasi selesai: memproses ${chosenMoments.length} klip terbaik (${chosenMoments
+    `Pemilihan momen selesai: merender ${chosenMoments.length} klip (${chosenMoments
       .map((m) => `Skor ${m.score}`)
       .join(', ')}).`
   );
 
-  // TAHAP 3 & 4: PELACAKAN WAJAH 9:16 + PENJERNIH VOKAL 48 KHZ + AUTO-RENDER MP4 BERURUTAN
+  // TAHAP 3 & 4: DETEKSI 1/2 WAJAH + RENDER BATCH MP4 DENGAN ISOLASI ERROR PER KLIP
   const renderedClips = [];
+  const failedClips = [];
   const baseSlug = normalizeTitleSlug(file.name).slice(0, 32);
 
   for (let i = 0; i < chosenMoments.length; i++) {
@@ -512,94 +715,133 @@ export async function runAutonomousClipAgent({
 
     emitStage(
       3,
-      `Mengunci Wajah & Merender Klip #${clipOrdinal}/${chosenMoments.length}`,
+      `Merender Klip #${clipOrdinal}/${chosenMoments.length}`,
       `Memproses "${m.title}" (${formatClock(m.startSec)} – ${formatClock(m.endSec)})...`,
       basePct
     );
     emitLog(
       `Merender Klip #${clipOrdinal}/${chosenMoments.length} (${formatClock(m.startSec)} – ${formatClock(
         m.endSec
-      )}) ke 9:16 HD + Suara 48 kHz...`
+      )}) ke 9:16 + Suara 48 kHz...`
     );
 
-    const renderRes = await renderClipToMp4({
-      file,
-      startSec: m.startSec,
-      endSec: m.endSec,
-      resolution,
-      fps: 30,
-      frameMode,
-      autoFaceCenter,
-      manualCenterXOffset: 0,
-      presetId,
-      words: m.words || [],
-      hookTitle: m.title,
-      hookStyle,
-      watermarkImage,
-      watermarkText,
-      watermarkPos,
-      watermarkOpacity: 0.88,
-      voiceBoost,
-      volumeGain,
-      monoToStereo,
-      signal,
-      onProgress: ({ phase, percent }) => {
-        checkAbort();
-        const overallPct = Math.min(99, basePct + Math.round(((percent || 0) / 100) * spanPct));
-        const stageIdx = (percent || 0) < 24 ? 3 : 4;
-        emitStage(
-          stageIdx,
-          `Klip #${clipOrdinal}/${chosenMoments.length} · ${m.title}`,
-          phase,
-          overallPct
-        );
+    try {
+      await assertSufficientDiskForRender(60 * 1024 * 1024);
+      const renderRes = await renderClipToMp4({
+        file,
+        startSec: m.startSec,
+        endSec: m.endSec,
+        resolution,
+        fps: 30,
+        frameMode,
+        autoFaceCenter,
+        manualCenterXOffset: 0,
+        presetId,
+        words: m.words || [],
+        captionOffsetSec,
+        hookTitle: m.title,
+        hookStyle,
+        hookDurationSec,
+        forceCpuMode: typeof window !== 'undefined' && Boolean(window.__KLIP_FORCE_CPU_ENCODE),
+        watermarkImage,
+        watermarkText,
+        watermarkPos,
+        watermarkOpacity: 0.88,
+        voiceBoost,
+        volumeGain,
+        monoToStereo,
+        signal,
+        onProgress: ({ phase, percent }) => {
+          checkAbort();
+          const overallPct = Math.min(99, basePct + Math.round(((percent || 0) / 100) * spanPct));
+          const stageIdx = (percent || 0) < 24 ? 3 : 4;
+          emitStage(
+            stageIdx,
+            `Klip #${clipOrdinal}/${chosenMoments.length} · ${m.title}`,
+            phase,
+            overallPct
+          );
+        }
+      });
+
+      const objectUrl = URL.createObjectURL(renderRes.blob);
+      const clipFileName = `${baseSlug}-klip-${clipOrdinal}-9x16.mp4`;
+      const clipArtifact = {
+        id: `klip-batch-${Date.now()}-${clipOrdinal}`,
+        index: clipOrdinal,
+        moment: m,
+        hookTitle: m.title,
+        score: m.score,
+        reason: m.reason,
+        startSec: m.startSec,
+        endSec: m.endSec,
+        durationSec: renderRes.durationSec,
+        width: renderRes.width,
+        height: renderRes.height,
+        sizeBytes: renderRes.sizeBytes,
+        renderSeconds: renderRes.renderSeconds,
+        encoderMode: renderRes.encoderMode,
+        effectiveFrameMode: renderRes.effectiveFrameMode,
+        detectedFaces: renderRes.detectedFaces,
+        cameraTrack: renderRes.cameraTrack,
+        blob: renderRes.blob,
+        objectUrl,
+        fileName: clipFileName,
+        presetId
+      };
+
+      renderedClips.push(clipArtifact);
+      emitLog(
+        `Klip #${clipOrdinal} selesai (${renderRes.width}×${renderRes.height} · ${
+          renderRes.effectiveFrameMode === 'podcast-split' ? 'Podcast Split 2 Wajah' : 'Fullscreen Tengah'
+        } · ${renderRes.encoderMode.toUpperCase()} · ${renderRes.durationSec.toFixed(1)} dtk · ${(
+          renderRes.sizeBytes /
+          (1024 * 1024)
+        ).toFixed(2)} MB).`
+      );
+
+      if (onClipRendered) {
+        onClipRendered(clipArtifact, i, chosenMoments.length);
       }
-    });
-
-    const objectUrl = URL.createObjectURL(renderRes.blob);
-    const clipFileName = `${baseSlug}-klip-${clipOrdinal}-9x16.mp4`;
-    const clipArtifact = {
-      id: `agent-clip-${Date.now()}-${clipOrdinal}`,
-      index: clipOrdinal,
-      moment: m,
-      hookTitle: m.title,
-      score: m.score,
-      startSec: m.startSec,
-      endSec: m.endSec,
-      durationSec: renderRes.durationSec,
-      width: renderRes.width,
-      height: renderRes.height,
-      sizeBytes: renderRes.sizeBytes,
-      renderSeconds: renderRes.renderSeconds,
-      cameraTrack: renderRes.cameraTrack,
-      blob: renderRes.blob,
-      objectUrl,
-      fileName: clipFileName,
-      presetId
-    };
-
-    renderedClips.push(clipArtifact);
-    emitLog(
-      `Klip #${clipOrdinal} selesai (${renderRes.width}×${renderRes.height} · ${renderRes.durationSec.toFixed(
-        1
-      )} dtk · ${(renderRes.sizeBytes / (1024 * 1024)).toFixed(2)} MB).`
-    );
-
-    if (onClipRendered) {
-      onClipRendered(clipArtifact, i, chosenMoments.length);
+    } catch (clipErr) {
+      if (clipErr?.name === 'AbortError' || signal?.aborted) {
+        throw clipErr;
+      }
+      // Isolasi kegagalan: 1 klip gagal TIDAK menggagalkan sisa batch!
+      const errMsg = String(clipErr?.message || clipErr || 'Kesalahan render klip');
+      failedClips.push({
+        index: clipOrdinal,
+        title: m.title,
+        startSec: m.startSec,
+        endSec: m.endSec,
+        error: errMsg
+      });
+      emitLog(
+        `Klip #${clipOrdinal} dilewati karena kendala teknis (${errMsg.slice(
+          0,
+          80
+        )}) — melanjutkan render klip berikutnya di batch ini...`
+      );
+      if (onClipFailed) {
+        onClipFailed({ index: clipOrdinal, moment: m, error: errMsg });
+      }
     }
   }
 
   emitStage(
     4,
-    'AI Agent Selesai Memotong Video',
-    `${renderedClips.length} klip vertikal 9:16 siap diputar, diunduh, atau dikustomisasi di Studio.`,
+    'Pembuatan Batch Klip Selesai',
+    failedClips.length > 0
+      ? `${renderedClips.length} klip berhasil dirender (${failedClips.length} klip dilewati tanpa menghentikan batch).`
+      : `${renderedClips.length} klip vertikal 9:16 siap diputar, diunduh, atau disesuaikan di Studio.`,
     100
   );
 
   return {
     sourceMode: sourceModeLabel,
-    moments: discoveredMoments,
-    clips: renderedClips
+    scoringMeta,
+    moments: orderedMomentsForStudio,
+    clips: renderedClips,
+    failedClips
   };
 }

@@ -1,0 +1,150 @@
+{
+  "testedAt": "2026-10-31T09:45:34.428Z",
+  "sourceUrl": "https://www.youtube.com/watch?v=0KQY2h9_YbU",
+  "sourceMetadata": {
+    "bridgeStatus": "Jembatan Internet Lokal Aktif (v2.1.0)",
+    "title": "UMKM SERIES EPISODE #1: MERACIK RESEP KELUARGA JADI BISNIS",
+    "durationBadge": "1:18:30",
+    "channelPill": "kumparan",
+    "captionPill": "Tanpa Subtitle — Siap Transkrip Whisper-Small",
+    "heatmapPill": "Grafik Most-Replayed Aktif",
+    "selectedQuality": "360p-fast"
+  },
+  "durationSeconds": 4710,
+  "durationFormatted": "1 jam 18 menit 30 detik (78,5 menit)",
+  "timings": {
+    "fetchMetadataAndSubtitlesSeconds": 1.36,
+    "streamImportViaBuyerInternetSeconds": 59.88
+  },
+  "memoryTelemetry": {
+    "v8HeapCapConfiguredMb": 2048,
+    "heapBeforeMb": 9.1,
+    "heapAfter78MinImportMb": 33.7,
+    "peakJsHeapMbAcross3Renders": 80.5,
+    "tabCrashed": false
+  },
+  "scoringWeightBanner": "Grafik Most-Replayed tidak tersedia pada sumber ini — bobot penilaian otomatis dialihkan ke Lonjakan Vokal (40%), Kekuatan Kalimat Pembuka (35%), dan Jeda Napas Kalimat Utuh (25%).",
+  "momentsPicked": [
+    {
+      "title": "1. Lebih Maksudnya mau beli peralatan tuh gimana",
+      "score": "Skor 85/100",
+      "time": "31:20 – 32:04 (43.9 dtk)",
+      "reason": "Ritme bicara 2.4 kata/dtk + kalimat tanya pembuka.",
+      "excerpt": "\"lebih Maksudnya mau beli peralatan tuh gimana sih gitu Hai waktu itu 12 lo yang perlu minggu itu hanya pakai ovennya rumah gitu Ini mau gedein produksi nih gimana caranya mau ...\""
+    },
+    {
+      "title": "2. Dapatkan kesempatan memenangkan hadiah dua setengah juta",
+      "score": "Skor 84/100",
+      "time": "1:13:55 – 1:14:24 (29.0 dtk)",
+      "reason": "Ritme bicara 1.8 kata/dtk + kalimat tanya pembuka + akhir jeda napas bersih.",
+      "excerpt": "\"dapatkan kesempatan memenangkan hadiah dua setengah juta rupiah caranya gimana Tunggu informasi selengkapnya besok di Instagram kumparan.com show Jangan sampai ketinggalan ya ...\""
+    },
+    {
+      "title": "3. Itu ya kolaborasi Kenapa kolaborasi untuk Iya",
+      "score": "Skor 83/100",
+      "time": "32:20 – 33:04 (43.7 dtk)",
+      "reason": "Ritme bicara 2.4 kata/dtk + kalimat tanya pembuka.",
+      "excerpt": "\"itu ya kolaborasi Kenapa kolaborasi untuk Iya kolaborasi itu sebabnya luas enggak hanya kolaborasi dengan eksternal tetapi dengan Internal contohnya itu saya dan pasca dibrune...\""
+    },
+    {
+      "title": "4. Kan gimana ya orang-orang sebenarnya udah-udah tahulah",
+      "score": "Skor 82/100",
+      "time": "53:27 – 54:11 (44.3 dtk)",
+      "reason": "Ritme bicara 2.3 kata/dtk + kalimat tanya pembuka.",
+      "excerpt": "\"kan gimana ya orang-orang sebenarnya udah-udah tahulah mungkin ada berulah Ternyata banyak yang belum tahu gitu adanya beroleh khususnya mungkin masih banyak gitu market marke...\""
+    },
+    {
+      "title": "5. Misalkan ya tapi balik lagi kita harus",
+      "score": "Skor 81/100",
+      "time": "54:27 – 55:11 (43.6 dtk)",
+      "reason": "Ritme bicara 2.0 kata/dtk + kalimat tanya pembuka.",
+      "excerpt": "\"misalkan ya tapi balik lagi kita harus ingat lagi ke awal Kenapa sih kita ada Insyaallah maksud Kalau misal kita Sudirman pasti nanti solusi-solusi sebelah sudah tersedia ya o...\""
+    },
+    {
+      "title": "6. Abigail pertanyaannya sebagai para cofounder Bagaimana cara",
+      "score": "Skor 80/100",
+      "time": "1:00:03 – 1:00:48 (44.6 dtk)",
+      "reason": "Ritme bicara 2.0 kata/dtk + kalimat tanya pembuka.",
+      "excerpt": "\"Abigail pertanyaannya sebagai para cofounder Bagaimana cara Mbak Sari lenbach Tasya melihat kompetitor yang misalnya menirukan bisnis brulee nih gimana Mbak Coba kasih menghal...\""
+    },
+    {
+      "title": "7. Bisnis kecil untuk bisa memulai ekspansi bisnis",
+      "score": "Skor 79/100",
+      "time": "1:01:22 – 1:02:06 (43.8 dtk)",
+      "reason": "Ritme bicara 2.2 kata/dtk + kalimat tanya pembuka.",
+      "excerpt": "\"bisnis kecil untuk bisa memulai ekspansi bisnis itu gimana ya Katanya ada nasihat enggak buat cryptonia di rumah eh agar kita nggak sekedar di rumah aja tapi bisa buka gerai d...\""
+    },
+    {
+      "title": "8. Selama tiga hari berturut-turut rangkaian acaranya Adek",
+      "score": "Skor 78/100",
+      "time": "10:54 – 11:37 (43.2 dtk)",
+      "reason": "Ritme bicara 2.0 kata/dtk + angka konkret di awal.",
+      "excerpt": "\"selama tiga hari berturut-turut rangkaian acaranya Adek Inu speed dari Pak Presiden Jokowi ada juga Talk Show bersama tokoh-tokoh hebat seperti sandiaga Uno Erick Thohir dan j...\""
+    },
+    {
+      "title": "9. Rupiah dan pada Desember 2020 juga sudah",
+      "score": "Skor 77/100",
+      "time": "14:11 – 14:55 (44.4 dtk)",
+      "reason": "Ritme bicara 2.0 kata/dtk + angka konkret di awal.",
+      "excerpt": "\"rupiah dan pada Desember 2020 juga sudah mendirikan gerai fisik pertama di salah satu mall di Jakarta sungguh pencapaian yang luar biasa ditengah pandemia Hai Nah aku pengen n...\""
+    }
+  ],
+  "renderedClips": [
+    {
+      "clipIndex": 1,
+      "fileName": "tes-01-klip-1-mode-gpu-1.mp4",
+      "encoderRequested": "GPU hardware (prefer-hardware)",
+      "detectedFacesBadge": "1 Pembicara Terdeteksi -> Fullscreen Tengah",
+      "resultMeta": "Fullscreen Tengah · Mesin GPU · Resolusi 720×1280 · Durasi 43.9 dtk · Ukuran 3.53 MB · Selesai dalam 4.41 detik.",
+      "renderSeconds": 4.46,
+      "sizeBytes": 3697741,
+      "jsHeapAfterRenderMb": 56.6,
+      "moment": {
+        "title": "1. Lebih Maksudnya mau beli peralatan tuh gimana",
+        "score": "Skor 85/100",
+        "time": "31:20 – 32:04 (43.9 dtk)",
+        "reason": "Ritme bicara 2.4 kata/dtk + kalimat tanya pembuka.",
+        "excerpt": "\"lebih Maksudnya mau beli peralatan tuh gimana sih gitu Hai waktu itu 12 lo yang perlu minggu itu hanya pakai ovennya rumah gitu Ini mau gedein produksi nih gimana caranya mau ...\""
+      }
+    },
+    {
+      "clipIndex": 2,
+      "fileName": "tes-01-klip-2-mode-gpu-2.mp4",
+      "encoderRequested": "GPU hardware (prefer-hardware)",
+      "detectedFacesBadge": "2 Wajah Terdeteksi -> Podcast Split Atas-Bawah",
+      "resultMeta": "Podcast Split 2 Wajah · Mesin GPU · Resolusi 720×1280 · Durasi 29.0 dtk · Ukuran 3.19 MB · Selesai dalam 3.05 detik.",
+      "renderSeconds": 3.09,
+      "sizeBytes": 3344544,
+      "jsHeapAfterRenderMb": 57.8,
+      "moment": {
+        "title": "2. Dapatkan kesempatan memenangkan hadiah dua setengah juta",
+        "score": "Skor 84/100",
+        "time": "1:13:55 – 1:14:24 (29.0 dtk)",
+        "reason": "Ritme bicara 1.8 kata/dtk + kalimat tanya pembuka + akhir jeda napas bersih.",
+        "excerpt": "\"dapatkan kesempatan memenangkan hadiah dua setengah juta rupiah caranya gimana Tunggu informasi selengkapnya besok di Instagram kumparan.com show Jangan sampai ketinggalan ya ...\""
+      }
+    },
+    {
+      "clipIndex": 3,
+      "fileName": "tes-01-klip-3-mode-cpu-fallback.mp4",
+      "encoderRequested": "CPU fallback (prefer-software)",
+      "detectedFacesBadge": "1 Pembicara Terdeteksi -> Fullscreen Tengah",
+      "resultMeta": "Fullscreen Tengah · Mesin CPU · Resolusi 720×1280 · Durasi 43.7 dtk · Ukuran 8.00 MB · Selesai dalam 4.57 detik.",
+      "renderSeconds": 4.61,
+      "sizeBytes": 8386323,
+      "jsHeapAfterRenderMb": 80.5,
+      "moment": {
+        "title": "3. Itu ya kolaborasi Kenapa kolaborasi untuk Iya",
+        "score": "Skor 83/100",
+        "time": "32:20 – 33:04 (43.7 dtk)",
+        "reason": "Ritme bicara 2.4 kata/dtk + kalimat tanya pembuka.",
+        "excerpt": "\"itu ya kolaborasi Kenapa kolaborasi untuk Iya kolaborasi itu sebabnya luas enggak hanya kolaborasi dengan eksternal tetapi dengan Internal contohnya itu saya dan pasca dibrune...\""
+      }
+    }
+  ],
+  "consoleErrorsCount": 2,
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "INFO: Created TensorFlow Lite XNNPACK delegate for CPU."
+  ]
+}

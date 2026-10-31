@@ -1,0 +1,141 @@
+{
+  "testedAt": "2026-10-31T09:43:31.571Z",
+  "sourceFile": "rekaman-lokal-22menit-indlish.mp4 (1320 detik / 22 menit, 1280x720, 0 subtitle bawaan, 0 grafik Most-Replayed)",
+  "groundTruthDialogue": [
+    {
+      "id": "seg1",
+      "speaker": "left",
+      "text": "Kenapa sembilan puluh persen founder bisnis gagal scale up cashflow di tahun pertama? Padahal produk mereka bagus banget di market."
+    },
+    {
+      "id": "seg2",
+      "speaker": "right",
+      "text": "Masalah utamanya ada di strategi pricing dan customer retention. Banyak orang sibuk bakar uang iklan tapi lupa hitung net margin."
+    },
+    {
+      "id": "seg3",
+      "speaker": "left",
+      "text": "Tiga kesalahan fatal saat bangun personal branding di media sosial adalah hook tiga detik pertama terlalu lambat dan bertele-tele."
+    },
+    {
+      "id": "seg4",
+      "speaker": "right",
+      "text": "Betul banget! Kalau opening hook langsung kasih angka konkret atau pertanyaan tajam, watch time dan engagement pasti naik drastis."
+    },
+    {
+      "id": "seg5",
+      "speaker": "left",
+      "text": "Gimana cara kreator baru konsisten upload konten tiap hari tanpa kena burnout padahal masih kerja full time di kantor?"
+    },
+    {
+      "id": "seg6",
+      "speaker": "right",
+      "text": "Rahasianya pakai sistem batching satu rekaman podcast panjang lalu potong jadi tujuh klip pendek siap jadwal untuk seminggu penuh."
+    },
+    {
+      "id": "seg7",
+      "speaker": "left",
+      "text": "Banyak UMKM takut naikin harga jual sepuluh ribu rupiah karena khawatir pelanggan kabur ke kompetitor yang banting harga."
+    },
+    {
+      "id": "seg8",
+      "speaker": "right",
+      "text": "Jangan perang harga murah! Fokus perbaiki packaging, kecepatan layanan, dan value jelas supaya profit sehat jangka panjang."
+    }
+  ],
+  "whisperModel": "Xenova/whisper-small",
+  "whisperElapsedSeconds": 118.23,
+  "totalEndToEndSeconds": 145.38,
+  "peakJsHeapMb": 1456.4,
+  "scoringWeightBanner": "Grafik Most-Replayed tidak tersedia pada sumber ini — bobot penilaian otomatis dialihkan ke Lonjakan Vokal (40%), Kekuatan Kalimat Pembuka (35%), dan Jeda Napas Kalimat Utuh (25%).",
+  "vocalSyncBadge": "7 Pulau Vokal Terkunci (10ms)",
+  "moments": [
+    {
+      "title": "1. Kenapa 90% founder bisnis gagal sekali upcharge",
+      "score": "Skor 87/100",
+      "time": "00:45 – 01:05 (20.9 dtk)",
+      "reason": "Lonjakan vokal +53% + kalimat tanya pembuka + akhir jeda napas bersih.",
+      "excerpt": "\"Kenapa 90% founder bisnis gagal sekali upcharge flow di tahun pertama? Padahal produk mereka bagus banget di market. Masalah utamanya ada di strategi pricing dan customer rete...\""
+    },
+    {
+      "title": "2. Tiga kesalahan fatal saat bangun personal branding",
+      "score": "Skor 84/100",
+      "time": "06:00 – 06:19 (20.0 dtk)",
+      "reason": "Lonjakan vokal +66% + angka konkret di awal + akhir jeda napas bersih.",
+      "excerpt": "\"Tiga kesalahan fatal saat bangun personal branding di media sosial adalah hook 3 detik pertama terlalu lambat dan berteleteli. Betul banget kalau opening hook langsung kasih a...\""
+    },
+    {
+      "title": "3. Gimana cara kreator baru konsisten upload konten",
+      "score": "Skor 83/100",
+      "time": "11:59 – 12:18 (18.7 dtk)",
+      "reason": "Lonjakan vokal +45% + kalimat tanya pembuka + akhir jeda napas bersih.",
+      "excerpt": "\"Gimana cara kreator baru konsisten upload konten tiap hari tanpa kena buru no-oot padahal masih kerja full time di kantor? Rahasiannya pakai sistem baching satu rekaman podcas...\""
+    },
+    {
+      "title": "4. Banyak UMKM takut naikin harga jual 10",
+      "score": "Skor 82/100",
+      "time": "18:00 – 18:20 (20.2 dtk)",
+      "reason": "Lonjakan vokal +64% + angka konkret di awal + akhir jeda napas bersih.",
+      "excerpt": "\"Banyak UMKM takut naikin harga jual 10 ribu rupiah karena khawatir pelanggan kabur ke kompetitor yang banting harga. Jangan perang harga murah, fokus perbaiki packaging, kecep...\""
+    }
+  ],
+  "renderedClips": [
+    {
+      "clipIndex": 1,
+      "fileName": "tes-02-klip-1-auto-podcast-split.mp4",
+      "frameMode": "auto",
+      "detectedFacesBadge": "2 Wajah Terdeteksi -> Podcast Split Atas-Bawah",
+      "resultMeta": "Podcast Split 2 Wajah · Mesin GPU · Resolusi 720×1280 · Durasi 20.9 dtk · Ukuran 1.00 MB · Selesai dalam 3.49 detik.",
+      "renderSeconds": 3.92,
+      "sizeBytes": 1052626,
+      "moment": {
+        "title": "1. Kenapa 90% founder bisnis gagal sekali upcharge",
+        "score": "Skor 87/100",
+        "time": "00:45 – 01:05 (20.9 dtk)",
+        "reason": "Lonjakan vokal +53% + kalimat tanya pembuka + akhir jeda napas bersih.",
+        "excerpt": "\"Kenapa 90% founder bisnis gagal sekali upcharge flow di tahun pertama? Padahal produk mereka bagus banget di market. Masalah utamanya ada di strategi pricing dan customer rete...\""
+      }
+    },
+    {
+      "clipIndex": 2,
+      "fileName": "tes-02-klip-2-fullscreen.mp4",
+      "frameMode": "crop-fill",
+      "detectedFacesBadge": "2 Wajah Terdeteksi (crop-fill)",
+      "resultMeta": "Fullscreen Tengah · Mesin GPU · Resolusi 720×1280 · Durasi 20.0 dtk · Ukuran 1.01 MB · Selesai dalam 2.34 detik.",
+      "renderSeconds": 2.39,
+      "sizeBytes": 1061051,
+      "moment": {
+        "title": "2. Tiga kesalahan fatal saat bangun personal branding",
+        "score": "Skor 84/100",
+        "time": "06:00 – 06:19 (20.0 dtk)",
+        "reason": "Lonjakan vokal +66% + angka konkret di awal + akhir jeda napas bersih.",
+        "excerpt": "\"Tiga kesalahan fatal saat bangun personal branding di media sosial adalah hook 3 detik pertama terlalu lambat dan berteleteli. Betul banget kalau opening hook langsung kasih a...\""
+      }
+    },
+    {
+      "clipIndex": 3,
+      "fileName": "tes-02-klip-3-cinema-blur.mp4",
+      "frameMode": "blur-fit",
+      "detectedFacesBadge": "Deteksi Otomatis 1 / 2 Wajah",
+      "resultMeta": "Cinema Blur · Mesin GPU · Resolusi 720×1280 · Durasi 18.7 dtk · Ukuran 0.79 MB · Selesai dalam 1.91 detik.",
+      "renderSeconds": 2.37,
+      "sizeBytes": 833424,
+      "moment": {
+        "title": "3. Gimana cara kreator baru konsisten upload konten",
+        "score": "Skor 83/100",
+        "time": "11:59 – 12:18 (18.7 dtk)",
+        "reason": "Lonjakan vokal +45% + kalimat tanya pembuka + akhir jeda napas bersih.",
+        "excerpt": "\"Gimana cara kreator baru konsisten upload konten tiap hari tanpa kena buru no-oot padahal masih kerja full time di kantor? Rahasiannya pakai sistem baching satu rekaman podcas...\""
+      }
+    }
+  ],
+  "consoleErrorsCount": 6,
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 409 (Conflict)",
+    "\u001b[0;93m2026-10-31 16:42:02.724425 [W:onnxruntime:, session_state.cc:1263 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+    "\u001b[0;93m2026-10-31 16:42:02.726189 [W:onnxruntime:, session_state.cc:1265 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m",
+    "\u001b[0;93m2026-10-31 16:42:12.010655 [W:onnxruntime:, session_state.cc:1263 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.\u001b[m",
+    "\u001b[0;93m2026-10-31 16:42:12.010929 [W:onnxruntime:, session_state.cc:1265 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m",
+    "INFO: Created TensorFlow Lite XNNPACK delegate for CPU."
+  ]
+}

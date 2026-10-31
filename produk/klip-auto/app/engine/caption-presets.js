@@ -1,19 +1,24 @@
 /**
- * Klip Auto — 6 Preset Gaya Caption & Compositor Kanvas 9:16
- * Menggambar frame video 9:16 (crop wajah tengah / latar blur), judul atas,
- * logo/watermark pembeli, dan caption besar per kata yang sinkron dengan suara.
+ * Klip Auto — Preset Gaya Caption Sinkron Vokal & Compositor Kanvas 9:16 Multi-Framing
+ * Mendukung:
+ * - 4 Mode Framing Inti + 1 Mode Pro: Otomatis (1/2 Wajah), Fullscreen Tengah, Podcast Split (Atas-Bawah tanpa keyframe),
+ *   Cinema Blur (16:9 utuh latar blur), dan Gaming Split (Facecam + Gameplay untuk Paket Pro)
+ * - Judul Pembuka 3 Detik (default) yang bisa diedit, dengan opsi tampil penuh
+ * - 6 Gaya Caption Paket Inti + 2 Gaya Caption Ekstra Paket Tambahan
+ * - Sinkronisasi sorotan kata presisi milidetik mengikuti pulau vokal & jeda napas pembicara
  */
 
 export const CAPTION_PRESETS = [
   {
     id: 'kreator-kuning',
     name: 'Kreator Tebal',
+    tier: 'inti',
     desc: 'Putih tebal ber-outline hitam pekat, kata aktif menyala kuning cerah.',
     fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif',
     fontWeight: 900,
     uppercase: true,
     fontSizeRatio: 0.064,
-    yPositionRatio: 0.74,
+    yPositionRatio: 0.75,
     baseColor: '#FFFFFF',
     activeColor: '#FACC15',
     strokeColor: '#09090B',
@@ -21,17 +26,18 @@ export const CAPTION_PRESETS = [
     shadowColor: 'rgba(0,0,0,0.65)',
     activePillColor: null,
     backdropColor: null,
-    popScale: 1.12
+    popScale: 1.11
   },
   {
     id: 'sorot-kotak',
     name: 'Kotak Sorot',
+    tier: 'inti',
     desc: 'Kata yang sedang diucapkan diberi kotak latar oranye tegas.',
     fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif',
     fontWeight: 800,
     uppercase: true,
     fontSizeRatio: 0.058,
-    yPositionRatio: 0.74,
+    yPositionRatio: 0.75,
     baseColor: '#FFFFFF',
     activeColor: '#FFFFFF',
     strokeColor: '#0F172A',
@@ -44,6 +50,7 @@ export const CAPTION_PRESETS = [
   {
     id: 'podcast-bersih',
     name: 'Podcast Bersih',
+    tier: 'inti',
     desc: 'Tampilan hangat dengan gradasi bawah halus & sorotan hijau toska.',
     fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif',
     fontWeight: 800,
@@ -62,24 +69,26 @@ export const CAPTION_PRESETS = [
   {
     id: 'neon-siber',
     name: 'Neon Gelap',
-    desc: 'Kotak latar gelap transparan dengan efek cahaya hijau neon.',
+    tier: 'inti',
+    desc: 'Kotak latar gelap transparan dengan efek cahaya hijau limau.',
     fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif',
     fontWeight: 800,
     uppercase: true,
     fontSizeRatio: 0.056,
-    yPositionRatio: 0.74,
+    yPositionRatio: 0.75,
     baseColor: '#E2E8F0',
-    activeColor: '#4ADE80',
+    activeColor: '#BEFF50',
     strokeColor: '#020617',
     strokeWidthRatio: 0.08,
-    shadowColor: 'rgba(74,222,128,0.55)',
+    shadowColor: 'rgba(190,255,80,0.50)',
     activePillColor: null,
-    backdropColor: 'rgba(9, 13, 22, 0.78)',
-    popScale: 1.10
+    backdropColor: 'rgba(9, 13, 22, 0.80)',
+    popScale: 1.09
   },
   {
     id: 'berita-tegas',
     name: 'Tegas Berita',
+    tier: 'inti',
     desc: 'Pita gelap rapi di bawah tengah dengan aksen merah & kata emas.',
     fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif',
     fontWeight: 800,
@@ -99,6 +108,7 @@ export const CAPTION_PRESETS = [
   {
     id: 'minimalis-elegan',
     name: 'Minimalis Elegan',
+    tier: 'inti',
     desc: 'Huruf bersih dan tenang, cocok untuk edukasi, bisnis, atau kajian.',
     fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif',
     fontWeight: 700,
@@ -113,6 +123,45 @@ export const CAPTION_PRESETS = [
     activePillColor: null,
     backdropColor: 'rgba(15, 23, 42, 0.58)',
     popScale: 1.05
+  },
+  {
+    id: 'emas-eksklusif',
+    name: 'Emas Eksklusif',
+    tier: 'tambahan',
+    desc: 'Paket Tambahan: Pita hitam pekat premium dengan sorotan emas tajam.',
+    fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif',
+    fontWeight: 800,
+    uppercase: true,
+    fontSizeRatio: 0.056,
+    yPositionRatio: 0.75,
+    baseColor: '#FAFAF9',
+    activeColor: '#14140F',
+    strokeColor: 'transparent',
+    strokeWidthRatio: 0,
+    shadowColor: 'rgba(0,0,0,0.45)',
+    activePillColor: '#FDE047',
+    backdropColor: 'rgba(20, 20, 15, 0.86)',
+    accentBarColor: '#FDE047',
+    popScale: 1.07
+  },
+  {
+    id: 'kapsul-ungu',
+    name: 'Kapsul Studio',
+    tier: 'tambahan',
+    desc: 'Paket Tambahan: Sorotan kapsul nila modern untuk klip opini & cerita.',
+    fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif',
+    fontWeight: 800,
+    uppercase: false,
+    fontSizeRatio: 0.056,
+    yPositionRatio: 0.75,
+    baseColor: '#FFFFFF',
+    activeColor: '#FFFFFF',
+    strokeColor: '#09090B',
+    strokeWidthRatio: 0.11,
+    shadowColor: 'rgba(0,0,0,0.55)',
+    activePillColor: '#7C3AED',
+    backdropColor: null,
+    popScale: 1.08
   }
 ];
 
@@ -121,8 +170,8 @@ export function getPresetById(id) {
 }
 
 /**
- * Mengelompokkan daftar kata [{ word, start, end }] menjadi grup pendek (maks 4 kata
- * atau jeda > 0.65 detik) agar mudah dibaca cepat di layar vertikal 9:16.
+ * Mengelompokkan daftar kata [{ word, start, end }] menjadi grup pendek (maks 4 kata)
+ * dan langsung memutus grup pada jeda napas nyata (>= 0.24 detik) agar teks hilang bersih saat pembicara diam!
  */
 export function groupWordsIntoPhrases(words, maxWordsPerGroup = 4) {
   if (!Array.isArray(words) || words.length === 0) return [];
@@ -135,11 +184,14 @@ export function groupWordsIntoPhrases(words, maxWordsPerGroup = 4) {
     current.push(w);
 
     const next = words[i + 1];
-    const endsSentence = /[.!?]$/.test(w.word);
-    const longPause = next && (next.start - w.end > 0.6);
+    const wordStr = String(w.word);
+    const endsSentence = /[.!?]$/.test(wordStr);
+    const endsClause = /[,;:]$/.test(wordStr);
+    const gapToNext = next ? next.start - w.end : 999;
+    const breathPause = gapToNext >= 0.24 || (endsClause && gapToNext >= 0.13);
     const charLen = current.reduce((acc, item) => acc + String(item.word).length, 0);
 
-    if (current.length >= maxWordsPerGroup || charLen >= 24 || endsSentence || longPause || !next) {
+    if (current.length >= maxWordsPerGroup || charLen >= 23 || endsSentence || breathPause || !next) {
       groups.push({
         start: current[0].start,
         end: current[current.length - 1].end,
@@ -182,26 +234,32 @@ function wrapTextLines(ctx, text, maxWidth) {
 }
 
 /**
+ * Menggambar potongan sumber (crop) berfokus di titik (normX, normY) ke kotak tujuan (dx, dy, dw, dh) tanpa gepeng.
+ */
+function drawCenteredCrop(ctx, source, srcW, srcH, normX, normY, dx, dy, dw, dh, zoomFactor = 1.0) {
+  const dstAspect = dw / dh;
+  const srcAspect = srcW / srcH;
+
+  let cropW;
+  let cropH;
+  if (srcAspect > dstAspect) {
+    cropH = srcH / Math.max(1, zoomFactor);
+    cropW = cropH * dstAspect;
+  } else {
+    cropW = srcW / Math.max(1, zoomFactor);
+    cropH = cropW / dstAspect;
+  }
+
+  const cx = Math.max(0, Math.min(1, normX)) * srcW;
+  const cy = Math.max(0, Math.min(1, normY)) * srcH;
+  const sx = Math.max(0, Math.min(srcW - cropW, cx - cropW / 2));
+  const sy = Math.max(0, Math.min(srcH - cropH, cy - cropH / 2));
+
+  ctx.drawImage(source, sx, sy, cropW, cropH, dx, dy, dw, dh);
+}
+
+/**
  * Menggambar 1 frame utuh klip 9:16 ke canvas tujuan.
- *
- * @param {CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D} ctx
- * @param {object} opts
- * @param {HTMLVideoElement | HTMLCanvasElement | OffscreenCanvas | VideoFrame} opts.source
- * @param {number} opts.sourceWidth
- * @param {number} opts.sourceHeight
- * @param {number} opts.targetWidth - misal 720 atau 1080
- * @param {number} opts.targetHeight - misal 1280 atau 1920
- * @param {number} opts.currentTimeSec - waktu absolut video (detik)
- * @param {number} [opts.centerX=0.5] - titik fokus horizontal wajah (0..1)
- * @param {'crop-fill' | 'blur-fit'} [opts.frameMode='crop-fill']
- * @param {string} [opts.presetId='kreator-kuning']
- * @param {Array} [opts.phraseGroups=[]] - hasil groupWordsIntoPhrases()
- * @param {string} [opts.hookTitle=''] - judul atas klip
- * @param {'white' | 'dark' | 'red' | 'none'} [opts.hookStyle='white']
- * @param {HTMLImageElement | ImageBitmap | null} [opts.watermarkImage=null]
- * @param {'top-right' | 'top-left' | 'bottom-right'} [opts.watermarkPos='top-right']
- * @param {number} [opts.watermarkOpacity=0.85]
- * @param {string} [opts.watermarkText='']
  */
 export function drawClipFrame(ctx, opts) {
   const {
@@ -211,29 +269,67 @@ export function drawClipFrame(ctx, opts) {
     targetWidth: W,
     targetHeight: H,
     currentTimeSec,
+    clipStartSec = 0,
     centerX = 0.5,
     frameMode = 'crop-fill',
+    cameraMeta = null,
     presetId = 'kreator-kuning',
     phraseGroups = [],
+    captionOffsetSec = 0,
     hookTitle = '',
     hookStyle = 'white',
+    hookDurationSec = 3.0,
     watermarkImage = null,
     watermarkPos = 'top-right',
     watermarkOpacity = 0.85,
     watermarkText = ''
   } = opts;
 
+  const effectiveMode =
+    frameMode === 'auto'
+      ? cameraMeta && cameraMeta.detectedFaces >= 2
+        ? 'podcast-split'
+        : 'crop-fill'
+      : frameMode || 'crop-fill';
+
   ctx.save();
   ctx.fillStyle = '#09090B';
   ctx.fillRect(0, 0, W, H);
 
-  // 1. Gambar Video 9:16 (Crop mengikuti wajah tengah ATAU Latar Blur)
+  // 1. Gambar Video 9:16 Sesuai Mode Framing (Fullscreen / Podcast Split / Cinema Blur / Gaming Split)
   if (source && sourceWidth > 0 && sourceHeight > 0) {
-    const targetAspect = W / H; // 0.5625
+    const targetAspect = W / H;
     const sourceAspect = sourceWidth / sourceHeight;
 
-    if (frameMode === 'blur-fit' && sourceAspect > targetAspect) {
-      // Latar belakang isi penuh gelap + redup, depan utuh 16:9 di tengah
+    if (effectiveMode === 'podcast-split' && sourceAspect > targetAspect) {
+      // Podcast Split: 2 orang atas-bawah otomatis tanpa keyframe manual!
+      const halfH = Math.floor(H / 2);
+      const leftX = cameraMeta?.leftSpeakerX ?? 0.28;
+      const leftY = cameraMeta?.leftSpeakerY ?? 0.36;
+      const rightX = cameraMeta?.rightSpeakerX ?? 0.72;
+      const rightY = cameraMeta?.rightSpeakerY ?? 0.36;
+
+      drawCenteredCrop(ctx, source, sourceWidth, sourceHeight, leftX, leftY, 0, 0, W, halfH, 1.06);
+      drawCenteredCrop(ctx, source, sourceWidth, sourceHeight, rightX, rightY, 0, halfH, W, H - halfH, 1.06);
+
+      // Garis pemisah tipis bersih di tengah antara pembicara atas & bawah
+      ctx.fillStyle = '#14140F';
+      ctx.fillRect(0, halfH - 2, W, 4);
+    } else if (effectiveMode === 'gaming-split' && sourceAspect > targetAspect) {
+      // Gaming Split (Pro): Panel atas 35% facecam pembicara, panel bawah 65% layar permainan utama
+      const topH = Math.floor(H * 0.35);
+      const botH = H - topH;
+      const camX = cameraMeta?.facecamBox?.centerX ?? 0.84;
+      const camY = cameraMeta?.facecamBox?.centerY ?? 0.76;
+      const zoom = cameraMeta?.facecamBox ? 2.25 : 1.55;
+
+      drawCenteredCrop(ctx, source, sourceWidth, sourceHeight, camX, camY, 0, 0, W, topH, zoom);
+      drawCenteredCrop(ctx, source, sourceWidth, sourceHeight, 0.5, 0.5, 0, topH, W, botH, 1.0);
+
+      ctx.fillStyle = '#BEFF50';
+      ctx.fillRect(0, topH - 2, W, 3);
+    } else if (effectiveMode === 'blur-fit' && sourceAspect > targetAspect) {
+      // Cinema Blur: Video 16:9 utuh di tengah dengan latar blur gelap untuk slide/presentasi
       const bgH = H;
       const bgW = bgH * sourceAspect;
       const bgX = -((bgW - W) * Math.max(0, Math.min(1, centerX)));
@@ -247,16 +343,14 @@ export function drawClipFrame(ctx, opts) {
       const fgY = Math.round((H - fgH) * 0.44);
       ctx.drawImage(source, 0, 0, sourceWidth, sourceHeight, 0, fgY, fgW, fgH);
     } else if (sourceAspect > targetAspect) {
-      // Video lanskap (16:9) dipotong ke vertikal (9:16) mengikuti centerX wajah
+      // Fullscreen: 1 pembicara, wajah tetap di tengah 9:16
       const cropH = sourceHeight;
       const cropW = sourceHeight * targetAspect;
       const desiredCenterPx = Math.max(0, Math.min(1, centerX)) * sourceWidth;
-      const minX = 0;
       const maxX = Math.max(0, sourceWidth - cropW);
-      const sx = Math.max(minX, Math.min(maxX, desiredCenterPx - cropW / 2));
+      const sx = Math.max(0, Math.min(maxX, desiredCenterPx - cropW / 2));
       ctx.drawImage(source, sx, 0, cropW, cropH, 0, 0, W, H);
     } else {
-      // Video sudah vertikal / kotak
       const cropW = sourceWidth;
       const cropH = sourceWidth / targetAspect;
       const sy = Math.max(0, (sourceHeight - cropH) / 2);
@@ -266,8 +360,7 @@ export function drawClipFrame(ctx, opts) {
 
   const preset = getPresetById(presetId);
 
-  // Gradasi bawah lembut bila preset memintanya
-  if (preset.backdropColor === 'gradient-bottom') {
+  if (preset.backdropColor === 'gradient-bottom' && effectiveMode !== 'podcast-split') {
     const grad = ctx.createLinearGradient(0, H * 0.58, 0, H);
     grad.addColorStop(0, 'rgba(2, 6, 23, 0)');
     grad.addColorStop(1, 'rgba(2, 6, 23, 0.82)');
@@ -275,10 +368,22 @@ export function drawClipFrame(ctx, opts) {
     ctx.fillRect(0, H * 0.58, W, H * 0.42);
   }
 
-  // 2. Gambar Judul Atas (Hook Banner)
+  // 2. Gambar Judul Pembuka 3 Detik (atau Sepanjang Klip jika hookDurationSec === 0 / 'full')
   const cleanTitle = String(hookTitle || '').trim();
-  if (cleanTitle && hookStyle !== 'none') {
-    const titleFontSize = Math.round(W * 0.044);
+  const relTimeInClip = Math.max(0, currentTimeSec - (Number(clipStartSec) || 0));
+  const numericHookDur =
+    hookDurationSec === 'full' || hookDurationSec === 0 ? Infinity : Number(hookDurationSec) || 3.0;
+  const showHook = cleanTitle && hookStyle !== 'none' && relTimeInClip <= numericHookDur;
+
+  if (showHook) {
+    let hookAlpha = 1.0;
+    if (Number.isFinite(numericHookDur) && numericHookDur - relTimeInClip < 0.25) {
+      hookAlpha = Math.max(0, (numericHookDur - relTimeInClip) / 0.25);
+    }
+
+    const titleFontSize = Math.round(W * 0.043);
+    ctx.save();
+    ctx.globalAlpha = hookAlpha;
     ctx.font = `800 ${titleFontSize}px "Plus Jakarta Sans", system-ui, sans-serif`;
     const maxBoxW = W * 0.84;
     const lines = wrapTextLines(ctx, cleanTitle, maxBoxW - W * 0.08);
@@ -290,11 +395,11 @@ export function drawClipFrame(ctx, opts) {
         widest = Math.max(widest, ctx.measureText(l).width);
       }
       const padX = Math.round(W * 0.045);
-      const padY = Math.round(W * 0.026);
+      const padY = Math.round(W * 0.025);
       const boxW = Math.min(W * 0.9, widest + padX * 2);
       const boxH = lines.length * lineHeight + padY * 2;
       const boxX = (W - boxW) / 2;
-      const boxY = Math.round(H * 0.085);
+      const boxY = effectiveMode === 'podcast-split' ? Math.round(H * 0.055) : Math.round(H * 0.085);
 
       ctx.save();
       ctx.shadowColor = 'rgba(0,0,0,0.38)';
@@ -324,9 +429,10 @@ export function drawClipFrame(ctx, opts) {
         ctx.fillText(lines[i], W / 2, ly);
       }
     }
+    ctx.restore();
   }
 
-  // 3. Gambar Watermark / Logo Pembeli
+  // 3. Gambar Watermark Nama Sendiri / Logo Pembeli
   if (watermarkImage || (watermarkText && watermarkText.trim())) {
     ctx.save();
     ctx.globalAlpha = Math.max(0.15, Math.min(1, watermarkOpacity));
@@ -344,7 +450,7 @@ export function drawClipFrame(ctx, opts) {
         wy = margin;
       } else if (watermarkPos === 'bottom-right') {
         wx = W - targetLogoW - margin;
-        wy = Math.round(H * 0.88) - targetLogoH;
+        wy = Math.round(H * 0.90) - targetLogoH;
       }
       ctx.drawImage(watermarkImage, wx, wy, targetLogoW, targetLogoH);
     } else {
@@ -361,10 +467,10 @@ export function drawClipFrame(ctx, opts) {
       if (watermarkPos === 'top-left') {
         wx = margin;
       } else if (watermarkPos === 'bottom-right') {
-        wy = Math.round(H * 0.88) - bh;
+        wy = Math.round(H * 0.90) - bh;
       }
       drawRoundedRect(ctx, wx, wy, bw, bh, Math.round(bh / 2));
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.62)';
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.68)';
       ctx.fill();
       ctx.fillStyle = '#F8FAFC';
       ctx.textAlign = 'center';
@@ -374,9 +480,10 @@ export function drawClipFrame(ctx, opts) {
     ctx.restore();
   }
 
-  // 4. Gambar Caption Besar Per Kata yang Sinkron dengan Suara
+  // 4. Gambar Caption Per Kata yang Terkunci Presisi ke Getaran Vokal
+  const syncedTimeSec = currentTimeSec - (Number(captionOffsetSec) || 0);
   const activeGroup = phraseGroups.find(
-    (g) => currentTimeSec >= g.start - 0.06 && currentTimeSec <= g.end + 0.18
+    (g) => syncedTimeSec >= g.start - 0.018 && syncedTimeSec <= g.end + 0.065
   );
 
   if (activeGroup && activeGroup.words.length > 0) {
@@ -390,30 +497,37 @@ export function drawClipFrame(ctx, opts) {
     const baseSpace = Math.max(ctx.measureText(' ').width, fontSize * 0.28);
     const spaceWidth = Math.round(baseSpace * (preset.activePillColor ? 1.78 : 1.46));
 
-    // Susun kata dalam grup menjadi 1–2 baris terpusat
-    const tokens = activeGroup.words.map((w, idx) => {
+    // Tentukan kata mana yang tepat sedang diucapkan pada milidetik ini:
+    // - Bila celah antar kata <= 120ms (sambungan konsonan), jembatani mulus di titik tengah celah
+    // - Bila celah > 120ms (jeda ekspresif), matikan sorotan tepat saat suara berhenti!
+    const gWords = activeGroup.words;
+    let activeWordIdx = -1;
+    for (let i = 0; i < gWords.length; i++) {
+      const w = gWords[i];
+      const prev = i > 0 ? gWords[i - 1] : null;
+      const next = i + 1 < gWords.length ? gWords[i + 1] : null;
+
+      const gapBefore = prev ? w.start - prev.end : 1;
+      const gapAfter = next ? next.start - w.end : 1;
+
+      const effStart = gapBefore <= 0.12 && prev ? (prev.end + w.start) * 0.5 : w.start - 0.015;
+      const effEnd = gapAfter <= 0.12 && next ? (w.end + next.start) * 0.5 : w.end + 0.045;
+
+      if (syncedTimeSec >= effStart && syncedTimeSec <= effEnd) {
+        activeWordIdx = i;
+        break;
+      }
+    }
+
+    const tokens = gWords.map((w, idx) => {
       const displayWord = preset.uppercase ? String(w.word).toUpperCase() : String(w.word);
-      const isActive =
-        currentTimeSec >= w.start - 0.03 &&
-        (currentTimeSec <= w.end + 0.05 ||
-          (idx === activeGroup.words.length - 1 && currentTimeSec <= activeGroup.end + 0.15));
       return {
         raw: w,
         text: displayWord,
         width: ctx.measureText(displayWord).width,
-        isActive
+        isActive: idx === activeWordIdx
       };
     });
-
-    // Kalau sedang di celah jeda antar kata di dalam satu frasa, sorot kata terakhir yang sudah lewat
-    if (!tokens.some((t) => t.isActive)) {
-      for (let i = tokens.length - 1; i >= 0; i--) {
-        if (currentTimeSec >= tokens[i].raw.start) {
-          tokens[i].isActive = true;
-          break;
-        }
-      }
-    }
 
     const lines = [];
     let curLine = [];
@@ -435,10 +549,12 @@ export function drawClipFrame(ctx, opts) {
 
     const lineHeight = Math.round(fontSize * 1.34);
     const totalTextH = lines.length * lineHeight;
-    const centerY = Math.round(H * preset.yPositionRatio);
+    // Pada Podcast Split 2 pembicara atas-bawah, tempatkan caption tepat di garis sabuk tengah (0.50 H)
+    // agar wajah pembicara atas maupun bawah 100% utuh tidak tertutup!
+    const yRatio = effectiveMode === 'podcast-split' ? 0.50 : preset.yPositionRatio;
+    const centerY = Math.round(H * yRatio);
     const startY = centerY - totalTextH / 2 + lineHeight / 2;
 
-    // Kotak latar belakang grup (untuk preset neon / berita / minimalis)
     if (preset.backdropColor && preset.backdropColor !== 'gradient-bottom') {
       const widestLine = Math.max(...lines.map((l) => l.width));
       const padX = Math.round(W * 0.042);
@@ -461,7 +577,6 @@ export function drawClipFrame(ctx, opts) {
       ctx.restore();
     }
 
-    // Gambar tiap kata pada tiap baris
     for (let li = 0; li < lines.length; li++) {
       const line = lines[li];
       const y = startY + li * lineHeight;
@@ -477,7 +592,6 @@ export function drawClipFrame(ctx, opts) {
           ctx.scale(preset.popScale, preset.popScale);
         }
 
-        // Kotak sorot pada kata aktif (preset sorot-kotak / berita-tegas)
         if (tok.isActive && preset.activePillColor) {
           const pillPadX = Math.round(fontSize * 0.24);
           const pillPadY = Math.round(fontSize * 0.14);

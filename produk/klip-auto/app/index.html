@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Klip Auto Studio — Pemotong Video Panjang Jadi Klip 9:16 Siap Upload</title>
+  <title>Klip Auto Studio — Tempel Link atau Pilih Video Jadi Klip 9:16 Siap Upload</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <!-- ================= LAYAR LOGIN PEMBELI ================= -->
+  <!-- ================= LAYAR AKTIVASI LISENSI & CEK PERANGKAT SEBELUM BELI ================= -->
   <section class="login-screen" id="login-screen">
     <div class="login-shell">
       <!-- Panel Kiri: Electric Lime Editorial Block (#beff50) -->
@@ -24,24 +24,28 @@
             </span>
             <span class="brand-wordmark">Klip Auto</span>
           </div>
-          <span class="eyebrow" style="display:block;margin-top:26px;">Studio Video Pendek 9:16</span>
-          <h1>Ubah podcast panjang jadi klip siap tayang.</h1>
+          <span class="eyebrow" style="display:block;margin-top:26px;">Studio Video Pendek 9:16 · Tanpa Kuota</span>
+          <h1>Tempel link, jadi klip siap upload.</h1>
         </div>
 
         <ul class="login-lime-points">
-          <li>Unduh video .MP4 dari link YouTube bebas blokir lengkap transkrip otomatis</li>
-          <li>AI Agent otomatis memilih momen viral, mengunci wajah 9:16 &amp; merender klip MP4</li>
-          <li>Penjernih suara podcast 48 kHz + 6 gaya caption menyala per kata</li>
+          <li>Deteksi otomatis 1 atau 2 wajah: Fullscreen Tengah, Podcast Split atas-bawah, &amp; Cinema Blur</li>
+          <li>Caption per kata terkunci ke gelombang vokal pembicara + model lokal Whisper-Small (ID &amp; EN)</li>
+          <li>Video tidak pernah di-upload ke server — aman untuk podcast 60–120+ menit di laptop RAM 8 GB</li>
         </ul>
       </div>
 
-      <!-- Panel Kanan: Form Masuk Pembeli -->
+      <!-- Panel Kanan: Form Aktivasi Lisensi Server & Cek Perangkat -->
       <div class="login-form-card">
-        <span class="eyebrow">Akses Lisensi Pembeli</span>
+        <span class="eyebrow">Aktivasi Lisensi Resmi (1 Laptop · Bisa Offline)</span>
         <h2 class="section-heading" style="margin:6px 0 8px;">Masuk ke Ruang Studio</h2>
-        <p class="muted-copy" style="margin-bottom:22px;">
-          Masukkan nama kreator/channel, email, dan kode akses pembelian untuk mulai memotong video.
+        <p class="muted-copy" style="margin-bottom:14px;">
+          Masukkan nama kreator/channel, email pembelian, dan kode lisensi untuk memvalidasi paket di server. Setelah aktif, aplikasi tetap bisa dipakai offline hingga 7 hari.
         </p>
+
+        <div class="parchment-card" style="padding:11px 14px;border-radius:12px;margin-bottom:16px;font-size:12.5px;">
+          <strong>Browser yang Didukung Sejak Awal:</strong> Google Chrome 94+, Microsoft Edge 94+, Brave 1.32+, atau Opera 80+ di Windows 10/11 &amp; macOS.
+        </div>
 
         <form id="login-form" novalidate>
           <div class="field">
@@ -49,28 +53,49 @@
             <input type="text" id="login-name" placeholder="Contoh: Raka Pratama (@obrolanbisnis)" />
           </div>
           <div class="field">
-            <label for="login-email">Alamat Email</label>
+            <label for="login-email">Alamat Email Pembelian</label>
             <input type="email" id="login-email" placeholder="Contoh: raka@studio.id" />
           </div>
           <div class="field">
-            <label for="login-code">Kode Lisensi Pembeli</label>
-            <input type="text" id="login-code" placeholder="Masukkan kode akses pembelian resmi" autocomplete="off" />
+            <label for="login-code">Kode Lisensi</label>
+            <input type="password" id="login-code" placeholder="Masukkan kode lisensi resmi" autocomplete="off" />
           </div>
 
           <p id="login-error" role="alert" style="display:none;font-size:13.5px;margin-bottom:12px;padding:10px 12px;border-radius:8px;background:var(--surface-parchment);border:1px solid var(--color-off-black-ink);"></p>
 
+          <!-- Kotak Pindah Perangkat Mandiri (muncul otomatis jika kode sedang terikat di laptop lama) -->
+          <div id="login-transfer-box" style="display:none;margin-bottom:14px;padding:12px 14px;border-radius:12px;background:var(--surface-parchment);border:1px solid var(--color-ash);">
+            <strong style="display:block;font-size:13px;margin-bottom:4px;">Pindah Perangkat Mandiri</strong>
+            <p class="muted-copy" id="login-transfer-hint" style="font-size:12.5px;margin-bottom:10px;">
+              Pindahkan ikatan lisensi dari perangkat sebelumnya ke laptop ini sekarang.
+            </p>
+            <button type="button" class="btn btn-ink btn-sm" id="btn-login-self-transfer" style="width:100%;">
+              Pindah Perangkat Mandiri ke Laptop Ini
+            </button>
+          </div>
+
           <button type="submit" class="btn btn-primary" style="width:100%;margin-bottom:10px;">
             Masuk ke Klip Auto Studio
           </button>
-          <a href="https://nifari-klip-auto-lp.pages.dev#demo" class="btn btn-secondary" style="width:100%;text-align:center;">
-            Belum Punya Kode? Coba Demo &amp; Beli Akses Resmi →
-          </a>
+
+          <div class="btn-row" style="margin-bottom:10px;">
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-open-device-check" style="flex:1;">
+              Cek Perangkat Sebelum Beli
+            </button>
+            <a href="https://nifari-klip-auto-lp.pages.dev" class="btn btn-secondary btn-sm" style="flex:1;text-align:center;">
+              Lihat Paket &amp; Beli Akses
+            </a>
+          </div>
+
+          <p class="muted-copy" id="login-version-note" style="font-size:12px;text-align:center;margin-top:6px;">
+            Versi aplikasi v2.1.0 · Tanpa API Key &amp; Tanpa Kuota Klip
+          </p>
         </form>
       </div>
     </div>
   </section>
 
-  <!-- ================= SHELL UTAMA STUDIO ================= -->
+  <!-- ================= SHELL UTAMA STUDIO (AKTIF SETELAH LISENSI TERVALIDASI) ================= -->
   <div class="app-layout" id="app-layout">
     <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
@@ -87,7 +112,7 @@
         </span>
         <div>
           <div class="brand-wordmark">Klip Auto</div>
-          <div style="font-size:11px;color:var(--color-graphite);">Studio 9:16 Browser</div>
+          <div id="sidebar-tier-badge" style="font-size:11px;color:var(--color-graphite);">Paket Inti · v2.1</div>
         </div>
       </div>
 
@@ -115,7 +140,7 @@
         <span class="nav-pill-count" id="nav-lib-count">140</span>
       </button>
 
-      <div class="nav-section-label">Arsip & Akun</div>
+      <div class="nav-section-label">Arsip &amp; Perangkat</div>
       <button type="button" class="nav-item" data-view="history">
         <span class="nav-item-left">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>
@@ -135,11 +160,14 @@
       <button type="button" class="nav-item" data-view="settings">
         <span class="nav-item-left">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.77 1.02 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          <span>Pengaturan</span>
+          <span>Pengaturan &amp; Lisensi</span>
         </span>
       </button>
 
       <div class="sidebar-footer">
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-sidebar-error-report" style="width:100%;">
+          Kirim Laporan Error
+        </button>
         <button type="button" class="btn btn-secondary btn-sm" id="theme-toggle" style="width:100%;">
           Mode Gelap
         </button>
@@ -173,17 +201,24 @@
       </header>
 
       <main class="content-container">
+        <!-- Pita Notifikasi Versi / Status Offline -->
+        <div class="version-update-banner" id="version-update-banner">
+          <span id="version-banner-text">Klip Auto v2.1 aktif.</span>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-reload-version" style="display:none;">
+            Muat Versi Terbaru
+          </button>
+        </div>
+
         <!-- ================= 1. BERANDA STUDIO ================= -->
         <section class="view-pane active" id="view-dashboard">
-          <!-- Lime Accent Hero Surface (#beff50) -->
           <div class="lime-banner">
             <div>
-              <span class="eyebrow">Ruang Komando Klip 9:16</span>
+              <span class="eyebrow" id="dash-package-eyebrow">Ruang Komando Klip 9:16 · Tanpa Kuota</span>
               <h1 class="display-title" id="dash-greeting" style="margin-top:8px;">
                 Selamat berkarya, Kreator
               </h1>
               <p>
-                Tempel link YouTube atau pilih file rekaman podcast panjang, kurasi momen paling memikat, lalu unduh klip MP4 vertikal lengkap suara jernih &amp; caption per kata.
+                Tempel link YouTube atau pilih file rekaman video panjang (.mp4, .mov, .mkv) — dapatkan 5–10 klip 9:16 siap upload dengan wajah utuh, caption per kata sinkron vokal, dan judul pembuka 3 detik.
               </p>
             </div>
             <div class="btn-row">
@@ -191,32 +226,32 @@
                 Mulai Potong Video Baru
               </button>
               <button type="button" class="btn btn-secondary" id="dash-btn-youtube" style="background:#ffffff;color:#14140f;border-color:#14140f;">
-                Tempel Link YouTube
+                Tempel Link, Jadi Klip
               </button>
               <button type="button" class="btn btn-secondary" id="dash-btn-quick-sample" style="background:#ffffff;color:#14140f;border-color:#14140f;">
-                Muat Video Contoh 20 dtk
+                Muat Video Contoh 2 Pembicara
               </button>
             </div>
           </div>
 
-          <!-- 4 Kartu Angka Tonal (Tanpa Bayangan) -->
+          <!-- 4 Kartu Angka Tonal -->
           <div class="bento-grid">
             <div class="stat-card" id="stat-go-history">
               <span class="eyebrow">Klip MP4 Selesai</span>
               <div class="stat-big-number" id="stat-rendered-count">0</div>
-              <span class="muted-copy" style="font-size:13px;">Siap diunggah ke Reels/TikTok</span>
+              <span class="muted-copy" style="font-size:13px;">Siap diunggah ke Reels/TikTok/Shorts</span>
             </div>
 
             <div class="stat-card" id="stat-go-wizard">
-              <span class="eyebrow">Momen Aktif</span>
+              <span class="eyebrow">Momen Terukur</span>
               <div class="stat-big-number" id="stat-moments-count">0</div>
-              <span class="muted-copy" style="font-size:13px;">Segmen terdeteksi di sesi ini</span>
+              <span class="muted-copy" style="font-size:13px;">Skor 4 sinyal di sesi ini</span>
             </div>
 
             <div class="stat-card dark-island" id="stat-go-library">
               <span class="eyebrow">Pustaka Kreator</span>
               <div class="stat-big-number" id="stat-library-total">140</div>
-              <span style="font-size:13px;color:#d2d2c8;">Hook, pembuka, caption & prompt</span>
+              <span style="font-size:13px;color:#d2d2c8;">Judul pembuka, caption &amp; prompt</span>
             </div>
 
             <div class="stat-card" id="stat-go-favorites">
@@ -229,32 +264,32 @@
           <!-- 2 Kolom Editorial: Alur 3 Langkah + Riwayat Klip Terakhir -->
           <div class="split-2">
             <div class="parchment-card" style="margin-bottom:0;">
-              <span class="eyebrow">Alur Kerja Tanpa Ribet</span>
-              <h2 class="section-heading" style="margin:6px 0 8px;">3 Langkah dari Rekaman Panjang ke MP4</h2>
+              <span class="eyebrow">Alur Kerja Tanpa Buka Editor</span>
+              <h2 class="section-heading" style="margin:6px 0 8px;">3 Langkah dari Video Panjang ke Klip 9:16</h2>
               <p class="muted-copy">
-                Seluruh pemotongan gambar dan suara bekerja langsung di dalam browser perangkatmu.
+                Seluruh pemotongan gambar, penyelarasan vokal, dan penyimpanan MP4 berjalan di perangkatmu sendiri.
               </p>
 
               <div class="quick-step-row">
                 <div>
-                  <strong>01 · Tempel Link YouTube atau Pilih File</strong>
-                  <div class="muted-copy" style="font-size:13px;">Unduh MP4 dari link YouTube, file lokal, Whisper, SRT, atau Gemini.</div>
+                  <strong>01 · Tempel Link YouTube atau Pilih File Lokal</strong>
+                  <div class="muted-copy" style="font-size:13px;">Lewat koneksi internetmu sendiri atau file .mp4, .mov, .mkv hingga 60+ menit.</div>
                 </div>
                 <button type="button" class="underline-link" data-jump-step="1">Buka</button>
               </div>
 
               <div class="quick-step-row">
                 <div>
-                  <strong>02 · Pilih Skor Momen & Geser Detik</strong>
-                  <div class="muted-copy" style="font-size:13px;">Tarik slider awal/akhir & rapikan ejaan teks per kata.</div>
+                  <strong>02 · Skor Jujur 4 Sinyal &amp; Kunci Vokal 10ms</strong>
+                  <div class="muted-copy" style="font-size:13px;">Most-Replayed, lonjakan suara, kalimat pembuka, &amp; jeda napas utuh.</div>
                 </div>
                 <button type="button" class="underline-link" data-jump-step="2">Buka</button>
               </div>
 
               <div class="quick-step-row">
                 <div>
-                  <strong>03 · Kunci Wajah, Pilih Caption & Render</strong>
-                  <div class="muted-copy" style="font-size:13px;">6 gaya caption, kotak judul atas, watermark & unduh MP4.</div>
+                  <strong>03 · Podcast Split / Fullscreen, Judul 3 Detik &amp; Render</strong>
+                  <div class="muted-copy" style="font-size:13px;">Deteksi 1 atau 2 wajah otomatis, akselerasi GPU + fallback CPU.</div>
                 </div>
                 <button type="button" class="underline-link" data-jump-step="3">Buka</button>
               </div>
@@ -277,7 +312,7 @@
         <section class="view-pane" id="view-wizard">
           <div class="page-top-head">
             <div>
-              <span class="eyebrow">Mesin Pemotong Browser</span>
+              <span class="eyebrow">Mesin Pemotong Lokal Tanpa Kuota</span>
               <h1 class="section-heading" style="margin-top:4px;">Studio Pemotong Klip 9:16</h1>
             </div>
             <div class="btn-row">
@@ -291,31 +326,31 @@
           <nav class="stepper" aria-label="Langkah Pembuatan Klip">
             <button type="button" class="step-tab active" data-step="1" id="tab-step-1">
               <span class="step-num">1</span>
-              <span>Pilih Video & Transkrip</span>
+              <span>Masukin Video &amp; Transkrip</span>
             </button>
             <button type="button" class="step-tab" data-step="2" id="tab-step-2">
               <span class="step-num">2</span>
-              <span>Pilih Momen & Durasi</span>
+              <span>Skor Momen &amp; Sinkron Vokal</span>
             </button>
             <button type="button" class="step-tab" data-step="3" id="tab-step-3">
               <span class="step-num">3</span>
-              <span>Gaya Caption & Unduh MP4</span>
+              <span>Framing, Caption &amp; Render MP4</span>
             </button>
           </nav>
 
           <div class="alert-error" id="global-error" role="alert"></div>
 
-          <!-- LANGKAH 1: PILIH VIDEO & TRANSKRIP -->
+          <!-- LANGKAH 1: MASUKIN VIDEO & TRANSKRIP -->
           <div class="panel active" id="panel-step-1">
-            <!-- KARTU UNDUH & IMPOR DARI LINK YOUTUBE -->
+            <!-- KARTU LINK YOUTUBE LEWAT INTERNET PEMBELI SENDIRI -->
             <div class="white-card yt-import-card">
               <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-                <span class="eyebrow">Jalur Cepat · Link Video YouTube</span>
-                <span class="pill-tag lime">Unduh MP4 + Transkrip Otomatis</span>
+                <span class="eyebrow">Jalur Link · Internet Perangkat Sendiri</span>
+                <span class="pill-tag" id="yt-bridge-status-pill">Memeriksa Jembatan Lokal...</span>
               </div>
-              <h2 class="section-heading" style="margin:6px 0 8px;">Ambil atau Unduh Video Langsung dari Link YouTube</h2>
+              <h2 class="section-heading" style="margin:6px 0 8px;">Tempel Link YouTube, Jadi Klip 9:16</h2>
               <p class="muted-copy">
-                Tempelkan link podcast, kajian, wawancara, atau Shorts dari YouTube. Kamu bisa langsung menyimpan file .MP4 utuh ke perangkatmu, atau langsung memuatnya ke Studio untuk dipotong jadi klip 9:16 lengkap subtitle otomatis.
+                Tempelkan link video podcast, diskusi, atau rekaman publik dari YouTube. Pembacaan video, subtitle, dan grafik Most-Replayed berjalan langsung lewat koneksi internetmu sendiri tanpa layanan pihak ketiga.
               </p>
 
               <div class="yt-input-row">
@@ -327,68 +362,96 @@
                   aria-label="Alamat Link Video YouTube"
                 />
                 <button type="button" class="btn btn-primary" id="btn-yt-fetch">
-                  Cek Link YouTube
+                  Muat dari Link
                 </button>
               </div>
 
               <div class="status-bar" id="yt-status">
-                <div class="status-bar-text" id="yt-status-text">Memeriksa link YouTube...</div>
+                <div class="status-bar-text" id="yt-status-text">Memeriksa link lewat koneksi lokal...</div>
                 <div class="progress-track">
                   <div class="progress-fill" id="yt-progress-fill"></div>
                 </div>
               </div>
 
+              <!-- Kotak Pemulihan Ramah Saat Link Tidak Bisa Diakses / Ekstensi Belum Aktif -->
+              <div class="yt-fallback-box" id="yt-fallback-box" role="region" aria-label="Solusi Alternatif File Lokal">
+                <strong style="display:block;font-size:14.5px;margin-bottom:6px;" id="yt-fallback-title">
+                  Link Belum Bisa Dimuat Langsung
+                </strong>
+                <p class="muted-copy" id="yt-fallback-reason" style="font-size:13.5px;margin-bottom:12px;"></p>
+                <div class="btn-row">
+                  <button type="button" class="btn btn-primary btn-sm" id="btn-fallback-pick-local">
+                    Pilih File Video Lokal (.MP4, .MOV, .MKV)
+                  </button>
+                  <button type="button" class="btn btn-secondary btn-sm" id="btn-open-ext-guide">
+                    Cara Pasang Jembatan Link Lokal (15 Detik)
+                  </button>
+                </div>
+              </div>
+
               <div class="yt-preview-card" id="yt-preview-card">
                 <div class="yt-thumb-wrap">
-                  <img id="yt-thumb" alt="Pratinjau Video YouTube" />
+                  <img id="yt-thumb" alt="Pratinjau Sumber Video" />
                   <span class="yt-duration-badge" id="yt-duration-badge">00:00</span>
                 </div>
 
                 <div>
                   <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
                     <span class="pill-tag" id="yt-channel-pill">Channel</span>
-                    <span class="pill-tag lime" id="yt-caption-pill">Subtitle Otomatis</span>
+                    <span class="pill-tag lime" id="yt-caption-pill">Subtitle Siap</span>
+                    <span class="pill-tag" id="yt-heatmap-pill" style="display:none;">Grafik Most-Replayed Aktif</span>
                   </div>
-                  <h3 class="card-subheading" id="yt-title" style="margin-bottom:12px;">Judul Video YouTube</h3>
+                  <h3 class="card-subheading" id="yt-title" style="margin-bottom:12px;">Judul Video</h3>
 
                   <div class="field" style="margin-bottom:14px;">
-                    <label for="yt-quality-select">Pilih Kualitas Video MP4 (Gambar + Suara Jernih)</label>
+                    <label for="yt-quality-select">Kualitas Sumber untuk Dipotong</label>
                     <select id="yt-quality-select"></select>
                   </div>
 
                   <div class="btn-row">
                     <button type="button" class="btn btn-primary" id="btn-yt-import-studio">
-                      Muat &amp; Potong Otomatis (AI Agent)
-                    </button>
-                    <button type="button" class="btn btn-secondary" id="btn-yt-download-mp4">
-                      Simpan Video YouTube (.MP4)
+                      Tempel Link, Jadi Klip Sekarang
                     </button>
                     <button type="button" class="btn btn-ghost btn-sm" id="btn-yt-cancel" style="display:none;">
-                      Batalkan Unduhan
+                      Batalkan
                     </button>
                   </div>
-                  <p class="muted-copy" id="yt-post-download-hint" style="display:none;font-size:13px;margin-top:10px;">
-                    Unduhan .MP4 sedang berjalan di browsermu. Setelah tersimpan, masukkan file video tersebut ke kotak di bawah agar AI Agent langsung memotong klipnya secara otomatis.
-                  </p>
                 </div>
               </div>
             </div>
 
+            <!-- KARTU PILIH FILE LOKAL (.MP4, .MOV, .MKV) -->
             <div class="parchment-card">
-              <span class="eyebrow">Langkah 01 · Masukkan Video Unduhan / Lokal</span>
-              <h2 class="section-heading" style="margin:6px 0 8px;">Masukkan Video Hasil Unduhan atau Rekaman Lokal</h2>
+              <span class="eyebrow">Langkah 01 · Pilih File Video Perangkat</span>
+              <h2 class="section-heading" style="margin:6px 0 8px;">Pilih File Video Lokal (.MP4, .MOV, .MKV)</h2>
               <p class="muted-copy">
-                Tarik video .MP4 yang baru kamu unduh dari YouTube atau rekaman podcast/kajian dari perangkatmu. Begitu video masuk, AI Agent otomatis memotongnya menjadi klip vertikal 9:16 siap unggah.
+                Mendukung rekaman berdurasi pendek hingga podcast 60–120+ menit secara hemat memori di laptop RAM 8 GB. Video diproses 100% di browser tanpa pernah diunggah ke server.
               </p>
 
               <div class="dropzone" id="dropzone">
                 <h3>Tarik &amp; lepas file video ke sini, atau klik pilih file</h3>
-                <p>Mendukung format .MP4, .MOV, .WEBM, dan .MKV (otomatis mengenali transkrip video YouTube yang baru diunduh)</p>
-                <input type="file" id="video-file-input" accept="video/*,.mp4,.mov,.webm,.mkv" hidden />
+                <p>Format didukung: .MP4, .MOV, .MKV (serta .WEBM) — langsung mendeteksi 1 atau 2 wajah pembicara</p>
+                <input type="file" id="video-file-input" accept=".mp4,.mov,.mkv,.webm,video/mp4,video/quicktime,video/x-matroska,video/webm" hidden />
                 <div class="btn-row">
-                  <button type="button" class="btn btn-primary" id="btn-pick-file">Pilih File Video</button>
+                  <button type="button" class="btn btn-primary" id="btn-pick-file">Pilih File Video (.MP4 / .MOV / .MKV)</button>
                   <button type="button" class="btn btn-secondary" id="btn-load-sample">
                     Coba Video Contoh 2 Pembicara (20 dtk)
+                  </button>
+                </div>
+              </div>
+
+              <!-- Antrean Banyak Video Sekaligus (Khusus Paket Pro) -->
+              <div id="pro-multivideo-card" style="margin-top:14px;padding:14px 18px;border-radius:14px;background:var(--surface-elevated);border:1px solid var(--color-ash);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                <div>
+                  <strong style="font-size:14px;">Antrean Banyak Video Sekaligus (Batch Multi-Video)</strong>
+                  <div class="muted-copy" id="pro-multivideo-note" style="font-size:12.5px;">
+                    Pilih beberapa file video untuk dipotong berurutan secara otomatis.
+                  </div>
+                </div>
+                <div>
+                  <input type="file" id="multi-video-input" accept=".mp4,.mov,.mkv,.webm,video/*" multiple hidden />
+                  <button type="button" class="btn btn-secondary btn-sm" id="btn-pick-multi-video">
+                    Pilih Banyak Video (Pro)
                   </button>
                 </div>
               </div>
@@ -396,7 +459,7 @@
               <div class="file-summary" id="file-summary">
                 <span id="file-summary-text">Belum ada video dipilih</span>
                 <button type="button" class="btn btn-secondary btn-sm" id="btn-skip-to-step2">
-                  Atur Titik Potong Manual
+                  Cek Skor Momen &amp; Geser Detik
                 </button>
               </div>
 
@@ -408,59 +471,60 @@
               </div>
             </div>
 
-            <!-- KARTU KOMANDO AI AGENT PEMOTONG KLIP OTOMATIS -->
+            <!-- KARTU PEMOTONG BATCH OTOMATIS (4 SINYAL ASLI + ISOLASI ERROR PER KLIP) -->
             <div class="white-card agent-command-card" id="ai-agent-card">
               <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-                <span class="eyebrow">Mesin Otonom · End-to-End</span>
-                <span class="pill-tag lime" id="agent-state-pill">AI Agent Aktif Otomatis</span>
+                <span class="eyebrow">Pemotong Batch Otomatis · Isolasi Gagal Per Klip</span>
+                <span class="pill-tag lime" id="agent-state-pill">Pemotong Otomatis Siap</span>
               </div>
-              <h2 class="section-heading" style="margin:6px 0 8px;">AI Agent Pemotong Klip 9:16 Otomatis</h2>
+              <h2 class="section-heading" style="margin:6px 0 8px;">Pembuat 5–10 Klip 9:16 Otomatis</h2>
               <p class="muted-copy">
-                Begitu video dimasukkan, AI Agent bekerja sendiri dari awal sampai akhir: mencocokkan transkrip kata, memilih momen skor tertinggi, mengunci fokus wajah di tengah 9:16, menjernihkan vokal 48 kHz, hingga merender file .MP4 siap tayang.
+                Memindai lonjakan vokal &amp; jeda napas, membaca transkrip dengan subtitle YouTube atau model lokal Whisper-Small (Indonesia + Inggris), memilih momen dengan rumus skor jujur 4 sinyal, mendeteksi 1/2 wajah, lalu merender batch klip MP4.
               </p>
 
               <div class="agent-controls-grid">
                 <div class="toggle-row" style="margin-bottom:0;">
-                  <span>Jalankan AI Agent otomatis saat video dimasukkan</span>
+                  <span>Langsung buat klip otomatis begitu video dimasukkan</span>
                   <input type="checkbox" id="agent-auto-run-checkbox" checked style="width:18px;height:18px;" />
                 </div>
 
                 <div class="field" style="margin-bottom:0;">
-                  <label for="agent-clip-count-select">Jumlah Klip Otomatis yang Dirender AI Agent</label>
+                  <label for="agent-clip-count-select">Jumlah Klip 9:16 yang Dibuat Sekaligus</label>
                   <select id="agent-clip-count-select">
-                    <option value="1">1 Klip Terbaik (Super Cepat)</option>
-                    <option value="2">2 Klip Terbaik Otomatis</option>
-                    <option value="3" selected>3 Klip Terbaik Otomatis (Rekomendasi)</option>
-                    <option value="5">5 Klip Terbaik Sekaligus</option>
+                    <option value="1">1 Klip Terbaik (Uji Cepat)</option>
+                    <option value="3" selected>3 Klip Terbaik</option>
+                    <option value="5">5 Klip Terbaik (Standar Podcast)</option>
+                    <option value="8">8 Klip Terbaik (Video 60+ Menit)</option>
+                    <option value="10">10 Klip Maksimal Sekaligus</option>
                   </select>
                 </div>
               </div>
 
               <div class="btn-row" style="margin-top:16px;">
                 <button type="button" class="btn btn-primary" id="btn-run-ai-agent" disabled>
-                  Jalankan AI Agent Auto-Clip Sekarang
+                  Buat Batch Klip 9:16 Sekarang
                 </button>
                 <button type="button" class="btn btn-secondary" id="btn-stop-ai-agent" style="display:none;">
-                  Hentikan AI Agent
+                  Batalkan Proses Batch
                 </button>
               </div>
 
-              <!-- Pelacak 4 Tahap & Log Kerja AI Agent -->
+              <!-- Pelacak 4 Tahap & Log Kerja -->
               <div class="agent-tracker" id="agent-tracker">
                 <div class="agent-stages-bar" id="agent-stages-bar">
-                  <div class="agent-stage-chip" data-agent-stage="1">01 · Pindai Transkrip</div>
-                  <div class="agent-stage-chip" data-agent-stage="2">02 · Kurasi Momen</div>
-                  <div class="agent-stage-chip" data-agent-stage="3">03 · Wajah &amp; Vokal</div>
+                  <div class="agent-stage-chip" data-agent-stage="1">01 · Sinyal Vokal</div>
+                  <div class="agent-stage-chip" data-agent-stage="2">02 · Kunci Kata</div>
+                  <div class="agent-stage-chip" data-agent-stage="3">03 · Framing 1/2 Wajah</div>
                   <div class="agent-stage-chip" data-agent-stage="4">04 · Render MP4</div>
                 </div>
 
                 <div class="agent-progress-panel">
                   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px;">
-                    <strong id="agent-stage-title" style="font-size:14.5px;">Menyiapkan AI Agent...</strong>
+                    <strong id="agent-stage-title" style="font-size:14.5px;">Menyiapkan mesin pemotong...</strong>
                     <span class="pill-tag lime" id="agent-pct-badge">0%</span>
                   </div>
                   <div class="muted-copy" id="agent-stage-detail" style="font-size:13.5px;margin-bottom:10px;">
-                    Menunggu instruksi pemotongan...
+                    Menunggu file video...
                   </div>
                   <div class="progress-track">
                     <div class="progress-fill" id="agent-progress-fill"></div>
@@ -470,12 +534,12 @@
                 <div class="agent-log-box" id="agent-log-list" aria-live="polite"></div>
               </div>
 
-              <!-- Galeri Hasil Klip 9:16 yang Selesai Dirender AI Agent -->
+              <!-- Galeri Hasil Klip 9:16 -->
               <div class="agent-results-wrap" id="agent-results-wrap">
                 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:14px;">
                   <div>
-                    <span class="pill-tag lime" id="agent-results-badge">Hasil Potongan AI Agent</span>
-                    <h3 class="card-subheading" style="margin-top:8px;">Klip Vertikal 9:16 Siap Diputar &amp; Diunduh</h3>
+                    <span class="pill-tag lime" id="agent-results-badge">Hasil Batch Klip 9:16</span>
+                    <h3 class="card-subheading" style="margin-top:8px;">Klip Vertikal 9:16 Siap Diputar &amp; Disimpan</h3>
                   </div>
                   <div class="btn-row">
                     <button type="button" class="btn btn-primary btn-sm" id="btn-download-all-agent">
@@ -487,40 +551,18 @@
               </div>
             </div>
 
-            <!-- 3 Jalur Transkrip & Deteksi Momen -->
+            <!-- 3 Jalur Transkrip Manual / Terarah -->
             <div class="grid-3">
               <div class="white-card mode-box" style="margin-bottom:0;">
                 <div>
-                  <span class="pill-tag lime" style="margin-bottom:12px;">Rekomendasi 10–30 Menit</span>
-                  <h3 class="card-subheading" style="margin-bottom:8px;">Deteksi AI via Gemini Key Pribadi</h3>
+                  <span class="pill-tag lime" style="margin-bottom:12px;">100% Tanpa API Key · Akurat ID + EN</span>
+                  <h3 class="card-subheading" style="margin-bottom:8px;">Model Lokal Whisper-Small</h3>
                   <p class="muted-copy" style="font-size:14px;margin-bottom:14px;">
-                    Otomatis menyaring 5–10 momen paling menarik lengkap skor dan judul hook memakai kunci gratis Google AI Studio milikmu sendiri.
-                  </p>
-                  <div class="field" style="margin-bottom:12px;">
-                    <label for="gemini-key-input">Gemini API Key (tersimpan di browser)</label>
-                    <input
-                      type="password"
-                      id="gemini-key-input"
-                      placeholder="Tempel AIza... milikmu di sini"
-                      autocomplete="off"
-                    />
-                  </div>
-                </div>
-                <button type="button" class="btn btn-primary" id="btn-analyze-gemini" style="width:100%;" disabled>
-                  Cari 5–10 Momen Menarik (Gemini)
-                </button>
-              </div>
-
-              <div class="white-card mode-box" style="margin-bottom:0;">
-                <div>
-                  <span class="pill-tag" style="margin-bottom:12px;">100% Tanpa API Key</span>
-                  <h3 class="card-subheading" style="margin-bottom:8px;">Transkrip Whisper di Browser</h3>
-                  <p class="muted-copy" style="font-size:14px;margin-bottom:14px;">
-                    Model pengenal ucapan Whisper berjalan langsung di perangkatmu untuk menyalin kalimat pembicara dan memilih kandidat momen lokal.
+                    Mengenali obrolan Bahasa Indonesia maupun istilah Inggris (code-switching) langsung di browsermu dan mengunci kata ke gelombang vokal.
                   </p>
                 </div>
-                <button type="button" class="btn btn-secondary" id="btn-analyze-whisper" style="width:100%;" disabled>
-                  Transkrip & Cari Momen di Browser
+                <button type="button" class="btn btn-primary" id="btn-analyze-whisper" style="width:100%;" disabled>
+                  Transkrip Whisper-Small &amp; Skor Momen
                 </button>
               </div>
 
@@ -529,7 +571,7 @@
                   <span class="pill-tag" style="margin-bottom:12px;">Instan &lt; 1 Detik</span>
                   <h3 class="card-subheading" style="margin-bottom:8px;">Impor File Subtitle .SRT / .VTT</h3>
                   <p class="muted-copy" style="font-size:14px;margin-bottom:14px;">
-                    Punya file subtitle dari YouTube, Zoom, atau CapCut? Unggah file .SRT/.VTT untuk langsung memetakan momen & kata seketika.
+                    Punya subtitle dari Zoom, YouTube, atau perekam? Unggah file .SRT/.VTT untuk langsung dikunci ke gelombang vokal pembicara.
                   </p>
                   <input type="file" id="srt-file-input" accept=".srt,.vtt,text/plain" hidden />
                 </div>
@@ -537,51 +579,82 @@
                   Impor Subtitle .SRT / .VTT
                 </button>
               </div>
+
+              <div class="white-card mode-box" style="margin-bottom:0;">
+                <div>
+                  <span class="pill-tag" style="margin-bottom:12px;">Opsional · Kunci Pribadi</span>
+                  <h3 class="card-subheading" style="margin-bottom:8px;">Kunci API Gemini Milik Sendiri</h3>
+                  <p class="muted-copy" style="font-size:14px;margin-bottom:14px;">
+                    Opsional bila kamu ingin memakai kunci Gemini pribadimu untuk merangkum percakapan sebelum kata dikunci ke vokal.
+                  </p>
+                  <div class="field" style="margin-bottom:12px;">
+                    <label for="gemini-key-input">Gemini API Key (opsional)</label>
+                    <input
+                      type="password"
+                      id="gemini-key-input"
+                      placeholder="Kosongkan bila memakai Whisper-Small lokal"
+                      autocomplete="off"
+                    />
+                  </div>
+                </div>
+                <button type="button" class="btn btn-secondary" id="btn-analyze-gemini" style="width:100%;" disabled>
+                  Analisis dengan Kunci Gemini
+                </button>
+              </div>
             </div>
 
-            <!-- JALUR HAND-OFF GRATIS 1-KLIK KE CHATGPT / GEMINI WEB -->
             <div class="parchment-card" style="margin-top:16px;margin-bottom:0;padding:20px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;">
               <div style="max-width:620px;">
-                <span class="eyebrow">Opsi Hand-off Gratis · Tanpa API Key</span>
-                <h3 class="card-subheading" style="margin:4px 0 4px;">Mau Kurasi Momen Lewat ChatGPT atau Gemini Web Biasa?</h3>
+                <span class="eyebrow">Bantuan Prompt Manual · Gratis</span>
+                <h3 class="card-subheading" style="margin:4px 0 4px;">Ingin Diskusi Pemilihan Momen di ChatGPT / Gemini Web?</h3>
                 <p class="muted-copy" style="font-size:13.5px;">
-                  Salin prompt kurasi siap tempel beserta info durasi dan transkrip videomu untuk dibedah gratis di ChatGPT atau Gemini.
+                  Salin transkrip dan durasi videomu sebagai prompt rapi untuk ditempel manual ke ChatGPT atau Gemini Web.
                 </p>
               </div>
               <button type="button" class="btn btn-secondary btn-sm" id="btn-copy-ai-prompt">
-                Salin Prompt Cari Momen ke ChatGPT/Gemini
+                Salin Prompt Transkrip
               </button>
             </div>
           </div>
 
-          <!-- LANGKAH 2: PILIH MOMEN & GESER TITIK AWAL/AKHIR -->
+          <!-- LANGKAH 2: PEMILIHAN MOMEN 4 SINYAL & PENYELARAS VOKAL PRESISI -->
           <div class="panel" id="panel-step-2">
             <div class="parchment-card">
               <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
                 <div>
-                  <span class="eyebrow">Langkah 02 · Kurasi Segmen</span>
-                  <h2 class="section-heading" style="margin:6px 0 6px;">Pilih Momen Terbaik & Geser Titik Potong</h2>
+                  <span class="eyebrow">Langkah 02 · Rumus Skor Jujur 4 Sinyal &amp; Kunci Vokal</span>
+                  <h2 class="section-heading" style="margin:6px 0 6px;">Pilih Momen, Geser Detik &amp; Cek Ketepatan Suara</h2>
                   <p class="muted-copy">
-                    Klik salah satu kartu momen ber-skor di bawah, atau geser titik mulai dan selesai sesuai kalimat pembicara.
+                    Skor dihitung jujur dari grafik Most-Replayed (bila ada), lonjakan suara, kekuatan kalimat pembuka, serta jeda napas akhir kalimat.
                   </p>
                 </div>
                 <div class="btn-row">
                   <button type="button" class="btn btn-secondary btn-sm" id="btn-copy-ai-prompt-step2">
-                    Salin Prompt Cari Momen ke ChatGPT/Gemini
+                    Salin Transkrip
                   </button>
                   <button type="button" class="btn btn-secondary btn-sm" id="btn-open-hook-picker">
-                    Ambil Ide Judul dari 140 Pustaka
+                    Ambil Judul dari 140 Pustaka
                   </button>
                 </div>
               </div>
 
+              <!-- Pita Informasi Bobot 4 Sinyal (Wajib memberi tahu jika Most-Replayed tidak tersedia!) -->
+              <div class="scoring-weight-banner" id="scoring-weight-banner">
+                Bobot penilaian dihitung dari sinyal terukur pada video sumber: lonjakan vokal, kekuatan kalimat pembuka, dan jeda napas akhir kalimat.
+              </div>
+
               <div class="moments-list" id="moments-container"></div>
 
-              <!-- Penggeser Visual + Input Presisi -->
+              <!-- Penggeser Titik Awal & Akhir Klip Sebelum Render -->
               <div class="trimmer-box">
                 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
-                  <strong>Pengatur Rentang Waktu Klip</strong>
-                  <span class="pill-tag lime" id="label-clip-duration">Durasi Klip: 15.0 dtk</span>
+                  <strong>Geser Titik Awal &amp; Akhir Klip Sebelum Render</strong>
+                  <div class="btn-row">
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-snap-breath">
+                      Rapatkan ke Jeda Napas Terdekat
+                    </button>
+                    <span class="pill-tag lime" id="label-clip-duration">Durasi Klip: 15.0 dtk</span>
+                  </div>
                 </div>
 
                 <div class="grid-2">
@@ -599,26 +672,53 @@
 
                 <div class="step2-audio-bar">
                   <button type="button" class="btn btn-secondary btn-sm" id="btn-step2-play-audio">
-                    Dengarkan Suara Momen Ini
+                    Dengarkan Suara &amp; Cek Ketukan Kata
                   </button>
                   <span class="muted-copy" id="step2-audio-time" style="font-size:13px;">
-                    Pastikan awal &amp; akhir kalimat terdengar pas sebelum lanjut ke Langkah 3
+                    Dengarkan untuk memastikan awal &amp; akhir kalimat tidak terpotong di tengah omongan
                   </span>
+                </div>
+              </div>
+
+              <!-- PITA VISUAL GELOMBANG VOKAL & SINKRONISASI SUBTITLE PRESISI 10MS -->
+              <div class="vocal-sync-box">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                  <div>
+                    <span class="eyebrow" style="color:#beff50;">Penyelaras Vokal Presisi 10ms</span>
+                    <div style="font-size:13.5px;font-weight:600;margin-top:2px;">
+                      Pita Gelombang Suara Vokal (165–3750 Hz) &amp; Kunci Waktu Kata
+                    </div>
+                  </div>
+                  <span class="pill-tag lime" id="vocal-islands-badge">Pulau Vokal Terkunci</span>
+                </div>
+
+                <canvas id="vocal-sync-canvas" class="vocal-sync-canvas" width="760" height="92"></canvas>
+
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+                  <div style="flex:1;min-width:210px;">
+                    <label for="caption-offset-range" style="display:block;font-size:12px;color:#d2d2c8;margin-bottom:4px;">
+                      Kalibrasi Halus Ketukan Subtitle ke Vokal: <strong id="caption-offset-label" style="color:#beff50;">0 ms (Pas Otomatis)</strong>
+                    </label>
+                    <input type="range" id="caption-offset-range" min="-0.40" max="0.40" step="0.01" value="0" style="width:100%;" />
+                  </div>
+                  <button type="button" class="btn btn-secondary btn-sm" id="btn-lock-text-vocal" style="background:#ffffff;color:#14140f;border-color:#14140f;">
+                    Kunci Teks ke Gelombang Vokal
+                  </button>
                 </div>
               </div>
 
               <div class="field">
                 <label for="clip-transcript-input">
-                  Teks Caption Klip (otomatis disinkronkan per kata — bebas dirapikan ejaannya)
+                  Teks Caption Klip (bebas rapikan ejaan — klik "Kunci Teks ke Gelombang Vokal" agar pas dengan jeda napas)
                 </label>
                 <textarea
                   id="clip-transcript-input"
-                  placeholder="Ketik atau tempel kalimat yang diucapkan pembicara pada rentang klip ini..."
+                  placeholder="Kalimat yang diucapkan pembicara pada rentang klip ini..."
                 ></textarea>
               </div>
 
               <div class="status-bar" id="step2-status">
-                <div class="status-bar-text" id="step2-status-text">Menyelaraskan kata...</div>
+                <div class="status-bar-text" id="step2-status-text">Menyelaraskan kata ke gelombang vokal...</div>
                 <div class="progress-track">
                   <div class="progress-fill" id="step2-progress-fill"></div>
                 </div>
@@ -626,23 +726,23 @@
 
               <div class="btn-row" style="justify-content:space-between;margin-top:16px;">
                 <button type="button" class="btn btn-secondary" id="btn-resync-whisper">
-                  Sinkronkan Ulang Kata dari Suara (Whisper)
+                  Baca Ulang Vokal Klip Ini (Whisper-Small)
                 </button>
                 <button type="button" class="btn btn-primary" id="btn-go-step3">
-                  Lanjut Desain 9:16 & Render MP4
+                  Lanjut Pilih Framing 9:16 &amp; Render MP4
                 </button>
               </div>
             </div>
           </div>
 
-          <!-- LANGKAH 3: GAYA CAPTION, WAJAH TENGAH, LOGO & EXPORT MP4 -->
+          <!-- LANGKAH 3: FRAMING 1/2 WAJAH, GAYA CAPTION, JUDUL 3 DETIK & RENDER MP4 -->
           <div class="panel" id="panel-step-3">
             <div class="studio-grid">
               <!-- Kolom Kiri: Dark Island Phone Frame 9:16 -->
               <div class="preview-column">
                 <div class="phone-frame">
                   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:0 4px;">
-                    <span class="eyebrow" style="color:#d2d2c8;">Pratinjau 9:16 Langsung</span>
+                    <span class="eyebrow" style="color:#d2d2c8;">Pratinjau 9:16 Sinkron Vokal</span>
                     <span id="preview-time-label" style="color:#beff50;font-size:12px;font-weight:500;">00.0s / 15.0s</span>
                   </div>
                   <canvas id="preview-canvas" width="360" height="640"></canvas>
@@ -658,42 +758,124 @@
                 <video id="hidden-preview-video" class="offscreen-media-player" playsinline preload="auto"></video>
               </div>
 
-              <!-- Kolom Kanan: Kontrol Gaya, Wajah Tengah, Hook, Watermark & Render -->
+              <!-- Kolom Kanan: Framing, Caption, Judul 3 Detik, Watermark, Generator & Render -->
               <div>
                 <div class="parchment-card">
-                  <span class="eyebrow">Gaya Teks Dinamis</span>
-                  <h2 class="card-subheading" style="margin:4px 0 6px;">Pilih Gaya Caption Per Kata (6 Preset)</h2>
+                  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px;">
+                    <span class="eyebrow">Framing Otomatis 9:16</span>
+                    <span class="pill-tag lime" id="detected-faces-badge">Deteksi Otomatis 1 / 2 Wajah</span>
+                  </div>
+                  <h2 class="card-subheading" style="margin:4px 0 14px;">Mode Framing Wajah &amp; Layar</h2>
+
+                  <div class="field">
+                    <label for="frame-mode-select">Pilih Tata Letak 9:16</label>
+                    <select id="frame-mode-select">
+                      <option value="auto" selected>Otomatis Deteksi 1 atau 2 Wajah (Fullscreen / Podcast Split)</option>
+                      <option value="podcast-split">Podcast Split — 2 Orang Atas-Bawah (Tanpa Keyframe Manual)</option>
+                      <option value="crop-fill">Fullscreen — 1 Pembicara, Wajah Tetap di Tengah</option>
+                      <option value="blur-fit">Cinema Blur — Video 16:9 Utuh + Latar Blur (Slide / Layar)</option>
+                      <option value="gaming-split">Gaming Split — Facecam Atas + Gameplay Bawah (Paket Pro)</option>
+                    </select>
+                  </div>
+
+                  <div class="toggle-row">
+                    <span>Ikuti posisi wajah pembicara aktif secara mulus</span>
+                    <input type="checkbox" id="auto-face-checkbox" checked style="width:18px;height:18px;" />
+                  </div>
+
+                  <div class="field" style="margin-top:14px;">
+                    <label for="manual-offset-range">Geser Halus Fokus Horizontal (Opsional)</label>
+                    <input type="range" id="manual-offset-range" min="-0.35" max="0.35" step="0.01" value="0" />
+                  </div>
+
+                  <button type="button" class="btn btn-secondary btn-sm" id="btn-scan-face-preview">
+                    Deteksi 1 / 2 Wajah pada Klip Ini Sekarang
+                  </button>
+                </div>
+
+                <div class="parchment-card">
+                  <span class="eyebrow">Caption Per Kata Sinkron Vokal</span>
+                  <h2 class="card-subheading" style="margin:4px 0 6px;">Pilih Gaya Caption (6 Gaya Inti + 2 Tambahan)</h2>
                   <p class="muted-copy" style="font-size:14px;">
-                    Kata yang sedang diucapkan otomatis menyala mengikuti ketukan suara pembicara.
+                    Setiap kata menyala tepat saat diucapkan pembicara dan berhenti bersih pada jeda napas.
                   </p>
                   <div class="preset-grid" id="preset-grid"></div>
                 </div>
 
                 <div class="parchment-card">
-                  <span class="eyebrow">Komposisi Kamera</span>
-                  <h2 class="card-subheading" style="margin:4px 0 14px;">Wajah Tengah & Tata Letak 9:16</h2>
+                  <span class="eyebrow">Judul Pembuka 3 Detik &amp; Watermark</span>
+                  <h2 class="card-subheading" style="margin:4px 0 14px;">Judul Pembuka yang Bisa Diedit &amp; Identitas Channel</h2>
 
                   <div class="field">
-                    <label for="frame-mode-select">Tampilan Bingkai Video</label>
-                    <select id="frame-mode-select">
-                      <option value="crop-fill">Potong Penuh 9:16 (Ikuti Wajah Pembicara)</option>
-                      <option value="blur-fit">Utuh 16:9 di Tengah + Latar Belakang Blur</option>
-                    </select>
+                    <label for="hook-title-input">Teks Judul Pembuka Klip</label>
+                    <input
+                      type="text"
+                      id="hook-title-input"
+                      placeholder="Contoh: Tiga Detik Pertama Penentu Retensi Penonton"
+                    />
                   </div>
 
-                  <div class="toggle-row">
-                    <span>Kunci Wajah / Subjek Otomatis di Tengah Frame</span>
-                    <input type="checkbox" id="auto-face-checkbox" checked style="width:18px;height:18px;" />
+                  <div class="grid-2">
+                    <div class="field">
+                      <label for="hook-duration-select">Durasi Tampil Judul Pembuka</label>
+                      <select id="hook-duration-select">
+                        <option value="3" selected>3 Detik Pertama Pembuka (Rekomendasi)</option>
+                        <option value="full">Sepanjang Durasi Klip</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="hook-style-select">Warna Kotak Judul Pembuka</label>
+                      <select id="hook-style-select">
+                        <option value="white">Putih Bersih</option>
+                        <option value="dark">Gelap Elegan</option>
+                        <option value="red">Merah Tegas</option>
+                        <option value="none">Sembunyikan Judul Pembuka</option>
+                      </select>
+                    </div>
                   </div>
 
-                  <div class="field" style="margin-top:14px;">
-                    <label for="manual-offset-range">Geser Fokus Kamera Halus (Kiri ke Kanan)</label>
-                    <input type="range" id="manual-offset-range" min="-0.35" max="0.35" step="0.01" value="0" />
-                  </div>
+                  <div id="watermark-controls-wrap">
+                    <div class="grid-2">
+                      <div class="field">
+                        <label for="watermark-text-input">Watermark Nama Sendiri (Paket Tambahan)</label>
+                        <input type="text" id="watermark-text-input" placeholder="Contoh: @namachannel" />
+                      </div>
+                      <div class="field">
+                        <label for="watermark-pos-select">Posisi Watermark</label>
+                        <select id="watermark-pos-select">
+                          <option value="top-right">Pojok Kanan Atas</option>
+                          <option value="top-left">Pojok Kiri Atas</option>
+                          <option value="bottom-right">Pojok Kanan Bawah</option>
+                        </select>
+                      </div>
+                    </div>
 
-                  <button type="button" class="btn btn-secondary btn-sm" id="btn-scan-face-preview">
-                    Pindai Posisi Wajah untuk Preview
-                  </button>
+                    <div class="field" style="margin-bottom:0;">
+                      <label for="watermark-file-input">Atau Pasang Logo PNG/JPG Transparan (Paket Tambahan)</label>
+                      <input type="file" id="watermark-file-input" accept="image/png,image/jpeg,image/webp" />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Generator Deskripsi & Hashtag (Paket Tambahan & Pro) -->
+                <div class="parchment-card" id="tambahan-desc-card">
+                  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px;">
+                    <span class="eyebrow">Siap Posting Reels / TikTok / Shorts</span>
+                    <span class="pill-tag" id="desc-gen-tier-pill">Paket Tambahan</span>
+                  </div>
+                  <h2 class="card-subheading" style="margin:4px 0 8px;">Generator Deskripsi &amp; Hashtag Otomatis</h2>
+                  <p class="muted-copy" style="font-size:13.5px;margin-bottom:12px;">
+                    Menyusun takarir (caption postingan) beserta hashtag relevan langsung dari kalimat transkrip klip ini.
+                  </p>
+                  <div class="btn-row" style="margin-bottom:10px;">
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-generate-desc">
+                      Buat Deskripsi &amp; Hashtag
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-copy-desc" style="display:none;">
+                      Salin Deskripsi
+                    </button>
+                  </div>
+                  <textarea id="generated-desc-output" rows="4" style="display:none;" readonly></textarea>
                 </div>
 
                 <div class="parchment-card">
@@ -701,7 +883,7 @@
                     <span class="eyebrow">Kejernihan &amp; Volume Audio</span>
                     <span class="pill-tag lime" id="audio-volume-label">Volume: 100%</span>
                   </div>
-                  <h2 class="card-subheading" style="margin:4px 0 12px;">Penjernih Suara Podcast &amp; Pengatur Volume</h2>
+                  <h2 class="card-subheading" style="margin:4px 0 12px;">Penjernih Vokal 48 kHz &amp; Volume</h2>
 
                   <div class="field">
                     <label for="audio-volume-range">Tingkat Volume Suara Klip (0% – 200%)</label>
@@ -709,80 +891,31 @@
                   </div>
 
                   <div class="toggle-row" style="margin-bottom:10px;">
-                    <span>Jernihkan Vokal &amp; Angkat Suara Pelan Otomatis (Anti-Dengung 85 Hz)</span>
+                    <span>Jernihkan Vokal &amp; Angkat Suara Pelan Otomatis (High-pass 85 Hz)</span>
                     <input type="checkbox" id="voice-boost-checkbox" checked style="width:18px;height:18px;" />
                   </div>
 
                   <div class="toggle-row">
-                    <span>Seimbangkan Rekaman Mic Sebelah ke Stereo Kiri &amp; Kanan</span>
+                    <span>Seimbangkan Mic Sebelah ke Stereo Kiri &amp; Kanan</span>
                     <input type="checkbox" id="mono-stereo-checkbox" checked style="width:18px;height:18px;" />
-                  </div>
-
-                  <p class="muted-copy" style="font-size:12.5px;margin-top:10px;">
-                    Diterapkan langsung pada pemutar preview maupun hasil ekspor MP4 (48 kHz Stereo AAC jernih).
-                  </p>
-                </div>
-
-                <div class="parchment-card">
-                  <span class="eyebrow">Identitas Konten</span>
-                  <h2 class="card-subheading" style="margin:4px 0 14px;">Judul Atas (Hook) & Logo Watermark</h2>
-
-                  <div class="grid-2">
-                    <div class="field">
-                      <label for="hook-title-input">Judul Atas Klip (Hook)</label>
-                      <input
-                        type="text"
-                        id="hook-title-input"
-                        placeholder="Contoh: Kesalahan Terbesar Saat Mulai Bisnis"
-                      />
-                    </div>
-                    <div class="field">
-                      <label for="hook-style-select">Gaya Kotak Judul Atas</label>
-                      <select id="hook-style-select">
-                        <option value="white">Putih Bersih</option>
-                        <option value="dark">Gelap Elegan</option>
-                        <option value="red">Merah Tegas</option>
-                        <option value="none">Sembunyikan Judul Atas</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div class="grid-2">
-                    <div class="field">
-                      <label for="watermark-text-input">Teks Watermark (opsional)</label>
-                      <input type="text" id="watermark-text-input" placeholder="Contoh: @podcastkamu" />
-                    </div>
-                    <div class="field">
-                      <label for="watermark-pos-select">Posisi Logo / Watermark</label>
-                      <select id="watermark-pos-select">
-                        <option value="top-right">Pojok Kanan Atas</option>
-                        <option value="top-left">Pojok Kiri Atas</option>
-                        <option value="bottom-right">Pojok Kanan Bawah</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div class="field" style="margin-bottom:0;">
-                    <label for="watermark-file-input">Atau Upload Gambar Logo Transparan (PNG/JPG)</label>
-                    <input type="file" id="watermark-file-input" accept="image/png,image/jpeg,image/webp" />
                   </div>
                 </div>
 
                 <div class="white-card" style="margin-bottom:0;">
-                  <span class="eyebrow">Ekspor Akhir</span>
-                  <h2 class="card-subheading" style="margin:4px 0 14px;">Render & Unduh File MP4 Siap Upload</h2>
+                  <span class="eyebrow">Ekspor MP4 · Akselerasi GPU + Fallback CPU Otomatis</span>
+                  <h2 class="card-subheading" style="margin:4px 0 14px;">Render &amp; Simpan File MP4 Siap Upload</h2>
 
                   <div class="field">
-                    <label for="resolution-select">Kualitas Resolusi Video</label>
+                    <label for="resolution-select">Kualitas Resolusi Output</label>
                     <select id="resolution-select">
-                      <option value="720p">720 × 1280 HD (Render Cepat & Ukuran Ringan)</option>
+                      <option value="720p">720 × 1280 HD (Cepat &amp; Hemat RAM untuk Laptop 8 GB)</option>
                       <option value="1080p">1080 × 1920 Full HD (Sangat Tajam)</option>
                     </select>
                   </div>
 
                   <div class="btn-row">
                     <button type="button" class="btn btn-primary" id="btn-render-mp4">
-                      Render & Buat File MP4 Sekarang
+                      Render &amp; Buat File MP4 Sekarang
                     </button>
                     <button type="button" class="btn btn-secondary" id="btn-cancel-render" style="display:none;">
                       Batalkan Render
@@ -818,7 +951,7 @@
           <div class="page-top-head">
             <div>
               <span class="eyebrow">Bank Referensi 9:16</span>
-              <h1 class="section-heading" style="margin-top:4px;">Pustaka 140 Hook, Pembuka, Caption & Prompt</h1>
+              <h1 class="section-heading" style="margin-top:4px;">Pustaka 140 Judul Pembuka, Caption &amp; Prompt</h1>
             </div>
             <span class="pill-tag lime" id="lib-showing-badge">140 Koleksi</span>
           </div>
@@ -861,24 +994,24 @@
           <div class="page-top-head">
             <div>
               <span class="eyebrow">Tersimpan Cepat</span>
-              <h1 class="section-heading" style="margin-top:4px;">Koleksi Hook & Panduan Favorit</h1>
+              <h1 class="section-heading" style="margin-top:4px;">Koleksi Judul Pembuka &amp; Panduan Favorit</h1>
             </div>
           </div>
           <div class="library-grid" id="favorites-grid"></div>
         </section>
 
-        <!-- ================= 6. PENGATURAN & CADANGAN ================= -->
+        <!-- ================= 6. PENGATURAN, LISENSI, CEK PERANGKAT & LAPORAN ERROR ================= -->
         <section class="view-pane" id="view-settings">
           <div class="page-top-head">
             <div>
-              <span class="eyebrow">Preferensi Studio</span>
-              <h1 class="section-heading" style="margin-top:4px;">Pengaturan Channel, Watermark & Kunci API</h1>
+              <span class="eyebrow">Preferensi &amp; Dukungan Mandiri</span>
+              <h1 class="section-heading" style="margin-top:4px;">Pengaturan Studio, Pindah Perangkat &amp; Diagnostik</h1>
             </div>
           </div>
 
           <div class="split-2">
             <div class="parchment-card" style="margin-bottom:0;">
-              <h2 class="card-subheading" style="margin-bottom:14px;">Identitas Channel & Watermark Bawaan</h2>
+              <h2 class="card-subheading" style="margin-bottom:14px;">Identitas Channel &amp; Preset Bawaan</h2>
               <div class="field">
                 <label for="set-creator-name">Nama Kreator / Studio</label>
                 <input type="text" id="set-creator-name" placeholder="Contoh: Raka Pratama" />
@@ -892,8 +1025,8 @@
                 <select id="set-default-preset"></select>
               </div>
               <div class="field">
-                <label for="set-gemini-key">Kunci API Gemini Pribadi (BYOK — Opsional)</label>
-                <input type="password" id="set-gemini-key" placeholder="AIza... (hanya disimpan di browser ini)" autocomplete="off" />
+                <label for="set-gemini-key">Kunci API Gemini Pribadi (Opsional)</label>
+                <input type="password" id="set-gemini-key" placeholder="Kosongkan bila memakai Whisper-Small lokal" autocomplete="off" />
               </div>
               <button type="button" class="btn btn-primary" id="btn-save-settings">
                 Simpan Pengaturan Studio
@@ -901,12 +1034,35 @@
             </div>
 
             <div class="white-card" style="margin-bottom:0;">
-              <h2 class="card-subheading" style="margin-bottom:10px;">Cadangan Data & Privasi Lokal</h2>
-              <p class="muted-copy" style="font-size:14px;margin-bottom:18px;">
-                Seluruh video, potongan klip, riwayat render, dan kunci API milikmu diproses langsung di browser perangkat ini tanpa dikirim ke server kami.
+              <h2 class="card-subheading" style="margin-bottom:8px;">Lisensi, Pindah Perangkat &amp; Laporan Error</h2>
+              <p class="muted-copy" id="settings-license-summary" style="font-size:13.5px;margin-bottom:14px;">
+                Memuat info paket &amp; masa aktif offline...
               </p>
 
-              <div class="btn-row" style="margin-bottom:18px;">
+              <div class="btn-row" style="margin-bottom:16px;">
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-release-device">
+                  Lepas Lisensi dari Laptop Ini (Pindah Perangkat)
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-settings-device-check">
+                  Cek Perangkat &amp; Ruang Disk
+                </button>
+              </div>
+
+              <hr class="rule-divider" />
+
+              <h3 class="card-subheading" style="font-size:16px;margin-bottom:6px;">Kirim Laporan Error Teknis</h3>
+              <p class="muted-copy" style="font-size:13px;margin-bottom:10px;">
+                Mengirim catatan log teknis terakhir (versi browser, status GPU/CPU, dan pesan kendala) <strong>tanpa video dan tanpa data pribadi</strong> agar masalah cepat ditangani.
+              </p>
+              <div class="field" style="margin-bottom:10px;">
+                <input type="text" id="error-report-note-input" placeholder="Jelaskan singkat kendala yang dialami (opsional)..." />
+              </div>
+              <button type="button" class="btn btn-primary btn-sm" id="btn-send-error-report" style="margin-bottom:16px;">
+                Kirim Laporan Error
+              </button>
+
+              <hr class="rule-divider" />
+              <div class="btn-row">
                 <button type="button" class="btn btn-secondary btn-sm" id="btn-export-json">
                   Ekspor Cadangan (.json)
                 </button>
@@ -915,11 +1071,6 @@
                   Impor Cadangan (.json)
                 </button>
               </div>
-
-              <hr class="rule-divider" />
-              <p class="muted-copy" style="font-size:13px;">
-                Catatan keamanan: File cadangan JSON hanya menyimpan profil watermark, koleksi favorit, dan catatan riwayat klip — kunci API tidak pernah disertakan dalam file ekspor.
-              </p>
             </div>
           </div>
         </section>
@@ -947,6 +1098,48 @@
     </nav>
   </div>
 
+  <!-- MODAL CEK PERANGKAT SEBELUM BELI & DIAGNOSTIK -->
+  <div class="modal-backdrop" id="modal-device-check" role="dialog" aria-modal="true" aria-label="Cek Kesiapan Perangkat">
+    <div class="modal-dialog">
+      <span class="pill-tag lime" style="margin-bottom:10px;">Diagnostik Kesiapan Perangkat</span>
+      <h2 class="section-heading" style="margin-bottom:8px;">Cek Perangkat Sebelum Beli / Pakai</h2>
+      <p class="muted-copy" style="font-size:13.5px;margin-bottom:14px;">
+        Memeriksa Sistem Operasi, Browser, RAM, Akselerasi GPU/CPU WebCodecs, dan Sisa Ruang Disk secara langsung di perangkatmu.
+      </p>
+      <div id="device-check-results"></div>
+      <div class="btn-row" style="margin-top:18px;justify-content:flex-end;">
+        <button type="button" class="btn btn-primary btn-sm" id="btn-close-device-check">
+          Tutup Pemeriksaan
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL PANDUAN JEMBATAN EKSTENSI LINK YOUTUBE LOKAL -->
+  <div class="modal-backdrop" id="modal-ext-guide" role="dialog" aria-modal="true" aria-label="Panduan Jembatan Link Lokal">
+    <div class="modal-dialog">
+      <span class="pill-tag lime" style="margin-bottom:10px;">100% Internet Pembeli Sendiri</span>
+      <h2 class="section-heading" style="margin-bottom:8px;">Pasang Jembatan Link YouTube Lokal (15 Detik)</h2>
+      <p class="muted-copy" style="font-size:14px;margin-bottom:14px;">
+        Agar pemrosesan link YouTube berjalan murni lewat koneksi internet rumah/kantormu tanpa bergantung ke layanan luar, aktifkan ekstensi pendamping ringan kami di Chrome atau Edge:
+      </p>
+      <div class="parchment-card" style="padding:16px 18px;border-radius:14px;margin-bottom:16px;font-size:13.5px;line-height:1.65;">
+        1. Unduh <a href="./klip-auto-jembatan-lokal-v2.1.zip" download class="underline-link"><strong>Paket Ekstensi Jembatan Lokal (.ZIP)</strong></a> lalu ekstrak ke satu folder di laptopmu (atau unduh satuan: <a href="./companion-extension/manifest.json" download class="underline-link">manifest.json</a>, <a href="./companion-extension/background.js" download class="underline-link">background.js</a>, <a href="./companion-extension/content-bridge.js" download class="underline-link">content-bridge.js</a>).<br />
+        2. Buka <strong>chrome://extensions</strong> atau <strong>edge://extensions</strong>.<br />
+        3. Nyalakan sakelar <strong>Mode pengembang (Developer mode)</strong> di kanan atas.<br />
+        4. Klik <strong>Muat yang belum dikemas (Load unpacked)</strong> lalu pilih folder hasil ekstrak tadi, kemudian muat ulang tab ini.
+      </div>
+      <div class="btn-row" style="justify-content:space-between;">
+        <button type="button" class="btn btn-primary btn-sm" id="btn-ext-modal-pick-local">
+          Atau Pilih File Video Lokal Sekarang
+        </button>
+        <button type="button" class="btn btn-ghost btn-sm" id="btn-close-ext-guide">
+          Tutup
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL DETAIL ITEM PUSTAKA -->
   <div class="modal-backdrop" id="lib-modal" role="dialog" aria-modal="true">
     <div class="modal-dialog">
@@ -963,13 +1156,13 @@
       </div>
 
       <div class="parchment-card" style="padding:16px 18px;border-radius:16px;margin-bottom:20px;">
-        <strong style="display:block;font-size:12px;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Tips Retensi & Praktik</strong>
+        <strong style="display:block;font-size:12px;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Tips Retensi &amp; Praktik</strong>
         <div id="modal-tips" style="font-size:14px;color:var(--color-graphite);"></div>
       </div>
 
       <div class="btn-row">
         <button type="button" class="btn btn-primary btn-sm" id="modal-btn-use-hook">
-          Pasang ke Judul Atas Klip
+          Pasang ke Judul Pembuka Klip
         </button>
         <button type="button" class="btn btn-secondary btn-sm" id="modal-btn-copy">
           Salin Contoh Teks
@@ -986,6 +1179,6 @@
 
   <div class="toast" id="toast">Tersimpan</div>
 
-  <script type="module" src="./wizard-controller.js"></script>
+  <script type="module" src="./auth-boot.js"></script>
 </body>
 </html>

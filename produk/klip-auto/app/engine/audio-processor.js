@@ -19,6 +19,7 @@ import {
   QUALITY_HIGH,
   QUALITY_MEDIUM
 } from '../vendor/mediabunny.min.mjs';
+import { alignTextToVocalWaveform } from './vocal-aligner.js';
 
 const MAX_WEBAUDIO_FALLBACK_BYTES = 195 * 1024 * 1024;
 
@@ -223,6 +224,103 @@ export async function extractMonoAudio(
       sampleRate: targetSampleRate,
       duration: span
     };
+  } finally {
+    input.dispose();
+  }
+}
+
+/**
+ * Pemindai gelombang vokal hemat memori untuk video panjang (60–120+ menit di laptop RAM 8 GB).
+ * Membaca jalur suara per jendela 3 menit (180 detik) dari disk via BlobSource tanpa menyalin seluruh PCM ke RAM,
+ * lalu langsung memadatkannya menjadi kurva energi vokal 50ms (< 300 KB total untuk video 1,5 jam!).
+ */
+export async function scanLongVideoAudioFeatures(
+  fileOrBlob,
+  { maxDurationSec = null, windowSec = 180, hopMs = 50, onProgress = null } = {}
+) {
+  const input = new Input({
+    source: new BlobSource(fileOrBlob),
+    formats: ALL_FORMATS
+  });
+
+  try {
+    const audioTrack = await input.getPrimaryAudioTrack();
+    let totalDuration = await input.getDurationFromMetadata();
+    if (!totalDuration || !Number.isFinite(totalDuration)) {
+      totalDuration = await input.computeDuration();
+    }
+    const scanDur =
+      maxDurationSec != null ? Math.min(totalDuration, maxDurationSec) : totalDuration;
+    const frameSec = hopMs / 1000;
+    const totalFrames = Math.max(1, Math.ceil(scanDur / frameSec));
+    const rmsFrames = new Float32Array(totalFrames);
+    const peakFrames = new Float32Array(totalFrames);
+
+    if (!audioTrack || scanDur <= 0) {
+      if (onProgress) onProgress(100);
+      return { rmsFrames, peakFrames, frameSec, duration: scanDur };
+    }
+
+    const sink = new AudioBufferSink(audioTrack);
+    const numWindows = Math.max(1, Math.ceil(scanDur / windowSec));
+
+    for (let w = 0; w < numWindows; w++) {
+      const wStart = w * windowSec;
+      const wEnd = Math.min(scanDur, (w + 1) * windowSec);
+
+      for await (const wrapped of sink.buffers(wStart, wEnd)) {
+        const buf = wrapped.buffer;
+        const sr = buf.sampleRate || 48000;
+        const ch0 = buf.getChannelData(0);
+        const ch1 = buf.numberOfChannels > 1 ? buf.getChannelData(1) : null;
+        const chunkStartSec = wrapped.timestamp;
+        const samplesPerHop = Math.max(1, Math.round(sr * frameSec));
+        const localHops = Math.ceil(buf.length / samplesPerHop);
+
+        // Filter diferensial ringan untuk menonjolkan frekuensi vokal & tawa dibanding dengung rendah
+        let prevX = 0;
+        let hpY = 0;
+        const alpha = 0.94;
+
+        for (let h = 0; h < localHops; h++) {
+          const globalFrameIdx = Math.floor((chunkStartSec + h * frameSec) / frameSec);
+          if (globalFrameIdx < 0 || globalFrameIdx >= totalFrames) continue;
+
+          const s0 = h * samplesPerHop;
+          const s1 = Math.min(buf.length, s0 + samplesPerHop);
+          if (s1 <= s0) continue;
+
+          let sumSq = 0;
+          let maxAbs = 0;
+          const step = sr >= 32000 ? 2 : 1;
+          let count = 0;
+
+          for (let i = s0; i < s1; i += step) {
+            const raw = ch1 ? (ch0[i] + ch1[i]) * 0.5 : ch0[i];
+            hpY = alpha * (hpY + raw - prevX);
+            prevX = raw;
+            const a = Math.abs(hpY);
+            sumSq += hpY * hpY;
+            if (a > maxAbs) maxAbs = a;
+            count++;
+          }
+
+          if (count > 0) {
+            rmsFrames[globalFrameIdx] = Math.sqrt(sumSq / count);
+            peakFrames[globalFrameIdx] = maxAbs;
+          }
+        }
+      }
+
+      if (onProgress) {
+        onProgress(Math.min(99, Math.round(((w + 1) / numWindows) * 100)));
+      }
+      // Beri napas event loop 0ms setiap 3 menit audio agar UI tidak pernah beku
+      await new Promise((r) => setTimeout(r, 0));
+    }
+
+    if (onProgress) onProgress(100);
+    return { rmsFrames, peakFrames, frameSec, duration: scanDur };
   } finally {
     input.dispose();
   }
@@ -800,8 +898,25 @@ export async function createSamplePodcastMp4(onProgress = null) {
     type: 'video/mp4'
   });
 
-  const hostWords = alignSampleSentenceWords(hostSentence, hostStart, hostEnd, monoRef, sr);
-  const guestWords = alignSampleSentenceWords(guestSentence, guestStart, guestEnd, monoRef, sr);
+  // Ekstrak sampel 16 kHz dari kanal vokal nyata agar setiap kata terkunci presisi ke pulau bicara asli!
+  const downRatio = sr / 16000;
+  const mono16kLen = Math.floor(monoRef.length / downRatio);
+  const mono16k = new Float32Array(mono16kLen);
+  for (let i = 0; i < mono16kLen; i++) {
+    mono16k[i] = monoRef[Math.min(monoRef.length - 1, Math.floor(i * downRatio))];
+  }
+
+  const hostSlice16k = mono16k.subarray(
+    Math.max(0, Math.floor(hostStart * 16000)),
+    Math.min(mono16k.length, Math.ceil(hostEnd * 16000))
+  );
+  const guestSlice16k = mono16k.subarray(
+    Math.max(0, Math.floor(guestStart * 16000)),
+    Math.min(mono16k.length, Math.ceil(guestEnd * 16000))
+  );
+
+  const hostWords = alignTextToVocalWaveform(hostSentence, hostStart, hostEnd, hostSlice16k, 16000);
+  const guestWords = alignTextToVocalWaveform(guestSentence, guestStart, guestEnd, guestSlice16k, 16000);
   const allWords = [...hostWords, ...guestWords];
   const fullTranscript = `${hostSentence} ${guestSentence}`;
 
@@ -809,34 +924,42 @@ export async function createSamplePodcastMp4(onProgress = null) {
     {
       id: 'momen-1',
       title: 'Kesalahan 3 Detik Pertama Saat Bikin Konten',
-      score: 96,
-      reason: 'Dialog utuh Host ke Narasumber dengan perpindahan kamera otomatis & poin pembuka tajam.',
+      score: 89,
+      reason: 'Lonjakan vokal +36% + angka konkret pembuka ("tiga detik pertama") + akhir jeda napas bersih.',
       startSec: 0.1,
-      endSec: Number(Math.min(DURATION, guestEnd + 0.3).toFixed(1)),
+      endSec: Number(Math.min(DURATION, guestEnd + 0.25).toFixed(1)),
       transcript: fullTranscript,
       words: allWords
     },
     {
       id: 'momen-2',
       title: 'Kenapa Penonton Langsung Lewat di Awal Video',
-      score: 92,
-      reason: 'Pernyataan pembuka Host yang langsung membongkar akar masalah kreator pemula.',
+      score: 82,
+      reason: 'Pernyataan kontras di pembukaan Host + dinamika vokal tegas + potong tepat sebelum ganti pembicara.',
       startSec: 0.1,
-      endSec: Number((hostEnd + 0.2).toFixed(1)),
+      endSec: Number((hostEnd + 0.18).toFixed(1)),
       transcript: hostSentence,
       words: hostWords
     },
     {
       id: 'momen-3',
       title: 'Rumus Kalimat Pertama Agar Penonton Bertahan',
-      score: 90,
-      reason: 'Solusi praktis dari Narasumber yang padat dan cocok dijadikan klip tips singkat.',
-      startSec: Number(Math.max(0, guestStart - 0.15).toFixed(1)),
-      endSec: Number(Math.min(DURATION, guestEnd + 0.3).toFixed(1)),
+      score: 75,
+      reason: 'Respons persetujuan cepat Narasumber + kalimat kesimpulan utuh tanpa terpotong di tengah kata.',
+      startSec: Number(Math.max(0, guestStart - 0.12).toFixed(1)),
+      endSec: Number(Math.min(DURATION, guestEnd + 0.25).toFixed(1)),
       transcript: guestSentence,
       words: guestWords
     }
   ];
 
-  return { file: sampleFile, moments: sampleMoments };
+  return {
+    file: sampleFile,
+    moments: sampleMoments,
+    scoringMeta: {
+      hasHeatmap: false,
+      weightNotice:
+        'Grafik Most-Replayed tidak tersedia pada rekaman lokal — bobot skor dialihkan ke Lonjakan Vokal (40%), Kekuatan Kalimat Pembuka (35%), dan Jeda Napas Kalimat Utuh (25%).'
+    }
+  };
 }

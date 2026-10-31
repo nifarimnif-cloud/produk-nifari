@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Klip Auto — Jembatan Link YouTube Lokal",
+  "version": "2.1.0",
+  "description": "Menghubungkan Klip Auto Studio langsung ke YouTube lewat koneksi internet perangkatmu sendiri tanpa layanan luar.",
+  "permissions": ["storage", "declarativeNetRequest"],
+  "host_permissions": [
+    "https://www.youtube.com/*",
+    "https://m.youtube.com/*",
+    "https://*.googlevideo.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://nifari-klip-auto-app.pages.dev/*",
+        "https://*.nifari-klip-auto-app.pages.dev/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": ["content-bridge.js"],
+      "run_at": "document_start"
+    }
+  ]
+}

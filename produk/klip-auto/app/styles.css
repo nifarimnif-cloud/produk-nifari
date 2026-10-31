@@ -332,6 +332,11 @@ input[type="range"] {
   padding: 24px 18px;
 }
 
+.login-screen.hidden,
+.hidden {
+  display: none !important;
+}
+
 .login-shell {
   width: 100%;
   max-width: 940px;
@@ -745,6 +750,10 @@ input[type="range"] {
   font-size: 14px;
 }
 
+.alert-error.visible {
+  display: block;
+}
+
 .dropzone {
   background-color: var(--surface-elevated);
   border: 1.5px dashed var(--color-stone);
@@ -791,6 +800,10 @@ input[type="range"] {
   font-size: 14px;
 }
 
+.file-summary.visible {
+  display: flex;
+}
+
 .status-bar {
   display: none;
   margin-top: 16px;
@@ -798,6 +811,10 @@ input[type="range"] {
   border-radius: var(--radius-inner);
   background-color: var(--surface-elevated);
   border: 1px solid var(--color-ash);
+}
+
+.status-bar.visible {
+  display: block;
 }
 
 .status-bar-text {
@@ -894,7 +911,7 @@ input[type="range"] {
   font-weight: var(--font-weight-medium);
 }
 
-/* AI AGENT AUTO-CLIPPER COMMAND CARD & RESULTS */
+/* PEMOTONG BATCH OTOMATIS COMMAND CARD & RESULTS */
 .agent-command-card {
   border: 1.5px solid var(--color-off-black-ink);
 }
@@ -1230,6 +1247,10 @@ input[type="range"] {
   border: 1.5px solid var(--color-off-black-ink);
 }
 
+.result-box.visible {
+  display: block;
+}
+
 #result-video {
   width: 100%;
   max-width: 280px;
@@ -1295,6 +1316,74 @@ input[type="range"] {
   color: #14140f;
 }
 
+/* BANNER BOBOT SKOR 4 SINYAL, PITA SINKRON VOKAL, & KOTAK PEMULIHAN LINK */
+.scoring-weight-banner {
+  background-color: var(--surface-elevated);
+  border: 1px solid var(--color-ash);
+  border-left: 4px solid var(--color-electric-lime);
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-off-black-ink);
+}
+
+.vocal-sync-box {
+  background-color: var(--surface-dark-island);
+  color: var(--surface-dark-island-text);
+  border-radius: 16px;
+  padding: 16px;
+  margin: 14px 0 16px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.vocal-sync-canvas {
+  width: 100%;
+  height: 92px;
+  display: block;
+  border-radius: 10px;
+  background-color: #14140f;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  margin: 10px 0;
+}
+
+.yt-fallback-box {
+  display: none;
+  margin-top: 14px;
+  padding: 18px 20px;
+  border-radius: 16px;
+  background-color: var(--surface-parchment);
+  border: 1px solid var(--color-off-black-ink);
+}
+
+.yt-fallback-box.visible {
+  display: block;
+}
+
+.version-update-banner {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  border-radius: 14px;
+  background-color: var(--surface-parchment);
+  border: 1px solid var(--color-ash);
+  font-size: 13px;
+}
+
+.version-update-banner.visible {
+  display: flex;
+}
+
+.preset-btn.locked-preset {
+  opacity: 0.62;
+}
+
 /* MODAL DETAIL */
 .modal-backdrop {
   display: none;
@@ -1347,6 +1436,10 @@ input[type="range"] {
   font-weight: var(--font-weight-medium);
 }
 
+.toast.show {
+  display: block;
+}
+
 /* MOBILE BOTTOM NAV & OVERLAY */
 .sidebar-overlay {
   display: none;
@@ -1354,6 +1447,11 @@ input[type="range"] {
   inset: 0;
   background: rgba(20, 20, 15, 0.5);
   z-index: 35;
+}
+
+.sidebar-overlay.open,
+.sidebar-overlay.visible {
+  display: block;
 }
 
 .mobile-bottom-nav {

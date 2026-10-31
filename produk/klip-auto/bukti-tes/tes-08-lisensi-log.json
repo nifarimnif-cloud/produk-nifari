@@ -1,0 +1,45 @@
+{
+  "testedAt": "2026-10-31T09:29:41.900Z",
+  "browser": "Google Chrome 156 (Windows 11 64-bit)",
+  "steps": [
+    {
+      "step": "1. Kunci Kode Aplikasi Sebelum Login",
+      "passed": true,
+      "statuses": {
+        "/wizard-controller.js": 401,
+        "/engine/vocal-aligner.js": 401,
+        "/data/creator-library.js": 401
+      }
+    },
+    {
+      "step": "2. Tolak Kode Lisensi Salah",
+      "passed": true,
+      "uiMessage": "Kode lisensi tidak valid atau salah ketik. Periksa kembali kode pembelian resmimu."
+    },
+    {
+      "step": "3. Aktivasi Sah di Laptop A (Lisensi Pembeli 1 Perangkat)",
+      "passed": true,
+      "tierBadge": "Paket Inti + Tambahan (Watermark & Generator) · v2.1.0"
+    },
+    {
+      "step": "4. Batas 1 Laptop & Pindah Perangkat Mandiri (Laptop A -> Laptop B)",
+      "passed": true,
+      "deviceLimitMessage": "Lisensi ini dibatasi untuk 1 perangkat dan sedang aktif di perangkat lain (Windows · Chrome). Gunakan tombol \"Pindah Perangkat Mandiri\" di bawah untuk memindahkan akses ke laptop ini.",
+      "laptopAAfterTransfer": {
+        "ok": false,
+        "reason": "REVOKED_TRANSFERRED",
+        "message": "Lisensi ini telah dipindahkan ke perangkat lain."
+      }
+    },
+    {
+      "step": "5. Mode Offline Setelah Aktivasi (Tanpa Internet)",
+      "passed": true,
+      "offlineBanner": "Mode Offline Aktif — Klip Auto berjalan penuh tanpa internet (7 hari tersisa sebelum verifikasi ulang). Pemrosesan link YouTube memerlukan internet; pilih file video lokal (.mp4/.mov/.mkv) untuk langsung memotong."
+    },
+    {
+      "step": "6. Login Developer Tanpa Nama & Email (Paket Pro Terbuka)",
+      "passed": true,
+      "tierBadge": "Paket Pro (Multi-Video + Gaming Split) · v2.1.0"
+    }
+  ]
+}

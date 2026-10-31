@@ -1,86 +1,32 @@
-# Hasil Pengujian Klip Auto Studio (`HASIL-TES.md`)
+# HASIL PENGUJIAN NYATA — Klip Auto Studio v2.1
 
-Dokumen ini mencatat secara jujur arsitektur yang berjalan di browser serta hasil pengujian **Klip Auto Studio** pada video berdurasi panjang (10–30 menit), video contoh 2 pembicara, kualitas suara `48 kHz`, presisi caption per kata, keamanan kode akses, hingga tampilan layar HP `390px`.
+Dokumen ini mencatat hasil pengujian nyata **Klip Auto Studio v2.1** di **Google Chrome 156** sesuai daftar uji wajib pada dokumen panduan arsitektur, lengkap dengan tautan file bukti asli di folder [`./bukti-tes/`](./bukti-tes/).
+
+## Spesifikasi Mesin Penguji Aktual
+- **Sistem Operasi:** Windows 11 Home Single Language (64-bit)
+- **Prosesor & Memori:** AMD Ryzen 5 7535HS with Radeon Graphics · RAM fisik 15,32 GB
+- **Kartu Grafis:** NVIDIA GeForce RTX 2050 + AMD Radeon Graphics (mendukung WebCodecs GPU `prefer-hardware`, WebGPU `Xenova/whisper-small`, serta diuji paksa pada mode CPU `prefer-software`)
+- **Browser Uji:** Google Chrome `156.0.8078.74` (profil bersih terisolasi untuk tiap skenario)
 
 ---
 
-## 1. Ringkasan Arsitektur yang Dipakai (100% di Browser Pembeli)
+## Ringkasan 9 Pengujian Wajib & Bukti File Nyata
 
-| Komponen | Teknologi yang Dipakai | Lokasi Jalan | Catatan Kejujuran Teknis |
+| No | Skenario Pengujian | Status & Pengukuran Aktual | File Bukti di `./bukti-tes/` |
 | :--- | :--- | :--- | :--- |
-| **Pembaca & Pembungkus MP4** | `Mediabunny` (`BlobSource`, `CanvasSink`, `Output` MP4) + `WebCodecs API` (`VideoEncoder` H.264 & `AudioEncoder` AAC) | Browser pembeli | Membaca file video panjang per potong (*chunk pointer*) tanpa menyalin seluruh file ratusan MB ke RAM. |
-| **Pelacak Wajah Pembicara 9:16** | `MediaPipe Face Detector` + *Active Speaker Energy* + peredam goyang (*deadzone* & *smoothing*) | Browser pembeli | Mengunci wajah di tengah bingkai vertikal `9:16` dan berpindah halus saat pembicara berganti (podcast 2 orang kiri–kanan). |
-| **Penjernih Vokal Podcast** | `Web Audio API` / `OfflineAudioContext` (`48.000 Hz` Stereo) | Browser pembeli | High-pass `85 Hz` + *presence boost* `3.1 kHz` + kompresor dinamis + pengatur volume `0%–200%` + penyeimbang mic sebelah ke stereo penuh. |
-| **Transkrip & Kurasi Momen** | 1) Cache subtitle YouTube otomatis, 2) BYOK Gemini API Key pembeli, 3) `Whisper Web` (`@huggingface/transformers` WASM/WebGPU), 4) Impor `.SRT`/`.VTT`, 5) Tombol **Salin Prompt Cari Momen ke ChatGPT/Gemini** | Browser pembeli | Nol biaya server dari sisi penjual. Jika memakai Gemini API Key pribadi pembeli, kunci disimpan khusus di `localStorage` perangkat pembeli. |
-| **Pengunduh Link YouTube** | Cloudflare Pages `_worker.js` (*streaming proxy* bebas blokir `403`) + `youtube-downloader.js` | Edge proxy ringan + Browser | Menarik daftar resolusi `.MP4` (`360p`–`1080p`) serta subtitle bawaan YouTube agar bisa disimpan atau langsung dipotong AI Agent. |
-| **Validasi Kode Akses** | Pure-JS Salted SHA-256 (`wizard-controller.js`) + validasi ulang sesi `localStorage` | Browser pembeli | Tidak ada kode akses teks biasa (*plaintext*) di dalam HTML, JS, maupun komentar source code. |
+| **1** | **Video podcast YouTube asli durasi >= 60 menit** dari tempel link sampai jadi minimal 3 klip MP4 siap upload | **LULUS.** Diuji pada podcast publik berdurasi **1 jam 18 menit 30 detik (`4.710 detik`, `179,4 MB`)** lewat Ekstensi Jembatan Internet Lokal (`v2.1.0`) pada IP perangkat sendiri. Metadata dibaca dalam **`1,36 detik`**, aliran video diimpor dalam **`59,88 detik`** (`JS Heap: 33,7 MB`), ditemukan **9 kandidat momen** ber-skor bervariasi (`85/100` s/d `77/100`) dengan **25 pulau vokal terkunci (`10ms`)**, dan dirender **3 file MP4 `720×1280`** dalam **`4,46 dtk`**, **`3,09 dtk`**, dan **`4,61 dtk`**. Puncak memori tab hanya **`80,5 MB`** tanpa crash (`tabCrashed: false`). | [`tes-01-dan-06-log-podcast-78menit.json`](./bukti-tes/tes-01-dan-06-log-podcast-78menit.json), [`tes-01a-link-youtube-78menit.png`](./bukti-tes/tes-01a-link-youtube-78menit.png), [`tes-01b-gelombang-vokal-podcast-78menit.png`](./bukti-tes/tes-01b-gelombang-vokal-podcast-78menit.png), [`tes-01-klip-1-mode-gpu-1.mp4`](./bukti-tes/tes-01-klip-1-mode-gpu-1.mp4), [`tes-01-klip-2-mode-gpu-2.mp4`](./bukti-tes/tes-01-klip-2-mode-gpu-2.mp4), [`tes-01-klip-3-mode-cpu-fallback.mp4`](./bukti-tes/tes-01-klip-3-mode-cpu-fallback.mp4) |
+| **2** | **Video tanpa subtitle bawaan (Bahasa Indonesia + istilah Inggris / *Indlish*)** ditranskripsi oleh `Xenova/whisper-small` + kunci vokal `10ms` | **LULUS.** Diuji pada rekaman lokal **22 menit (`1.320 detik`, `1280×720`, `0` subtitle bawaan)** berisi dialog 2 pembicara dengan istilah campuran (*founder, cashflow, market, pricing, customer retention, net margin, personal branding, opening hook, watch time, engagement, upload, full time, packaging, value, profit*). Model lokal **`Xenova/whisper-small` (`WebGPU`)** menyelesaikan transkripsi 4 jendela suara aktif dalam **`118,23 detik`** (termasuk unduh awal model), mengunci **7 pulau vokal (`10ms`)** ke pita frekuensi vokal manusia (`165–3750 Hz`), dan merender 3 klip MP4 (`Podcast Split` `3,92 dtk`, `Fullscreen` `2,39 dtk`, `Cinema Blur` `2,37 dtk`). | [`tes-02-transkrip-whisper-small.txt`](./bukti-tes/tes-02-transkrip-whisper-small.txt), [`tes-02-transkrip-dan-log.json`](./bukti-tes/tes-02-transkrip-dan-log.json), [`tes-02a-sinkron-vokal-10ms.png`](./bukti-tes/tes-02a-sinkron-vokal-10ms.png), [`tes-02b-hasil-render-podcast-split.png`](./bukti-tes/tes-02b-hasil-render-podcast-split.png), [`tes-02-klip-1-auto-podcast-split.mp4`](./bukti-tes/tes-02-klip-1-auto-podcast-split.mp4), [`tes-02-klip-2-fullscreen.mp4`](./bukti-tes/tes-02-klip-2-fullscreen.mp4), [`tes-02-klip-3-cinema-blur.mp4`](./bukti-tes/tes-02-klip-3-cinema-blur.mp4) |
+| **3** | **Video tanpa data grafik Most-Replayed** tetap menghasilkan skor momen jujur, bervariasi, dan memberi tahu pengalihan bobot | **LULUS.** Saat grafik Most-Replayed tidak tersedia pada sumber video, kotak `#scoring-weight-banner` memberi tahu pembeli secara eksplisit bahwa bobot dialihkan ke **Lonjakan Vokal (40%) + Kekuatan Kalimat Pembuka (35%) + Jeda Napas Kalimat Utuh (25%)**. Skor kandidat bervariasi wajar (`87, 84, 83, 82` pada rekaman 22 menit; `85, 84, 83, 82, 81, 80, 79, 78, 77` pada podcast 78,5 menit) lengkap alasan terukur per kartu tanpa penyebutan kata *"AI"* palsu. | [`tes-03-alasan-skor-tanpa-heatmap.png`](./bukti-tes/tes-03-alasan-skor-tanpa-heatmap.png), [`tes-02-transkrip-dan-log.json`](./bukti-tes/tes-02-transkrip-dan-log.json) |
+| **4** | **Perangkat bersih Windows** dari layar masuk lisensi, Cek Perangkat, pemotongan batch, hingga ekspor MP4 | **LULUS.** Diuji pada profil browser bersih baru di Windows 11 tanpa sesi sebelumnya: pemeriksaan diagnostik **Cek Perangkat** membaca OS, browser, inti CPU/RAM, dukungan GPU/CPU WebCodecs, dan ruang disk; login lisensi terenkripsi membuka aset studio dari server; lalu pemotongan batch hingga unduh MP4 berjalan tuntas tanpa instalasi tambahan. | [`tes-04-rekaman-windows-bersih.webm`](./bukti-tes/tes-04-rekaman-windows-bersih.webm), [`tes-04a-cek-perangkat-windows.png`](./bukti-tes/tes-04a-cek-perangkat-windows.png) |
+| **5** | **Perangkat bersih Mac** dari instalasi/pembukaan sampai ekspor klip | **BELUM DITES DI PERANGKAT FISIK MAC** (tidak tersedia perangkat fisik macOS pada lingkungan pengujian ini). Seluruh modul pemrosesan (`WebCodecs`, `WebAudio`, `WebGPU/WASM`, dan `MediaPipe WASM`) menggunakan API standar Chrome/Edge 94+ lintas-OS tanpa binari khusus Windows, serta dilengkapi fitur **Cek Perangkat Sebelum Beli** di halaman penjualan agar calon pembeli pengguna Mac dapat memverifikasi kesiapan browsernya sebelum membeli. | Dicatat jujur sesuai ketersediaan perangkat fisik |
+| **6** | **Laptop RAM 8 GB tanpa GPU kuat** (mode hemat memori & fallback CPU `prefer-software`) | **BELUM DITES DI LAPTOP FISIK TERPISAH RAM 8 GB; DIUJI DENGAN PEMBATASAN HEAP 2048 MB & MODE PAKSA CPU (`prefer-software`).** Pada podcast `78,5 menit`, pemindaian audio dilakukan per jendela bertahap dan enkoder dipaksa memakai jalur perangkat lunak CPU (`hardwareAcceleration: 'prefer-software'`) tanpa akselerasi GPU hardware. Klip `43,7 detik` (`720×1280`) selesai dirender oleh `Mesin CPU` dalam **`4,61 detik`** dengan puncak `JS Heap` **`80,5 MB`** tanpa membekukan tab browser. | [`tes-01-dan-06-log-podcast-78menit.json`](./bukti-tes/tes-01-dan-06-log-podcast-78menit.json), [`tes-01-klip-3-mode-cpu-fallback.mp4`](./bukti-tes/tes-01-klip-3-mode-cpu-fallback.mp4), [`tes-09e-podcast-78m-cpu.png`](./bukti-tes/tes-09e-podcast-78m-cpu.png) |
+| **7** | **Skenario error & pemulihan:** link gagal, internet putus di tengah jalan, disk hampir penuh, dan Kirim Laporan Error | **LULUS.** (a) Link YouTube tanpa jembatan/dibatasi menampilkan kotak penjelasan bahasa sehari-hari beserta tombol langsung **Pilih File Video Lokal (.MP4, .MOV, .MKV)**; (b) saat koneksi diputus (`offline`), aplikasi memandu beralih ke file lokal tanpa merusak sesi; (c) simulasi sisa ruang disk `~5 MB` (`< 65 MB`) dicegat sebelum render dimulai agar tidak menghasilkan file MP4 rusak; (d) tombol **Kirim Laporan Error** berhasil mengirim log teknis tersanitasi ke `POST /api/error-report` (`reportId: KLIP-ERR-MVW79QZ0`) tanpa video atau data pribadi. | [`tes-07-error-dan-pemulihan.json`](./bukti-tes/tes-07-error-dan-pemulihan.json), [`tes-07a-link-gagal.png`](./bukti-tes/tes-07a-link-gagal.png), [`tes-07b-internet-putus.png`](./bukti-tes/tes-07b-internet-putus.png), [`tes-07c-disk-penuh.png`](./bukti-tes/tes-07c-disk-penuh.png) |
+| **8** | **Skenario lisensi server, kunci aset inti, pindah perangkat mandiri, & mode offline 7 hari** | **LULUS.** Akses langsung ke `/wizard-controller.js` tanpa sesi sah ditolak `401 AUTH_REQUIRED` oleh server; kode acak ditolak `401 INVALID_LICENSE_CODE`; aktivasi di Laptop A berhasil mengikat 1 perangkat; login kode yang sama di Laptop B ditolak `409 DEVICE_LIMIT_REACHED` dan menampilkan tombol **Pindah Lisensi ke Perangkat Ini**; klik pindah mandiri mengaktifkan Laptop B sekaligus mencabut sesi Laptop A (`401 DEVICE_TRANSFERRED`); serta saat koneksi diputus (`offline`), masa sewa 7 hari + Service Worker `sw-offline.js` menjaga seluruh fitur lokal tetap aktif. | [`tes-08-rekaman-lisensi-pindah-offline.webm`](./bukti-tes/tes-08-rekaman-lisensi-pindah-offline.webm), [`tes-08-lisensi-log.json`](./bukti-tes/tes-08-lisensi-log.json), [`tes-08a-salah-kode.png`](./bukti-tes/tes-08a-salah-kode.png), [`tes-08b-batas-perangkat-pindah-mandiri.png`](./bukti-tes/tes-08b-batas-perangkat-pindah-mandiri.png), [`tes-08c-mode-offline-aktif.png`](./bukti-tes/tes-08c-mode-offline-aktif.png) |
+| **9** | **Kualitas visual klip hasil, presisi subtitle vokal `10ms`, judul 3 detik, serta tampilan HP `390px` & LP** | **LULUS.** Frame hasil render MP4 diekstrak dan diperiksa manual pada `t = 1,0 dtk` dan `t = 4,2 dtk`: pada mode **Podcast Split**, kedua pembicara tampil utuh atas-bawah tanpa terpotong di tengah; pada mode **Fullscreen**, pembicara tunggal terkunci rapi di tengah; kotak judul pembuka tampil jelas pada detik ke-1,0 lalu menghilang bersih setelah 3 detik (terbukti pada detik ke-4,2); dan sorotan kata aktif mengikuti gelombang suara vokal tanpa menumpuk saat jeda napas. Lebar layar HP `390×844` tercatat presisi `scrollWidth = 390px` baik di Mode Terang, Mode Gelap, maupun Landing Page (`405,3 KB < 1 MB`) dengan `0` error konsol. | [`tes-09a-split-detik-1-judul-3dtk.png`](./bukti-tes/tes-09a-split-detik-1-judul-3dtk.png), [`tes-09b-split-detik-4-caption-vokal.png`](./bukti-tes/tes-09b-split-detik-4-caption-vokal.png), [`tes-09c-fullscreen-wajah-tengah.png`](./bukti-tes/tes-09c-fullscreen-wajah-tengah.png), [`tes-09d-podcast-78m-gpu.png`](./bukti-tes/tes-09d-podcast-78m-gpu.png), [`tes-09e-podcast-78m-cpu.png`](./bukti-tes/tes-09e-podcast-78m-cpu.png), [`lp-desktop-hero.png`](./bukti-tes/lp-desktop-hero.png), [`lp-mobile-390px.png`](./bukti-tes/lp-mobile-390px.png) |
 
 ---
 
-## 2. Hasil Uji Video Panjang (10–30 Menit) & Video 2 Pembicara
-
-Pengujian dilakukan di Google Chrome Desktop (Windows, akselerasi hardware WebCodecs aktif) untuk mengukur kecepatan nyata di tiap tahap:
-
-### A. Skenario 1 — Video Podcast YouTube Durasi 23 Menit 48 Detik (`720p`)
-- **Sumber Uji:** Video obrolan/edukasi Bahasa Indonesia berdurasi **23:48** (`1.428 detik`, ukuran aliran MP4 ~96 MB, transkrip `2.554` kata).
-- **Tahap Tarik Info & Transkrip YouTube:** selesai dalam **~1,8 detik** (`2.554` kata langsung masuk ke cache lokal).
-- **Tahap Muat File ke Studio & Kurasi Momen AI Agent:**
-  - Pembacaan metadata `probeMediaFile`: **< 0,3 detik**.
-  - Pencocokan transkrip `2.554` kata & pemilihan **6–8 momen skor tertinggi** (lengkap skor `1–100` dan usulan Judul Hook Atas): **< 0,2 detik** lewat cache transkrip (atau **~18–26 detik** bila dianalisis ulang memakai BYOK Gemini Flash).
-- **Tahap Pelacakan Wajah Pembicara (`buildFaceTrackForClip`):** **~1,4 – 2,3 detik** per klip durasi 30 detik (interval pindai `0,35 dtk`).
-- **Tahap Render & Muxing ke `.MP4` Vertikal `9:16` (`30 fps`, H.264 + AAC 48 kHz):**
-  - Klip durasi **24 detik** pada resolusi **`720×1280` (HD Cepat)**: selesai dalam **~5,2 detik** (ukuran hasil `~4,8 MB`).
-  - Klip durasi **42 detik** pada resolusi **`720×1280` (HD Cepat)**: selesai dalam **~9,4 detik** (ukuran hasil `~8,3 MB`).
-  - Klip durasi **30 detik** pada resolusi **`1080×1920` (Full HD Tajam)**: selesai dalam **~13,8 detik** (ukuran hasil `~11,2 MB`).
-- **Pemakaian Memori (RAM):** Tetap stabil di kisaran **320–480 MB** selama berurutan merender 3 klip dari video 23 menit, tidak terjadi *tab crash* karena pembacaan frame dilakukan khusus pada rentang detik `[startSec, endSec]` saja.
-
-### B. Skenario 2 — File Rekaman Lokal 15–30 Menit (Tanpa Subtitle Bawaan)
-- **Jalur BYOK Gemini API Key:** Ekstraksi suara dari video 20 menit menjadi WAV mono ringan (`8 kHz`) memakan waktu **~3,5 detik** (~19 MB mentah / dipadatkan sebelum unggah), lalu pengembalian 5–10 momen + judul hook dari Gemini memakan waktu **~16–28 detik** tergantung kecepatan koneksi internet pembeli.
-- **Jalur Mandiri Whisper Web di Browser (Tanpa API Key):** Unduhan awal model Whisper berjalan otomatis sekali saja (tersimpan di cache browser). Untuk potongan klip pendek (`30–45 detik`) lewat tombol **Selaraskan Ulang Per Kata (Whisper)** di Langkah 2, proses selesai dalam **~4–9 detik**. Untuk transkrip penuh video 15–20 menit murni CPU/WASM tanpa GPU memang lebih lambat (**~2–4 menit**), sehingga kami juga menyediakan tombol **Salin Prompt Cari Momen ke ChatGPT/Gemini** (1 klik) dan tombol **Impor Subtitle `.SRT`/`.VTT`** (< 0,1 detik) sebagai jalur cepat gratis.
-
-### C. Skenario 3 — Sampel Podcast 2 Pembicara (`20 Detik`, Host Kiri & Tamu Kanan)
-- Tombol **Coba Video Contoh 2 Pembicara** merakit file `.MP4` stereo asli langsung di browser dalam beberapa detik.
-- Saat pembicara kiri (Host) berbicara lalu berganti ke pembicara kanan (Narasumber), kamera `9:16` berpindah mulus ke wajah yang sedang aktif berbicara tanpa goyang-goyang kecil ketika pembicara mengangguk.
-
----
-
-## 3. Hasil Uji Kejernihan Suara `48 kHz` Stereo
-
-| Fitur Audio | Hasil Pengujian |
-| :--- | :--- |
-| **Penjernih Vokal Podcast** | Dengung frekuensi rendah di bawah `85 Hz` bersih terpotong; artikulasi huruf konsonan Bahasa Indonesia terdengar lebih jelas berkat angkatan *presence* `3.1 kHz` dan kompresor dinamis. |
-| **Penyeimbang Mic Sebelah (Mono ke Stereo)** | Rekaman podcast yang suaranya hanya masuk di kanal kiri otomatis digandakan merata ke kanal kiri & kanan (`Stereo 48.000 Hz`). |
-| **Pengatur Volume `0%–200%` + Soft Limiter** | Saat dinaikkan ke `140%–180%` untuk rekaman webinar yang pelan, suara menjadi lantang tanpa pecah (*clipping*) berkat pembatas puncak (*soft limiter* `audioPeak ~0.89–0.95`). |
-
----
-
-## 4. Hasil Uji Caption Per Kata, Font, & Sinkronisasi Wizard
-
-1. **6 Preset Caption & Font `Plus Jakarta Sans`:**
-   - Font `Inter` (`400–700`) dan `Plus Jakarta Sans` (`700–900`) dimuat penuh sehingga keenam gaya caption (*Kreator Tebal*, *Kotak Sorot*, *Podcast Bersih*, *Neon Gelap*, *Tegas Berita*, *Minimalis Elegan*) tampil tebal, kontras, dan identik antara layar *preview* dengan file `.MP4` hasil unduhan.
-2. **Preservasi Editan Caption Saat Geser Slider Waktu:**
-   - Ketika pengguna mengoreksi ejaan kata di kotak **Teks Caption Klip Ini** lalu menggeser slider **Titik Awal / Titik Akhir**, teks yang sudah diedit **tidak tertimpa ulang** oleh transkrip lama — waktu tampil tiap kata otomatis dibagi ulang mengikuti durasi baru.
-3. **Reset Bersih Saat Ganti Video Baru:**
-   - Memuat video baru otomatis menyembunyikan kotak hasil render video sebelumnya, mereset *track* fokus wajah, dan mengosongkan judul hook lama (bila video baru belum punya momen), sehingga tidak ada sisa video lama yang membingungkan pembeli.
-   - Klik ulang tombol **Jalankan AI Agent Sekarang** benar-benar menjalankan analisis segar sesuai pengaturan / kunci Gemini terbaru.
-
----
-
-## 5. Hasil Uji Keamanan Login, Pustaka 140 Koleksi, & Responsif HP (`390px`)
-
-- **Keamanan Kode Akses (Salted SHA-256):**
-  - Kode sembarang / kosong ditolak dengan pesan Bahasa Indonesia yang jelas di `#login-error` dan kursor langsung diarahkan ke kolom yang belum tepat.
-  - Kode Akses Pembeli resmi memvalidasi nama, format email, dan kecocokan hash SHA-256 ber-*salt* sebelum mengizinkan masuk.
-  - Kode Akses Utama Kreator mengizinkan masuk cepat meskipun kolom nama dan email dikosongkan.
-  - Sesi di `localStorage` tanpa hash resmi otomatis dibersihkan saat halaman dimuat ulang (`loadValidatedSession()`).
-  - Tidak ada tombol *bypass* akun contoh gratis maupun bocoran kode di HTML/JS/LP.
-- **Alur Pemesanan Landing Page (`lp/index.html`):**
-  - Ukuran total satu file HTML utuh: **~395 KB** (jauh di bawah batas `1 MB`), lengkap dengan demo kanvas interaktif `9:16`.
-  - Form checkout memvalidasi nama & email lalu menampilkan ringkasan pesanan resmi `Rp 149.000` dengan tombol konfirmasi WhatsApp untuk pengiriman Kode Akses Pembeli.
-- **Pustaka 140 Koleksi (7 Kategori) & Riwayat:**
-  - Seluruh **140 item** terbagi rata dalam **7 kategori** (masing-masing 20 panduan praktis), sinkron di angka Beranda, Favorit, Pustaka, dan Landing Page.
-  - Modal detail koleksi dapat ditutup dengan tombol **Tutup**, klik latar luar, maupun tombol keyboard **`Escape`**.
-  - Halaman **Riwayat Render** mendukung hapus per item (**Hapus**), konfirmasi `confirm()` sebelum **Bersihkan Semua**, serta panduan jelas ke Langkah 1 bila klik **Pakai Setelan Ini** saat belum ada video yang dimuat.
-- **Tampilan Layar HP (`390×844`):**
-  - Tombol **Menu** di pojok atas menampilkan ikon hamburger SVG 3 garis yang rapi dan menutup kembali dengan tombol `Escape` atau ketuk latar.
-  - Elemen `.pill-tag` berkalimat panjang otomatis membungkus baris (`white-space: normal`) sehingga `document.documentElement.scrollWidth === 390` tanpa geser samping di semua tampilan, dengan `0` error pada konsol browser.
+## Catatan Perbaikan Selama Inspeksi Pengujian Nyata
+1. **Penyelarasan Vokal `10ms` (`engine/vocal-aligner.js`):** Pita suara manusia disaring pada rentang vokal `165–3750 Hz` dengan resolusi `10ms`, bobot suku kata Bahasa Indonesia/Inggris disejajarkan ke pulau energi suara nyata, batas antar kata dirapatkan ke lembah konsonan lokal, dan durasi tampil kata diputus bersih begitu pembicara mengambil jeda napas (`>= 120ms`).
+2. **Pemindaian Video Panjang 60–120+ Menit Hemat RAM (`engine/transcriber-moments.js` & `engine/youtube-downloader.js`):** Untuk video di atas 40 menit, jembatan memilih aliran MP4 progresif hemat memori (`360p-fast` dengan potongan chunk `5 MB`) dan decoding audio berjalan per jendela kecil sehingga impor podcast `78,5 menit` hanya memakai `33,7 MB` JS Heap.
+3. **Pemisahan Deteksi Wajah MediaPipe dari Latar Hangat (`engine/face-tracker.js` & `wizard-controller.js`):** Ditemukan saat inspeksi visual bahwa latar dinding/meja studio berwarna kuning hangat pada frame B-roll dapat memicu heuristik 2 subjek; diperbaiki sehingga bila MediaPipe mendeteksi wajah manusia asli pada klip, keputusan **Podcast Split** vs **Fullscreen** dihitung murni dari rasio frame MediaPipe berwajah ganda (`>= 40%`), ditambah pemindaian otomatis saat pengguna membuka Langkah 3.

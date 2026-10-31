@@ -1,0 +1,12 @@
+PANDUAN PASANG JEMBATAN LINK YOUTUBE LOKAL — KLIP AUTO STUDIO (v2.1.0)
+=======================================================================
+
+Fungsi ekstensi pendamping ini:
+Membaca link YouTube (video, subtitle, dan grafik Most-Replayed) langsung memakai koneksi internet perangkatmu sendiri. Video tidak pernah melewati server kami maupun layanan pihak ketiga.
+
+Cara Pasang di Google Chrome / Microsoft Edge / Brave (Cukup Sekali, 15 Detik):
+1. Ekstrak folder `companion-extension` ini ke folder tetap di laptop kamu.
+2. Buka alamat `chrome://extensions` (di Chrome) atau `edge://extensions` (di Edge).
+3. Nyalakan sakelar "Mode pengembang" (Developer mode) di pojok kanan atas.
+4. Klik tombol "Muat yang belum dikemas" (Load unpacked), lalu pilih folder `companion-extension` ini.
+5. Segarkan (Refresh) tab Klip Auto Studio — status "Jembatan YouTube Lokal Aktif" akan menyala otomatis.

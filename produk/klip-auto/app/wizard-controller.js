@@ -1,141 +1,171 @@
 /**
- * Klip Auto Studio — Pengendali Utama Aplikasi Pembeli & Mesin Pemotong 9:16
- * Menggabungkan: Login Pembeli, Beranda Editorial, Wizard Pemotong 3 Langkah
- * (WebCodecs + MediaBunny + FaceTracker + Whisper/Gemini/SRT),
- * Pustaka 140 Koleksi Kreator, Riwayat Render, Favorit, Pengaturan & Tema Terang/Gelap.
+ * Klip Auto Studio v2.1 — Pengendali Utama Ruang Kerja Terotentikasi & Mesin Pemotong 9:16
+ * PENTING (Sesuai GUIDE-KLIP-AUTO.md):
+ * - TIDAK ADA kode lisensi, hash, maupun salt di dalam file ini (100% divalidasi oleh server).
+ * - Menyediakan Penyelaras Vokal Presisi 10ms (#vocal-sync-canvas + Whisper-Small ID/EN),
+ *   Skor Jujur 4 Sinyal Asli, Deteksi Otomatis 1 atau 2 Wajah (Fullscreen / Podcast Split / Cinema Blur / Gaming Split),
+ *   Judul Pembuka 3 Detik, Akselerasi GPU + Fallback CPU Otomatis, Isolasi Error Batch, & Dukungan Mandiri.
  */
 
 import { ALL_FORMATS, BlobSource, CanvasSink, Input } from './vendor/mediabunny.min.mjs';
-import { createSamplePodcastMp4, probeMediaFile } from './engine/audio-processor.js';
+import { renderDeviceCheckIntoContainer } from './auth-boot.js';
+import { CREATOR_CATEGORIES, CREATOR_LIBRARY_ITEMS } from './data/creator-library.js';
+import { craftCleanHookTitle, runAutonomousClipAgent } from './engine/ai-clip-agent.js';
+import {
+  createSamplePodcastMp4,
+  extractMonoAudio,
+  probeMediaFile
+} from './engine/audio-processor.js';
 import { CAPTION_PRESETS, drawClipFrame, groupWordsIntoPhrases } from './engine/caption-presets.js';
-import { buildFaceTrackForClip, sampleCameraCenterX } from './engine/face-tracker.js';
+import { assertSufficientDiskForRender, runDeviceReadinessCheck } from './engine/device-checker.js';
+import {
+  buildFaceTrackForClip,
+  resolveEffectiveFrameMode,
+  sampleCameraCenterX
+} from './engine/face-tracker.js';
+import {
+  APP_CLIENT_VERSION,
+  checkServerVersionInfo,
+  logoutLicenseSession,
+  releaseCurrentDevice,
+  sendSanitizedErrorReport
+} from './engine/license-client.js';
 import { renderClipToMp4 } from './engine/mp4-exporter.js';
 import {
   analyzePodcastWithGemini,
   buildWordsFromTextAndWindow,
+  lockEditedTextToClipVocal,
   pickMomentsFromWordsLocally,
   syncClipWordsWithWhisper,
   transcribeAndPickWithWhisperWeb
 } from './engine/transcriber-moments.js';
-import { runAutonomousClipAgent } from './engine/ai-clip-agent.js';
 import {
+  analyzeVocalEnvelope,
+  refineWhisperWordsWithVocal,
+  snapClipBoundsToBreathPause
+} from './engine/vocal-aligner.js';
+import {
+  detectCompanionBridge,
   downloadYoutubeAsMp4File,
-  fetchYoutubeVideoInfo,
-  formatBytesReadable,
-  saveYoutubeMp4ToDevice
+  fetchYoutubeVideoInfo
 } from './engine/youtube-downloader.js';
-import { CREATOR_CATEGORIES, CREATOR_LIBRARY_ITEMS } from './data/creator-library.js';
 
 const KEYS = {
-  USER: 'klip_auto_user_v1',
-  SETTINGS: 'klip_auto_settings_v1',
-  HISTORY: 'klip_auto_history_v1',
-  FAVORITES: 'klip_auto_favs_v1',
+  SETTINGS: 'klip_auto_settings_v2',
+  HISTORY: 'klip_auto_history_v2',
+  FAVORITES: 'klip_auto_favs_v2',
   GEMINI: 'klip_auto_gemini_key',
   THEME: 'klip_auto_theme_v2'
 };
 
-const LICENSE_SALT = 'nifari-lic-2026::';
-const CREATOR_MASTER_HASH = '1934419b428fd7cc0efb2496131e297396dc4050b597d024fe94091652033488';
-const DEV_AGENT_HASHES = new Set([
-  'bb24231af9658311908623605e7af829c6b160673df1997f405b2376c3cd8417',
-  'b5e9dd7f69b02c05c2ca57cdbca83e0a7e4550b91029e8a3ba7645c7eeb9bfc1',
-  'fe1ace26ec77203def76d45007177495416cdd51d804e7817eb698601734c621',
-  '00168dda418ed7b5316234853fabd15ea6371b137b98d4d9354bafa0ad453ea4',
-  'f75cfceddc6da61a7191e94d993253216972fc9329d9b5f89ec43a48623fa9e3'
-]);
-const CREATOR_MASTER_HASHES = new Set([CREATOR_MASTER_HASH, ...DEV_AGENT_HASHES]);
-const OFFICIAL_BUYER_HASH = '4a7bbc7ef6f92c8973ccfb2cdf5adc141b494a9a48cb3622d5511b04e8bc1e7b';
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DEFAULT_CAPTION_PLACEHOLDER =
-  'Ketik kalimat pembicara di sini atau gunakan fitur transkrip otomatis di Langkah 1.';
+  'Ketik kalimat pembicara di sini atau gunakan fitur transkrip Whisper-Small di Langkah 1.';
 
-/**
- * Verifikasi SHA-256 sinkron murni JS (UTF-8 -> hex 64 karakter) tanpa menyimpan kode asli di source.
- */
-function sha256Hex(inputStr) {
-  const bytes = new TextEncoder().encode(String(inputStr ?? ''));
-  const K = [
-    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
-    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
-    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
-    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
-    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
-    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
-    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
-    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
-  ];
-  let h0 = 0x6a09e667, h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a;
-  let h4 = 0x510e527f, h5 = 0x9b05688c, h6 = 0x1f83d9ab, h7 = 0x5be0cd19;
+const state = {
+  booted: false,
+  session: null,
+  user: null,
+  tier: 'inti',
+  tierLabel: 'Paket Inti',
+  features: {
+    extraPresets: false,
+    customWatermark: false,
+    descriptionHashtagGenerator: false,
+    gamingSplit: false,
+    multiVideoBatch: false
+  },
+  settings: {
+    creatorName: '',
+    defaultWatermark: '',
+    defaultPreset: 'kreator-kuning',
+    geminiKey: ''
+  },
+  history: [],
+  favorites: new Set(),
+  activeView: 'dashboard',
+  libCategory: 'Semua',
+  libNiche: 'Semua',
+  libQuery: '',
+  modalItem: null,
 
-  const bitLen = bytes.length * 8;
-  const totalLen = Math.ceil((bytes.length + 9) / 64) * 64;
-  const buf = new Uint8Array(totalLen);
-  buf.set(bytes);
-  buf[bytes.length] = 0x80;
-  const view = new DataView(buf.buffer);
-  view.setUint32(totalLen - 8, Math.floor(bitLen / 0x100000000), false);
-  view.setUint32(totalLen - 4, bitLen >>> 0, false);
+  // State Mesin Pemotong 9:16
+  file: null,
+  videoObjectUrl: null,
+  mediaInfo: null,
+  ytInfo: null,
+  ytAbortController: null,
+  ytHeatmap: null,
+  moments: [],
+  scoringMeta: null,
+  selectedMomentIndex: 0,
+  clipStartSec: 0,
+  clipEndSec: 15,
+  words: [],
+  captionOffsetSec: 0,
+  vocalEnvelope: null,
+  vocalClipSamples: null,
+  vocalAnalysisToken: 0,
 
-  const w = new Uint32Array(64);
-  const rotr = (x, n) => (x >>> n) | (x << (32 - n));
+  presetId: 'kreator-kuning',
+  frameMode: 'auto',
+  autoFaceCenter: true,
+  manualCenterXOffset: 0,
+  cameraTrack: null,
+  hookTitle: '',
+  hookStyle: 'white',
+  hookDurationSec: 3.0,
+  watermarkImage: null,
+  watermarkText: '',
+  watermarkPos: 'top-right',
+  resolution: '720p',
+  voiceBoost: true,
+  volumeGain: 1.0,
+  monoToStereo: true,
+  isPlayingPreview: false,
+  isPreviewMuted: false,
+  previewRafId: null,
+  previewWebAudioCtx: null,
+  previewWebAudioGain: null,
+  previewStaticInput: null,
+  previewStaticSink: null,
+  previewStaticBusy: false,
+  previewStaticPendingSec: null,
+  step2AudioEl: null,
+  step2AudioRafId: null,
+  renderAbortController: null,
+  lastRenderedObjectUrl: null,
 
-  for (let offset = 0; offset < totalLen; offset += 64) {
-    for (let i = 0; i < 16; i++) {
-      w[i] = view.getUint32(offset + i * 4, false);
-    }
-    for (let i = 16; i < 64; i++) {
-      const s0 = rotr(w[i - 15], 7) ^ rotr(w[i - 15], 18) ^ (w[i - 15] >>> 3);
-      const s1 = rotr(w[i - 2], 17) ^ rotr(w[i - 2], 19) ^ (w[i - 2] >>> 10);
-      w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
-    }
+  // Batch Klip Otomatis & Multi-Video
+  agentAutoRun: true,
+  agentClipCount: 3,
+  agentAbortController: null,
+  agentRenderedClips: [],
+  agentFailedClips: [],
+  multiVideoQueue: [],
 
-    let a = h0, b = h1, c = h2, d = h3, e = h4, f = h5, g = h6, h = h7;
-    for (let i = 0; i < 64; i++) {
-      const S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
-      const ch = (e & f) ^ (~e & g);
-      const temp1 = (h + S1 + ch + K[i] + w[i]) >>> 0;
-      const S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
-      const maj = (a & b) ^ (a & c) ^ (b & c);
-      const temp2 = (S0 + maj) >>> 0;
+  // Catatan Diagnostik (Tanpa Data Pribadi / Tanpa Nama File Pembeli)
+  diagnosticLogs: []
+};
 
-      h = g; g = f; f = e;
-      e = (d + temp1) >>> 0;
-      d = c; c = b; b = a;
-      a = (temp1 + temp2) >>> 0;
-    }
+const $ = (id) => document.getElementById(id);
 
-    h0 = (h0 + a) >>> 0; h1 = (h1 + b) >>> 0; h2 = (h2 + c) >>> 0; h3 = (h3 + d) >>> 0;
-    h4 = (h4 + e) >>> 0; h5 = (h5 + f) >>> 0; h6 = (h6 + g) >>> 0; h7 = (h7 + h) >>> 0;
+function recordDiagnostic(eventMsg) {
+  const stamp = new Date().toLocaleTimeString('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+  state.diagnosticLogs.push(`[${stamp}] ${String(eventMsg || '').slice(0, 260)}`);
+  if (state.diagnosticLogs.length > 40) {
+    state.diagnosticLogs.shift();
   }
-
-  return [h0, h1, h2, h3, h4, h5, h6, h7]
-    .map((v) => v.toString(16).padStart(8, '0'))
-    .join('');
 }
 
-function hashLicenseCode(rawCode) {
-  const normalized = String(rawCode ?? '').trim().toUpperCase();
-  if (!normalized) return '';
-  return sha256Hex(LICENSE_SALT + normalized);
-}
+/* ============================================================================
+ * 1. UTILITAS PENYIMPANAN LOKAL & TEMA
+ * ============================================================================ */
 
-function loadValidatedSession() {
-  const saved = loadJson(KEYS.USER, null);
-  if (
-    saved &&
-    typeof saved === 'object' &&
-    (CREATOR_MASTER_HASHES.has(saved.codeHash) || saved.codeHash === OFFICIAL_BUYER_HASH)
-  ) {
-    return saved;
-  }
-  try {
-    localStorage.removeItem(KEYS.USER);
-  } catch {}
-  return null;
-}
-
-function loadJson(key, fallback) {
+function readJson(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
     return raw ? JSON.parse(raw) : fallback;
@@ -144,11 +174,67 @@ function loadJson(key, fallback) {
   }
 }
 
-function saveJson(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
+function writeJson(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Abaikan bila mode privat penuh
+  }
 }
 
-function escHtml(str) {
+function showToast(msg) {
+  const t = $('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast._timer);
+  showToast._timer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+function showError(msg) {
+  recordDiagnostic(`Kendala UI: ${msg}`);
+  const el = $('global-error');
+  if (!el) return;
+  if (!msg) {
+    el.classList.remove('visible');
+    el.textContent = '';
+    return;
+  }
+  el.textContent = msg;
+  el.classList.add('visible');
+  try {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } catch {}
+}
+
+function setStatus(prefix, visible, text = '', percent = null) {
+  const bar = $(`${prefix}-status`);
+  const txt = $(`${prefix}-status-text`);
+  const fill = $(`${prefix}-progress-fill`);
+  if (!bar) return;
+  if (!visible) {
+    bar.classList.remove('visible');
+    return;
+  }
+  bar.classList.add('visible');
+  if (txt && text) txt.textContent = text;
+  if (fill && percent !== null) {
+    fill.style.width = `${Math.max(2, Math.min(100, percent))}%`;
+  }
+}
+
+function formatClock(sec) {
+  const s = Math.max(0, Math.floor(Number(sec) || 0));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const r = s % 60;
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+  }
+  return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+}
+
+function escapeHtml(str) {
   return String(str ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -156,631 +242,563 @@ function escHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-let toastTimer = null;
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  if (!t) return;
-  t.textContent = msg;
-  t.style.display = 'block';
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    t.style.display = 'none';
-  }, 2600);
+function applyTheme(theme) {
+  const next = theme === 'dark' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  try {
+    localStorage.setItem(KEYS.THEME, next);
+  } catch {}
+  const btn = $('theme-toggle');
+  if (btn) btn.textContent = next === 'dark' ? 'Mode Terang' : 'Mode Gelap';
+  drawVocalSyncTimeline();
 }
 
-/**
- * Parser ringan file subtitle .SRT atau .VTT menjadi urutan kata ber-timestamp
- */
-function parseSubtitleToWords(rawText, maxDurationSec = 3600) {
-  const cleaned = String(rawText || '').replace(/\r\n/g, '\n');
-  const blocks = cleaned.split(/\n\s*\n/);
-  const words = [];
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme') || 'light';
+  applyTheme(cur === 'dark' ? 'light' : 'dark');
+}
 
-  const parseTime = (ts) => {
-    const parts = ts.trim().replace(',', '.').split(':');
-    if (parts.length === 3) {
-      return Number(parts[0]) * 3600 + Number(parts[1]) * 60 + Number(parts[2]);
+/* ============================================================================
+ * 2. PEMBUKAAN RUANG STUDIO TEROTENTIKASI & PEMBATASAN PAKET (INTI / TAMBAHAN / PRO)
+ * ============================================================================ */
+
+function loadLocalPreferences() {
+  const savedSettings = readJson(KEYS.SETTINGS, null);
+  if (savedSettings && typeof savedSettings === 'object') {
+    state.settings = { ...state.settings, ...savedSettings };
+  }
+  const savedHistory = readJson(KEYS.HISTORY, []);
+  if (Array.isArray(savedHistory)) state.history = savedHistory;
+
+  const savedFavs = readJson(KEYS.FAVORITES, []);
+  if (Array.isArray(savedFavs)) state.favorites = new Set(savedFavs);
+
+  try {
+    const legacyGem = localStorage.getItem(KEYS.GEMINI);
+    if (legacyGem && !state.settings.geminiKey) {
+      state.settings.geminiKey = legacyGem;
     }
-    if (parts.length === 2) {
-      return Number(parts[0]) * 60 + Number(parts[1]);
+  } catch {}
+
+  state.presetId = state.settings.defaultPreset || 'kreator-kuning';
+  if (state.features.customWatermark && state.settings.defaultWatermark) {
+    state.watermarkText = state.settings.defaultWatermark;
+  } else {
+    state.watermarkText = '';
+  }
+}
+
+function applyPackageTierPermissions() {
+  const f = state.features || {};
+
+  // Badge sidebar & beranda
+  const sideBadge = $('sidebar-tier-badge');
+  if (sideBadge) {
+    sideBadge.textContent = `${state.tierLabel} · v${APP_CLIENT_VERSION}`;
+  }
+  const dashEyebrow = $('dash-package-eyebrow');
+  if (dashEyebrow) {
+    dashEyebrow.textContent = `${state.tierLabel} Aktif · Tanpa Kuota Klip`;
+  }
+
+  // Ringkasan lisensi & masa aktif offline di Pengaturan
+  const licSum = $('settings-license-summary');
+  if (licSum && state.session) {
+    const daysLeft = Math.max(
+      1,
+      Math.ceil(((state.session.leaseExpiresAt || Date.now()) - Date.now()) / (24 * 3600 * 1000))
+    );
+    const modeNote = state.session.offlineMode
+      ? `Mode Offline Aktif (sisa masa pakai offline ${daysLeft} hari)`
+      : `Terhubung & Tervalidasi Server (bisa dipakai offline hingga ${daysLeft} hari ke depan)`;
+    licSum.textContent = `Paket: ${state.tierLabel} · Perangkat: ${
+      state.session.deviceLabel || 'Laptop Ini'
+    } · ${modeNote}.`;
+  }
+
+  // Pita informasi offline / pembaruan versi
+  const verBanner = $('version-update-banner');
+  const verText = $('version-banner-text');
+  const verReloadBtn = $('btn-reload-version');
+  if (verBanner && verText) {
+    if (state.session?.offlineMode) {
+      const d = state.session.offlineDaysRemaining || 7;
+      verBanner.classList.add('visible');
+      verText.textContent = `Mode Offline Aktif — Klip Auto berjalan penuh tanpa internet (${d} hari tersisa sebelum verifikasi ulang). Pemrosesan link YouTube memerlukan internet; pilih file video lokal (.mp4/.mov/.mkv) untuk langsung memotong.`;
+      if (verReloadBtn) verReloadBtn.style.display = 'none';
+    } else if (window.__KLIP_SERVER_VERSION_INFO?.hasNewerVersion) {
+      verBanner.classList.add('visible');
+      verText.textContent = `Versi baru Klip Auto v${window.__KLIP_SERVER_VERSION_INFO.version} tersedia di server.`;
+      if (verReloadBtn) {
+        verReloadBtn.style.display = 'inline-flex';
+        verReloadBtn.onclick = () => window.location.reload();
+      }
+    } else {
+      verBanner.classList.remove('visible');
     }
-    return 0;
+  }
+
+  // Watermark Nama Sendiri / Logo (Paket Tambahan & Pro)
+  const wmText = $('watermark-text-input');
+  const wmPos = $('watermark-pos-select');
+  const wmFile = $('watermark-file-input');
+  const setDefWm = $('set-default-watermark');
+  if (!f.customWatermark) {
+    state.watermarkText = '';
+    state.watermarkImage = null;
+    if (wmText) {
+      wmText.value = '';
+      wmText.disabled = true;
+      wmText.placeholder = 'Tersedia di Paket Tambahan (Rp 49.000)';
+    }
+    if (wmPos) wmPos.disabled = true;
+    if (wmFile) wmFile.disabled = true;
+    if (setDefWm) {
+      setDefWm.value = '';
+      setDefWm.disabled = true;
+      setDefWm.placeholder = 'Tersedia di Paket Tambahan';
+    }
+  } else {
+    if (wmText) {
+      wmText.disabled = false;
+      wmText.value = state.watermarkText || '';
+    }
+    if (wmPos) wmPos.disabled = false;
+    if (wmFile) wmFile.disabled = false;
+    if (setDefWm) setDefWm.disabled = false;
+  }
+
+  // Generator Deskripsi & Hashtag (Paket Tambahan & Pro)
+  const descBtn = $('btn-generate-desc');
+  const descPill = $('desc-gen-tier-pill');
+  if (descPill) {
+    descPill.textContent = f.descriptionHashtagGenerator
+      ? 'Aktif di Paketmu'
+      : 'Khusus Paket Tambahan';
+    descPill.classList.toggle('lime', Boolean(f.descriptionHashtagGenerator));
+  }
+  if (descBtn) {
+    descBtn.textContent = f.descriptionHashtagGenerator
+      ? 'Buat Deskripsi & Hashtag'
+      : 'Tersedia di Paket Tambahan (Rp 49.000)';
+  }
+
+  // Gaming Split & Batch Multi-Video (Paket Pro)
+  const frameSelect = $('frame-mode-select');
+  if (frameSelect) {
+    const gamingOpt = frameSelect.querySelector('option[value="gaming-split"]');
+    if (gamingOpt) {
+      gamingOpt.disabled = !f.gamingSplit;
+      gamingOpt.textContent = f.gamingSplit
+        ? 'Gaming Split — Facecam Atas + Gameplay Bawah (Aktif)'
+        : 'Gaming Split — Facecam + Gameplay (Segera di Paket Pro)';
+    }
+  }
+
+  const multiBtn = $('btn-pick-multi-video');
+  const multiNote = $('pro-multivideo-note');
+  if (multiBtn) {
+    multiBtn.textContent = f.multiVideoBatch
+      ? 'Pilih Banyak Video Sekaligus'
+      : 'Segera di Paket Pro';
+  }
+  if (multiNote && !f.multiVideoBatch) {
+    multiNote.textContent =
+      'Fitur antrean banyak file video sekaligus tersedia pada Paket Pro. Gunakan pemotong 1 video panjang (hingga 120 menit) di atas.';
+  }
+}
+
+export async function bootStudioWithSession(session) {
+  state.session = session;
+  state.user = session?.user || { name: 'Kreator Studio', email: '' };
+  state.tier = session?.tier || 'inti';
+  state.tierLabel = session?.tierLabel || 'Paket Inti';
+  state.features = {
+    extraPresets: Boolean(session?.features?.extraPresets),
+    customWatermark: Boolean(session?.features?.customWatermark),
+    descriptionHashtagGenerator: Boolean(session?.features?.descriptionHashtagGenerator),
+    gamingSplit: Boolean(session?.features?.gamingSplit),
+    multiVideoBatch: Boolean(session?.features?.multiVideoBatch)
   };
 
-  for (const block of blocks) {
-    const lines = block.split('\n').map((l) => l.trim()).filter(Boolean);
-    const timeLineIdx = lines.findIndex((l) => l.includes('-->'));
-    if (timeLineIdx === -1) continue;
-
-    const [rawStart, rawEnd] = lines[timeLineIdx].split('-->');
-    const segStart = Math.max(0, Math.min(maxDurationSec, parseTime(rawStart)));
-    const segEnd = Math.max(segStart + 0.25, Math.min(maxDurationSec, parseTime(rawEnd.split(/\s+/)[0])));
-    const textContent = lines
-      .slice(timeLineIdx + 1)
-      .join(' ')
-      .replace(/<[^>]+>/g, '')
-      .trim();
-
-    if (!textContent) continue;
-    const chunkWords = buildWordsFromTextAndWindow(textContent, segStart, segEnd);
-    words.push(...chunkWords);
+  loadLocalPreferences();
+  if (!state.settings.creatorName && state.user?.name) {
+    state.settings.creatorName = state.user.name;
   }
 
-  return words;
+  // Pastikan preset tersimpan sesuai hak paket
+  const chosenPreset = CAPTION_PRESETS.find((p) => p.id === state.presetId);
+  if (chosenPreset?.tier === 'tambahan' && !state.features.extraPresets) {
+    state.presetId = 'kreator-kuning';
+  }
+
+  const loginScreen = $('login-screen');
+  const appLayout = $('app-layout');
+  if (loginScreen) loginScreen.classList.add('hidden');
+  if (appLayout) appLayout.classList.add('active');
+
+  if (!state.booted) {
+    state.booted = true;
+    setupNavigation();
+    setupSettingsAndSupport();
+    setupLibraryAndFavorites();
+    setupWizardControls();
+  }
+
+  applyPackageTierPermissions();
+  syncSettingsInputs();
+  renderPresetCards();
+  populateLibraryFilters();
+  refreshDashboardAndBadges();
+  refreshCompanionBridgeBadge();
+
+  checkServerVersionInfo().then((vInfo) => {
+    if (vInfo) {
+      window.__KLIP_SERVER_VERSION_INFO = vInfo;
+      applyPackageTierPermissions();
+    }
+  });
+
+  recordDiagnostic(`Studio aktif (${state.tierLabel}, v${APP_CLIENT_VERSION}).`);
 }
 
-const state = {
-  user: loadValidatedSession(),
-  settings: loadJson(KEYS.SETTINGS, {
-    creatorName: '',
-    defaultWatermark: '',
-    defaultPreset: 'kreator-kuning'
-  }),
-  history: loadJson(KEYS.HISTORY, []),
-  favorites: loadJson(KEYS.FAVORITES, []),
+/* ============================================================================
+ * 3. NAVIGASI MULTI-HALAMAN & BERANDA STUDIO
+ * ============================================================================ */
 
-  activeView: 'dashboard',
-  activeStep: 1,
-  libCategory: 'Semua Kategori',
-  libNiche: 'Semua',
-  libQuery: '',
-  modalItemId: null,
+function switchView(viewName) {
+  state.activeView = viewName;
+  document.querySelectorAll('.view-pane').forEach((pane) => {
+    pane.classList.toggle('active', pane.id === `view-${viewName}`);
+  });
+  document.querySelectorAll('.nav-item').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.view === viewName);
+  });
+  document.querySelectorAll('.mnav-btn').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.mview === viewName);
+  });
 
-  file: null,
-  videoObjectUrl: null,
-  resultObjectUrl: null,
-  mediaInfo: null,
-  moments: [],
-  selectedMomentId: null,
-  startSec: 0,
-  endSec: 15,
-  words: [],
-  phraseGroups: [],
-  transcriptManuallyEdited: false,
-  presetId: 'kreator-kuning',
-  frameMode: 'crop-fill',
-  autoFaceCenter: true,
-  manualOffset: 0,
-  previewCameraTrack: [{ time: 0, centerX: 0.5 }],
-  hookTitle: '',
-  hookStyle: 'white',
-  watermarkText: '',
-  watermarkPos: 'top-right',
-  watermarkImage: null,
-  resolution: '720p',
-  voiceBoost: true,
-  volumeGain: 1.0,
-  monoToStereo: true,
-  previewMuted: false,
-  ytInfo: null,
-  ytCachedDownload: null,
-  ytAbortController: null,
-  agentAutoRun: true,
-  agentClipCount: 3,
-  agentRunning: false,
-  agentAbortController: null,
-  agentRenderedClips: [],
-  agentLogs: [],
-  renderAbortController: null
-};
+  closeMobileSidebar();
 
-state.presetId = state.settings.defaultPreset || 'kreator-kuning';
-state.watermarkText = state.settings.defaultWatermark || '';
-
-// Elemen DOM
-const el = {
-  loginScreen: document.getElementById('login-screen'),
-  loginForm: document.getElementById('login-form'),
-  loginName: document.getElementById('login-name'),
-  loginEmail: document.getElementById('login-email'),
-  loginCode: document.getElementById('login-code'),
-  loginError: document.getElementById('login-error'),
-  btnDemoLogin: document.getElementById('btn-demo-login'),
-
-  appLayout: document.getElementById('app-layout'),
-  sidebar: document.getElementById('sidebar'),
-  sidebarOverlay: document.getElementById('sidebar-overlay'),
-  btnOpenSidebar: document.getElementById('btn-open-sidebar'),
-  btnLogout: document.getElementById('btn-logout'),
-  themeToggle: document.getElementById('theme-toggle'),
-  btnThemeMobile: document.getElementById('btn-theme-mobile'),
-
-  navItems: Array.from(document.querySelectorAll('.nav-item')),
-  mnavBtns: Array.from(document.querySelectorAll('.mnav-btn')),
-  views: {
-    dashboard: document.getElementById('view-dashboard'),
-    wizard: document.getElementById('view-wizard'),
-    library: document.getElementById('view-library'),
-    history: document.getElementById('view-history'),
-    favorites: document.getElementById('view-favorites'),
-    settings: document.getElementById('view-settings')
-  },
-
-  // Dashboard
-  dashGreeting: document.getElementById('dash-greeting'),
-  dashBtnOpenWizard: document.getElementById('dash-btn-open-wizard'),
-  dashBtnYoutube: document.getElementById('dash-btn-youtube'),
-  dashBtnQuickSample: document.getElementById('dash-btn-quick-sample'),
-  statRenderedCount: document.getElementById('stat-rendered-count'),
-  statMomentsCount: document.getElementById('stat-moments-count'),
-  statLibraryTotal: document.getElementById('stat-library-total'),
-  statFavCount: document.getElementById('stat-fav-count'),
-  navHistoryCount: document.getElementById('nav-history-count'),
-  navFavCount: document.getElementById('nav-fav-count'),
-  navLibCount: document.getElementById('nav-lib-count'),
-  dashRecentRenders: document.getElementById('dash-recent-renders'),
-  dashSeeAllHistory: document.getElementById('dash-see-all-history'),
-
-  // Wizard
-  wizTopSampleBtn: document.getElementById('wiz-top-sample-btn'),
-  stepTabs: Array.from(document.querySelectorAll('.step-tab')),
-  panels: {
-    1: document.getElementById('panel-step-1'),
-    2: document.getElementById('panel-step-2'),
-    3: document.getElementById('panel-step-3')
-  },
-  globalError: document.getElementById('global-error'),
-  ytUrlInput: document.getElementById('yt-url-input'),
-  btnYtFetch: document.getElementById('btn-yt-fetch'),
-  ytStatus: document.getElementById('yt-status'),
-  ytStatusText: document.getElementById('yt-status-text'),
-  ytProgressFill: document.getElementById('yt-progress-fill'),
-  ytPreviewCard: document.getElementById('yt-preview-card'),
-  ytThumb: document.getElementById('yt-thumb'),
-  ytDurationBadge: document.getElementById('yt-duration-badge'),
-  ytChannelPill: document.getElementById('yt-channel-pill'),
-  ytCaptionPill: document.getElementById('yt-caption-pill'),
-  ytTitle: document.getElementById('yt-title'),
-  ytQualitySelect: document.getElementById('yt-quality-select'),
-  btnYtImportStudio: document.getElementById('btn-yt-import-studio'),
-  btnYtDownloadMp4: document.getElementById('btn-yt-download-mp4'),
-  btnYtCancel: document.getElementById('btn-yt-cancel'),
-  ytPostDownloadHint: document.getElementById('yt-post-download-hint'),
-
-  aiAgentCard: document.getElementById('ai-agent-card'),
-  agentStatePill: document.getElementById('agent-state-pill'),
-  agentAutoRunCheckbox: document.getElementById('agent-auto-run-checkbox'),
-  agentClipCountSelect: document.getElementById('agent-clip-count-select'),
-  btnRunAiAgent: document.getElementById('btn-run-ai-agent'),
-  btnStopAiAgent: document.getElementById('btn-stop-ai-agent'),
-  agentTracker: document.getElementById('agent-tracker'),
-  agentStageChips: Array.from(document.querySelectorAll('.agent-stage-chip')),
-  agentStageTitle: document.getElementById('agent-stage-title'),
-  agentPctBadge: document.getElementById('agent-pct-badge'),
-  agentStageDetail: document.getElementById('agent-stage-detail'),
-  agentProgressFill: document.getElementById('agent-progress-fill'),
-  agentLogList: document.getElementById('agent-log-list'),
-  agentResultsWrap: document.getElementById('agent-results-wrap'),
-  agentResultsBadge: document.getElementById('agent-results-badge'),
-  agentResultsGrid: document.getElementById('agent-results-grid'),
-  btnDownloadAllAgent: document.getElementById('btn-download-all-agent'),
-
-  dropzone: document.getElementById('dropzone'),
-  fileInput: document.getElementById('video-file-input'),
-  btnPickFile: document.getElementById('btn-pick-file'),
-  btnLoadSample: document.getElementById('btn-load-sample'),
-  fileSummary: document.getElementById('file-summary'),
-  fileSummaryText: document.getElementById('file-summary-text'),
-  btnSkipToStep2: document.getElementById('btn-skip-to-step2'),
-  step1Status: document.getElementById('step1-status'),
-  step1StatusText: document.getElementById('step1-status-text'),
-  step1ProgressFill: document.getElementById('step1-progress-fill'),
-  geminiKeyInput: document.getElementById('gemini-key-input'),
-  btnAnalyzeGemini: document.getElementById('btn-analyze-gemini'),
-  btnAnalyzeWhisper: document.getElementById('btn-analyze-whisper'),
-  srtFileInput: document.getElementById('srt-file-input'),
-  btnPickSrt: document.getElementById('btn-pick-srt'),
-  btnCopyAiPrompt: document.getElementById('btn-copy-ai-prompt'),
-  btnCopyAiPromptStep2: document.getElementById('btn-copy-ai-prompt-step2'),
-
-  btnOpenHookPicker: document.getElementById('btn-open-hook-picker'),
-  momentsContainer: document.getElementById('moments-container'),
-  labelClipDuration: document.getElementById('label-clip-duration'),
-  clipStartInput: document.getElementById('clip-start-input'),
-  clipEndInput: document.getElementById('clip-end-input'),
-  sliderClipStart: document.getElementById('slider-clip-start'),
-  sliderClipEnd: document.getElementById('slider-clip-end'),
-  btnStep2PlayAudio: document.getElementById('btn-step2-play-audio'),
-  step2AudioTime: document.getElementById('step2-audio-time'),
-  clipTranscriptInput: document.getElementById('clip-transcript-input'),
-  step2Status: document.getElementById('step2-status'),
-  step2StatusText: document.getElementById('step2-status-text'),
-  step2ProgressFill: document.getElementById('step2-progress-fill'),
-  btnResyncWhisper: document.getElementById('btn-resync-whisper'),
-  btnGoStep3: document.getElementById('btn-go-step3'),
-
-  previewCanvas: document.getElementById('preview-canvas'),
-  hiddenVideo: document.getElementById('hidden-preview-video'),
-  btnTogglePlay: document.getElementById('btn-toggle-play'),
-  btnToggleMute: document.getElementById('btn-toggle-mute'),
-  previewTimeLabel: document.getElementById('preview-time-label'),
-  presetGrid: document.getElementById('preset-grid'),
-  frameModeSelect: document.getElementById('frame-mode-select'),
-  autoFaceCheckbox: document.getElementById('auto-face-checkbox'),
-  manualOffsetRange: document.getElementById('manual-offset-range'),
-  btnScanFacePreview: document.getElementById('btn-scan-face-preview'),
-  audioVolumeRange: document.getElementById('audio-volume-range'),
-  audioVolumeLabel: document.getElementById('audio-volume-label'),
-  voiceBoostCheckbox: document.getElementById('voice-boost-checkbox'),
-  monoStereoCheckbox: document.getElementById('mono-stereo-checkbox'),
-  hookTitleInput: document.getElementById('hook-title-input'),
-  hookStyleSelect: document.getElementById('hook-style-select'),
-  watermarkTextInput: document.getElementById('watermark-text-input'),
-  watermarkPosSelect: document.getElementById('watermark-pos-select'),
-  watermarkFileInput: document.getElementById('watermark-file-input'),
-  resolutionSelect: document.getElementById('resolution-select'),
-  btnRenderMp4: document.getElementById('btn-render-mp4'),
-  btnCancelRender: document.getElementById('btn-cancel-render'),
-  renderStatus: document.getElementById('render-status'),
-  renderStatusText: document.getElementById('render-status-text'),
-  renderProgressFill: document.getElementById('render-progress-fill'),
-  resultBox: document.getElementById('result-box'),
-  resultMeta: document.getElementById('result-meta'),
-  resultVideo: document.getElementById('result-video'),
-  btnDownloadMp4: document.getElementById('btn-download-mp4'),
-
-  // Library & Modal
-  libSearchInput: document.getElementById('lib-search-input'),
-  libNicheSelect: document.getElementById('lib-niche-select'),
-  libCatPills: document.getElementById('lib-cat-pills'),
-  libShowingBadge: document.getElementById('lib-showing-badge'),
-  libraryGrid: document.getElementById('library-grid'),
-  favoritesGrid: document.getElementById('favorites-grid'),
-  historyListContainer: document.getElementById('history-list-container'),
-  btnClearHistory: document.getElementById('btn-clear-history'),
-
-  libModal: document.getElementById('lib-modal'),
-  modalCategory: document.getElementById('modal-category'),
-  modalNiche: document.getElementById('modal-niche'),
-  modalTitle: document.getElementById('modal-title'),
-  modalExplanation: document.getElementById('modal-explanation'),
-  modalExample: document.getElementById('modal-example'),
-  modalTips: document.getElementById('modal-tips'),
-  modalBtnUseHook: document.getElementById('modal-btn-use-hook'),
-  modalBtnCopy: document.getElementById('modal-btn-copy'),
-  modalBtnFav: document.getElementById('modal-btn-fav'),
-  modalBtnClose: document.getElementById('modal-btn-close'),
-
-  // Settings
-  setCreatorName: document.getElementById('set-creator-name'),
-  setDefaultWatermark: document.getElementById('set-default-watermark'),
-  setDefaultPreset: document.getElementById('set-default-preset'),
-  setGeminiKey: document.getElementById('set-gemini-key'),
-  btnSaveSettings: document.getElementById('btn-save-settings'),
-  btnExportJson: document.getElementById('btn-export-json'),
-  btnImportJson: document.getElementById('btn-import-json'),
-  importJsonInput: document.getElementById('import-json-input')
-};
-
-const previewCtx = el.previewCanvas.getContext('2d');
-
-/* ================= SESI LOGIN & NAVIGASI STUDIO ================= */
-function syncAuthView() {
-  if (state.user) {
-    el.loginScreen.style.display = 'none';
-    el.appLayout.classList.add('active');
-    const displayName = state.settings.creatorName || state.user.name || 'Kreator';
-    el.dashGreeting.textContent = `Selamat berkarya, ${displayName}`;
-    el.watermarkTextInput.value = state.watermarkText;
-    refreshDashboardAndBadges();
-  } else {
-    el.loginScreen.style.display = 'flex';
-    el.appLayout.classList.remove('active');
+  if (viewName !== 'wizard') {
+    stopPreviewPlayback();
+    stopStep2AudioPreview();
   }
+  if (viewName === 'dashboard') refreshDashboardAndBadges();
+  if (viewName === 'library') renderLibraryGrid();
+  if (viewName === 'history') renderHistoryPage();
+  if (viewName === 'favorites') renderFavoritesPage();
+  if (viewName === 'settings') applyPackageTierPermissions();
+}
+
+function openMobileSidebar() {
+  $('sidebar')?.classList.add('open');
+  $('sidebar-overlay')?.classList.add('open');
 }
 
 function closeMobileSidebar() {
-  el.sidebar.classList.remove('open');
-  el.sidebarOverlay.classList.remove('open');
-}
-
-function switchView(viewName) {
-  if (!el.views[viewName]) return;
-  state.activeView = viewName;
-
-  for (const [k, pane] of Object.entries(el.views)) {
-    pane.classList.toggle('active', k === viewName);
-  }
-  for (const btn of el.navItems) {
-    btn.classList.toggle('active', btn.dataset.view === viewName);
-  }
-  for (const mbtn of el.mnavBtns) {
-    mbtn.classList.toggle('active', mbtn.dataset.mview === viewName);
-  }
-
-  if (viewName !== 'wizard') {
-    el.hiddenVideo.pause();
-    updatePlayButtonText();
-  }
-  if (viewName === 'library') renderLibraryGrid();
-  if (viewName === 'favorites') renderFavoritesGrid();
-  if (viewName === 'history') renderHistory();
-  if (viewName === 'settings') populateSettingsForm();
-  if (viewName === 'dashboard') refreshDashboardAndBadges();
-
-  closeMobileSidebar();
-  window.scrollTo(0, 0);
+  $('sidebar')?.classList.remove('open');
+  $('sidebar-overlay')?.classList.remove('open');
 }
 
 function refreshDashboardAndBadges() {
+  const displayName = state.settings.creatorName || state.user?.name || 'Kreator';
+  const greet = $('dash-greeting');
+  if (greet) greet.textContent = `Selamat berkarya, ${displayName}`;
+
+  const totalLib = CREATOR_LIBRARY_ITEMS.length;
+  const favCount = state.favorites.size;
   const histCount = state.history.length;
-  const favCount = state.favorites.length;
   const momCount = state.moments.length;
-  const libTotal = CREATOR_LIBRARY_ITEMS.length;
 
-  el.statRenderedCount.textContent = String(histCount);
-  el.statMomentsCount.textContent = String(momCount);
-  el.statLibraryTotal.textContent = String(libTotal);
-  el.statFavCount.textContent = String(favCount);
+  if ($('nav-lib-count')) $('nav-lib-count').textContent = String(totalLib);
+  if ($('nav-history-count')) $('nav-history-count').textContent = String(histCount);
+  if ($('nav-fav-count')) $('nav-fav-count').textContent = String(favCount);
 
-  el.navHistoryCount.textContent = String(histCount);
-  el.navFavCount.textContent = String(favCount);
-  el.navLibCount.textContent = String(libTotal);
+  if ($('stat-rendered-count')) $('stat-rendered-count').textContent = String(histCount);
+  if ($('stat-moments-count')) $('stat-moments-count').textContent = String(momCount);
+  if ($('stat-library-total')) $('stat-library-total').textContent = String(totalLib);
+  if ($('stat-fav-count')) $('stat-fav-count').textContent = String(favCount);
 
-  if (histCount === 0) {
-    el.dashRecentRenders.innerHTML = `
-      <div class="parchment-card" style="padding:20px;border-radius:18px;margin-bottom:0;">
-        <p class="muted-copy" style="font-size:14px;margin-bottom:12px;">
-          Belum ada klip MP4 yang dirender. Kamu bisa langsung mencoba memotong video contoh 2 pembicara dalam 1 klik.
+  const recentBox = $('dash-recent-renders');
+  if (!recentBox) return;
+
+  if (state.history.length === 0) {
+    recentBox.innerHTML = `
+      <div class="empty-state" style="padding:28px 18px;">
+        <p class="muted-copy" style="margin-bottom:14px;">
+          Belum ada klip MP4 yang dirender pada perangkat ini. Tempel link YouTube atau muat video contoh 2 pembicara untuk mencoba sekarang.
         </p>
-        <button type="button" class="btn btn-primary btn-sm" id="empty-recent-sample-btn">
-          Coba Potong Video Contoh Sekarang
+        <button type="button" class="btn btn-primary btn-sm" id="empty-try-sample-btn">
+          Coba Video Contoh 2 Pembicara
         </button>
       </div>
     `;
-    const quickBtn = document.getElementById('empty-recent-sample-btn');
-    if (quickBtn) {
-      quickBtn.addEventListener('click', () => triggerSampleVideoFromAnywhere());
-    }
-  } else {
-    el.dashRecentRenders.innerHTML = state.history
-      .slice(0, 3)
-      .map(
-        (h) => `
-        <div class="quick-step-row">
-          <div>
-            <strong>${escHtml(h.hookTitle || h.sourceName)}</strong>
-            <div class="muted-copy" style="font-size:12.5px;">
-              ${escHtml(h.resolution)} · ${h.durationSec} dtk · Preset ${escHtml(h.presetName)}
-            </div>
-          </div>
-          <span class="pill-tag">${escHtml(h.dateLabel)}</span>
-        </div>
-      `
-      )
-      .join('');
+    $('empty-try-sample-btn')?.addEventListener('click', () => {
+      switchView('wizard');
+      goToWizardStep(1);
+      handleLoadSampleVideo();
+    });
+    return;
   }
-}
 
-/* ================= TEMA & PREFERENSI ================= */
-function applyTheme(theme) {
-  document.documentElement.setAttribute('data-theme', theme);
-  localStorage.setItem(KEYS.THEME, theme);
-  el.themeToggle.textContent = theme === 'dark' ? 'Mode Terang' : 'Mode Gelap';
-}
-
-function initPreferences() {
-  const savedTheme = localStorage.getItem(KEYS.THEME) || 'light';
-  applyTheme(savedTheme);
-
-  const toggleFn = () => {
-    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-    applyTheme(next);
-  };
-  el.themeToggle.addEventListener('click', toggleFn);
-  el.btnThemeMobile.addEventListener('click', toggleFn);
-
-  const savedKey = localStorage.getItem(KEYS.GEMINI) || '';
-  el.geminiKeyInput.value = savedKey;
-  el.setGeminiKey.value = savedKey;
-
-  el.geminiKeyInput.addEventListener('input', () => {
-    const k = el.geminiKeyInput.value.trim();
-    localStorage.setItem(KEYS.GEMINI, k);
-    el.setGeminiKey.value = k;
-  });
-
-  // Isi opsi preset di halaman Pengaturan
-  el.setDefaultPreset.innerHTML = CAPTION_PRESETS.map(
-    (p) => `<option value="${escHtml(p.id)}">${escHtml(p.name)}</option>`
-  ).join('');
-}
-
-function populateSettingsForm() {
-  el.setCreatorName.value = state.settings.creatorName || (state.user?.name ?? '');
-  el.setDefaultWatermark.value = state.settings.defaultWatermark || '';
-  el.setDefaultPreset.value = state.settings.defaultPreset || 'kreator-kuning';
-  el.setGeminiKey.value = localStorage.getItem(KEYS.GEMINI) || '';
-}
-
-/* ================= PUSTAKA 140 KOLEKSI KREATOR ================= */
-function initLibraryControls() {
-  const niches = ['Semua', ...new Set(CREATOR_LIBRARY_ITEMS.map((i) => i.niche))];
-  el.libNicheSelect.innerHTML = niches
-    .map((n) => `<option value="${escHtml(n)}">${n === 'Semua' ? 'Semua Topik Kreator' : escHtml(n)}</option>`)
-    .join('');
-
-  renderCategoryPills();
-  renderLibraryGrid();
-}
-
-function renderCategoryPills() {
-  el.libCatPills.innerHTML = CREATOR_CATEGORIES.map(
-    (cat) => `
-      <button type="button" class="cat-pill-btn ${cat === state.libCategory ? 'active' : ''}" data-cat="${escHtml(cat)}">
-        ${escHtml(cat)}
-      </button>
+  recentBox.innerHTML = state.history
+    .slice(0, 4)
+    .map(
+      (h) => `
+      <div class="history-row" style="padding:14px 16px;margin-bottom:10px;">
+        <div>
+          <strong style="font-size:15px;display:block;">${escapeHtml(h.hookTitle || h.sourceName)}</strong>
+          <span class="muted-copy" style="font-size:12.5px;">
+            ${escapeHtml(h.presetName)} · ${escapeHtml(h.resolution)} · ${escapeHtml(h.durationLabel)} · ${escapeHtml(h.dateLabel)}
+          </span>
+        </div>
+        <span class="pill-tag lime">MP4 9:16</span>
+      </div>
     `
-  ).join('');
+    )
+    .join('');
+}
 
-  for (const btn of el.libCatPills.querySelectorAll('.cat-pill-btn')) {
-    btn.addEventListener('click', () => {
-      state.libCategory = btn.dataset.cat;
-      renderCategoryPills();
-      renderLibraryGrid();
+/* ============================================================================
+ * 4. PUSTAKA 140 KOLEKSI KREATOR & FAVORIT
+ * ============================================================================ */
+
+function populateLibraryFilters() {
+  const nicheSelect = $('lib-niche-select');
+  if (nicheSelect && nicheSelect.options.length <= 1) {
+    const niches = Array.from(new Set(CREATOR_LIBRARY_ITEMS.map((i) => i.niche))).sort();
+    niches.forEach((n) => {
+      const opt = document.createElement('option');
+      opt.value = n;
+      opt.textContent = n;
+      nicheSelect.appendChild(opt);
     });
   }
+
+  const pillsBar = $('lib-cat-pills');
+  if (!pillsBar) return;
+  pillsBar.innerHTML = '';
+
+  CREATOR_CATEGORIES.forEach((cat) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `cat-pill ${state.libCategory === cat ? 'active' : ''}`;
+    const count =
+      cat === 'Semua'
+        ? CREATOR_LIBRARY_ITEMS.length
+        : CREATOR_LIBRARY_ITEMS.filter((i) => i.category === cat).length;
+    btn.textContent = `${cat} (${count})`;
+    btn.addEventListener('click', () => {
+      state.libCategory = cat;
+      populateLibraryFilters();
+      renderLibraryGrid();
+    });
+    pillsBar.appendChild(btn);
+  });
 }
 
 function getFilteredLibraryItems() {
   const q = state.libQuery.trim().toLowerCase();
   return CREATOR_LIBRARY_ITEMS.filter((item) => {
-    if (state.libCategory !== 'Semua Kategori' && item.category !== state.libCategory) return false;
+    if (state.libCategory !== 'Semua' && item.category !== state.libCategory) return false;
     if (state.libNiche !== 'Semua' && item.niche !== state.libNiche) return false;
     if (!q) return true;
-    return (
-      item.title.toLowerCase().includes(q) ||
-      item.hook.toLowerCase().includes(q) ||
-      item.summary.toLowerCase().includes(q) ||
-      item.niche.toLowerCase().includes(q)
-    );
+    const hay = `${item.title} ${item.category} ${item.niche} ${item.explanation} ${item.example}`.toLowerCase();
+    return hay.includes(q);
   });
 }
 
-function buildLibCardHtml(item) {
-  const isFav = state.favorites.includes(item.id);
+function createLibraryCardHtml(item) {
+  const isFav = state.favorites.has(item.id);
   return `
-    <article class="lib-card">
-      <div>
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-          <span class="pill-tag">${escHtml(item.category)}</span>
-          <span class="eyebrow" style="font-size:10px;">${escHtml(item.niche)}</span>
-        </div>
-        <h3>${escHtml(item.title)}</h3>
-        <p class="muted-copy" style="font-size:13.5px;">${escHtml(item.summary)}</p>
+    <article class="lib-card" data-item-id="${escapeHtml(item.id)}">
+      <div class="lib-card-top">
+        <span class="pill-tag">${escapeHtml(item.category)}</span>
+        <span class="muted-copy" style="font-size:12px;">${escapeHtml(item.niche)}</span>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding-top:10px;border-top:1px solid var(--color-ash);">
-        <span style="font-size:12px;color:var(--color-graphite);">${isFav ? 'Tersimpan di Favorit' : 'Siap pakai'}</span>
-        <button type="button" class="underline-link btn-open-detail" data-id="${escHtml(item.id)}">
-          Lihat Detail
+      <h3>${escapeHtml(item.title)}</h3>
+      <p>${escapeHtml(item.explanation)}</p>
+      <div class="lib-example-snippet">${escapeHtml(item.example)}</div>
+      <div class="lib-card-actions">
+        <button type="button" class="btn btn-secondary btn-sm" data-open-detail="${escapeHtml(item.id)}">
+          Detail &amp; Pakai
         </button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button type="button" class="underline-link" data-use-hook="${escapeHtml(item.id)}">
+            Pasang Judul
+          </button>
+          <button type="button" class="btn btn-ghost btn-sm" data-toggle-fav="${escapeHtml(item.id)}" aria-label="Favorit">
+            ${isFav ? 'Tersimpan' : 'Simpan'}
+          </button>
+        </div>
       </div>
     </article>
   `;
 }
 
-function bindCardDetailButtons(container) {
-  for (const btn of container.querySelectorAll('.btn-open-detail')) {
-    btn.addEventListener('click', () => openLibraryModal(btn.dataset.id));
-  }
-}
-
 function renderLibraryGrid() {
+  const grid = $('library-grid');
+  if (!grid) return;
   const items = getFilteredLibraryItems();
-  el.libShowingBadge.textContent = `${items.length} Koleksi`;
+  const badge = $('lib-showing-badge');
+  if (badge) badge.textContent = `${items.length} Koleksi`;
+
   if (items.length === 0) {
-    el.libraryGrid.innerHTML = `
-      <div class="parchment-card" style="grid-column:1 / -1;">
-        <p class="muted-copy">Tidak ditemukan koleksi untuk kata kunci tersebut. Coba pilih Semua Kategori.</p>
+    grid.innerHTML = `
+      <div class="empty-state" style="grid-column:1/-1;">
+        <p class="muted-copy">Tidak ada koleksi yang cocok dengan pencarian tersebut.</p>
       </div>
     `;
     return;
   }
-  el.libraryGrid.innerHTML = items.map(buildLibCardHtml).join('');
-  bindCardDetailButtons(el.libraryGrid);
+  grid.innerHTML = items.map(createLibraryCardHtml).join('');
+  bindLibraryCardButtons(grid);
 }
 
-function renderFavoritesGrid() {
-  const favItems = CREATOR_LIBRARY_ITEMS.filter((i) => state.favorites.includes(i.id));
+function renderFavoritesPage() {
+  const grid = $('favorites-grid');
+  if (!grid) return;
+  const favItems = CREATOR_LIBRARY_ITEMS.filter((i) => state.favorites.has(i.id));
   if (favItems.length === 0) {
-    el.favoritesGrid.innerHTML = `
-      <div class="parchment-card" style="grid-column:1 / -1;">
-        <p class="muted-copy" style="margin-bottom:12px;">Belum ada item yang disimpan ke Favorit.</p>
-        <button type="button" class="btn btn-primary btn-sm" id="fav-go-lib-btn">Jelajahi 140 Pustaka Kreator</button>
+    grid.innerHTML = `
+      <div class="empty-state" style="grid-column:1/-1;">
+        <h3 class="card-subheading" style="margin-bottom:6px;">Belum Ada Koleksi Favorit</h3>
+        <p class="muted-copy" style="margin-bottom:14px;">
+          Tandai judul pembuka, pola kalimat, atau prompt dari Pustaka Kreator agar mudah dipasang saat memotong klip.
+        </p>
+        <button type="button" class="btn btn-primary btn-sm" id="fav-go-lib-btn">Buka Pustaka 140 Koleksi</button>
       </div>
     `;
-    document.getElementById('fav-go-lib-btn')?.addEventListener('click', () => switchView('library'));
+    $('fav-go-lib-btn')?.addEventListener('click', () => switchView('library'));
     return;
   }
-  el.favoritesGrid.innerHTML = favItems.map(buildLibCardHtml).join('');
-  bindCardDetailButtons(el.favoritesGrid);
+  grid.innerHTML = favItems.map(createLibraryCardHtml).join('');
+  bindLibraryCardButtons(grid);
+}
+
+function bindLibraryCardButtons(container) {
+  container.querySelectorAll('[data-open-detail]').forEach((btn) => {
+    btn.addEventListener('click', () => openLibraryModal(btn.dataset.openDetail));
+  });
+  container.querySelectorAll('[data-use-hook]').forEach((btn) => {
+    btn.addEventListener('click', () => applyItemAsHook(btn.dataset.useHook));
+  });
+  container.querySelectorAll('[data-toggle-fav]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      toggleFavoriteItem(btn.dataset.toggleFav);
+      if (state.activeView === 'library') renderLibraryGrid();
+      if (state.activeView === 'favorites') renderFavoritesPage();
+    });
+  });
+}
+
+function toggleFavoriteItem(itemId) {
+  if (state.favorites.has(itemId)) {
+    state.favorites.delete(itemId);
+    showToast('Dihapus dari Koleksi Favorit');
+  } else {
+    state.favorites.add(itemId);
+    showToast('Disimpan ke Koleksi Favorit');
+  }
+  writeJson(KEYS.FAVORITES, Array.from(state.favorites));
+  refreshDashboardAndBadges();
 }
 
 function openLibraryModal(itemId) {
   const item = CREATOR_LIBRARY_ITEMS.find((i) => i.id === itemId);
   if (!item) return;
-  state.modalItemId = item.id;
-
-  el.modalCategory.textContent = item.category;
-  el.modalNiche.textContent = item.niche;
-  el.modalTitle.textContent = item.title;
-  el.modalExplanation.textContent = item.explanation;
-  el.modalExample.textContent = item.example;
-  el.modalTips.textContent = item.tips;
-
-  const isFav = state.favorites.includes(item.id);
-  el.modalBtnFav.textContent = isFav ? 'Hapus dari Favorit' : 'Simpan Favorit';
-  el.libModal.classList.add('open');
+  state.modalItem = item;
+  $('modal-category').textContent = item.category;
+  $('modal-niche').textContent = item.niche;
+  $('modal-title').textContent = item.title;
+  $('modal-explanation').textContent = item.explanation;
+  $('modal-example').textContent = item.example;
+  $('modal-tips').textContent = item.tips;
+  $('modal-btn-fav').textContent = state.favorites.has(item.id) ? 'Hapus Favorit' : 'Simpan Favorit';
+  $('lib-modal')?.classList.add('open');
 }
 
 function closeLibraryModal() {
-  el.libModal.classList.remove('open');
-  state.modalItemId = null;
+  $('lib-modal')?.classList.remove('open');
+  state.modalItem = null;
 }
 
-/* ================= RIWAYAT RENDER ================= */
-function recordRenderedHistory(meta) {
-  const now = new Date();
-  const bulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-  const entry = {
-    id: `render-${Date.now()}`,
-    sourceName: state.file?.name || 'video-klip.mp4',
-    hookTitle: state.hookTitle || `Klip ${formatDuration(state.startSec)}–${formatDuration(state.endSec)}`,
-    startSec: state.startSec,
-    endSec: state.endSec,
-    durationSec: meta.durationSec.toFixed(1),
-    resolution: `${meta.width}×${meta.height}`,
-    presetId: state.presetId,
-    presetName: CAPTION_PRESETS.find((p) => p.id === state.presetId)?.name || state.presetId,
-    sizeMb: (meta.sizeBytes / (1024 * 1024)).toFixed(2),
-    dateLabel: `${now.getDate()} ${bulan[now.getMonth()]} ${now.getFullYear()}`
-  };
-
-  const existingIdx = state.history.findIndex(
-    (h) =>
-      h.sourceName === entry.sourceName &&
-      Math.abs(h.startSec - entry.startSec) < 0.2 &&
-      Math.abs(h.endSec - entry.endSec) < 0.2
-  );
-  if (existingIdx >= 0) {
-    state.history[existingIdx] = entry;
+function applyItemAsHook(itemId) {
+  const item = CREATOR_LIBRARY_ITEMS.find((i) => i.id === itemId);
+  if (!item) return;
+  const cleanedHook = item.example.replace(/^["']|["']$/g, '').slice(0, 68);
+  state.hookTitle = cleanedHook;
+  if ($('hook-title-input')) $('hook-title-input').value = cleanedHook;
+  closeLibraryModal();
+  switchView('wizard');
+  if (state.file) {
+    goToWizardStep(3);
+    renderStaticPreviewFrame(state.clipStartSec);
   } else {
-    state.history.unshift(entry);
+    goToWizardStep(1);
   }
-  saveJson(KEYS.HISTORY, state.history);
+  showToast('Judul pembuka dipasang ke Studio Pemotong');
+}
+
+/* ============================================================================
+ * 5. RIWAYAT RENDER, PENGATURAN, PINDAH PERANGKAT, & LAPORAN ERROR
+ * ============================================================================ */
+
+function addRenderHistoryEntry({ hookTitle, sourceName, presetId, resolution, durationSec, sizeMb }) {
+  const presetObj = CAPTION_PRESETS.find((p) => p.id === presetId) || CAPTION_PRESETS[0];
+  const entry = {
+    id: `hist-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    hookTitle: hookTitle || sourceName || 'Klip Vertikal 9:16',
+    sourceName: sourceName || 'video.mp4',
+    presetName: presetObj.name,
+    resolution,
+    durationLabel: `${durationSec.toFixed(1)} dtk · ${sizeMb} MB`,
+    dateLabel: new Date().toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  };
+  state.history.unshift(entry);
+  state.history = state.history.slice(0, 60);
+  writeJson(KEYS.HISTORY, state.history);
   refreshDashboardAndBadges();
 }
 
-function renderHistory() {
+function renderHistoryPage() {
+  const box = $('history-list-container');
+  if (!box) return;
   if (state.history.length === 0) {
-    el.historyListContainer.innerHTML = `
-      <div class="parchment-card">
-        <p class="muted-copy" style="margin-bottom:14px;">Belum ada riwayat render klip MP4 pada perangkat ini.</p>
-        <button type="button" class="btn btn-primary btn-sm" id="hist-start-wiz-btn">Mulai Buat Klip Pertama</button>
+    box.innerHTML = `
+      <div class="empty-state">
+        <h3 class="card-subheading" style="margin-bottom:6px;">Belum Ada Riwayat Ekspor MP4</h3>
+        <p class="muted-copy" style="margin-bottom:14px;">
+          Setiap klip MP4 9:16 yang selesai kamu buat akan tercatat rapi di halaman ini.
+        </p>
+        <button type="button" class="btn btn-primary btn-sm" id="hist-go-wiz">Mulai Potong Video</button>
       </div>
     `;
-    document.getElementById('hist-start-wiz-btn')?.addEventListener('click', () => switchView('wizard'));
+    $('hist-go-wiz')?.addEventListener('click', () => switchView('wizard'));
     return;
   }
 
-  el.historyListContainer.innerHTML = state.history
+  box.innerHTML = state.history
     .map(
       (h) => `
-      <div class="parchment-card" style="padding:22px 24px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;">
+      <div class="history-row">
         <div>
-          <span class="pill-tag lime" style="margin-bottom:8px;">${escHtml(h.resolution)} · ${escHtml(h.sizeMb)} MB</span>
-          <h3 class="card-subheading">${escHtml(h.hookTitle)}</h3>
-          <p class="muted-copy" style="font-size:13.5px;margin-top:4px;">
-            Sumber: ${escHtml(h.sourceName)} · Rentang ${formatDuration(h.startSec)} – ${formatDuration(h.endSec)} (${escHtml(h.durationSec)} dtk) · Preset ${escHtml(h.presetName)}
+          <span class="pill-tag lime" style="margin-bottom:6px;">${escapeHtml(h.presetName)}</span>
+          <h3 class="card-subheading" style="font-size:17px;">${escapeHtml(h.hookTitle)}</h3>
+          <p class="muted-copy" style="font-size:13.5px;margin-top:2px;">
+            Sumber: ${escapeHtml(h.sourceName)} · Output ${escapeHtml(h.resolution)} (${escapeHtml(h.durationLabel)})
           </p>
         </div>
-        <div class="btn-row">
-          <span class="pill-tag">${escHtml(h.dateLabel)}</span>
-          <button type="button" class="btn btn-secondary btn-sm btn-apply-hist" data-id="${escHtml(h.id)}">
-            Pakai Setelan Ini
-          </button>
-          <button type="button" class="btn btn-ghost btn-sm btn-del-hist" data-id="${escHtml(h.id)}">
-            Hapus
+        <div style="text-align:right;">
+          <div style="font-size:13px;color:var(--color-graphite);">${escapeHtml(h.dateLabel)}</div>
+          <button type="button" class="underline-link" data-reuse-hook="${escapeHtml(h.hookTitle)}" style="margin-top:6px;">
+            Pakai Judul Lagi
           </button>
         </div>
       </div>
@@ -788,1578 +806,2233 @@ function renderHistory() {
     )
     .join('');
 
-  for (const btn of el.historyListContainer.querySelectorAll('.btn-apply-hist')) {
+  box.querySelectorAll('[data-reuse-hook]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const h = state.history.find((x) => x.id === btn.dataset.id);
-      if (!h) return;
-      state.hookTitle = h.hookTitle;
-      state.presetId = h.presetId;
-      el.hookTitleInput.value = h.hookTitle;
-      renderPresetButtons();
+      state.hookTitle = btn.dataset.reuseHook || '';
+      if ($('hook-title-input')) $('hook-title-input').value = state.hookTitle;
       switchView('wizard');
-      if (!state.file) {
-        switchStep(1);
-        const guideMsg = `Setelan judul & gaya caption "${h.presetName}" sudah disiapkan! Sekarang pilih atau muat videomu dulu di Langkah 1 ya.`;
-        showError(guideMsg);
-        showToast(guideMsg);
-        return;
-      }
-      switchStep(3);
-      renderPreviewOnce();
-      showToast('Judul hook & preset caption diterapkan ke Studio!');
+      showToast('Judul pembuka dipasang ke Wizard');
     });
-  }
-
-  for (const btn of el.historyListContainer.querySelectorAll('.btn-del-hist')) {
-    btn.addEventListener('click', () => {
-      const targetId = btn.dataset.id;
-      state.history = state.history.filter((x) => x.id !== targetId);
-      saveJson(KEYS.HISTORY, state.history);
-      renderHistory();
-      refreshDashboardAndBadges();
-      showToast('Item riwayat berhasil dihapus.');
-    });
-  }
-}
-
-/* ================= MESIN INTI WIZARD 3 LANGKAH ================= */
-function showError(msg) {
-  if (!msg) {
-    el.globalError.style.display = 'none';
-    el.globalError.textContent = '';
-    return;
-  }
-  el.globalError.textContent = msg;
-  el.globalError.style.display = 'block';
-}
-
-function setStatusBar(boxEl, textEl, fillEl, visible, text = '', pct = 0) {
-  boxEl.style.display = visible ? 'block' : 'none';
-  if (visible) {
-    textEl.textContent = text;
-    fillEl.style.width = `${Math.max(0, Math.min(100, pct))}%`;
-  }
-}
-
-function formatDuration(sec) {
-  const s = Math.max(0, Math.floor(sec));
-  const m = Math.floor(s / 60);
-  const rem = s % 60;
-  return `${String(m).padStart(2, '0')}:${String(rem).padStart(2, '0')}`;
-}
-
-function updateClipDurationBadge() {
-  const dur = Math.max(0.5, state.endSec - state.startSec);
-  el.labelClipDuration.textContent = `Durasi Klip: ${dur.toFixed(1)} dtk`;
-}
-
-function switchStep(stepNum) {
-  showError('');
-  if (stepNum > 1 && !state.file) {
-    showError('Pilih atau muat video dulu di Langkah 1 ya.');
-    showToast('Pilih atau muat video dulu di Langkah 1 ya.');
-    return;
-  }
-  state.activeStep = stepNum;
-  for (const tab of el.stepTabs) {
-    const s = Number(tab.dataset.step);
-    tab.classList.toggle('active', s === stepNum);
-  }
-  for (const [k, panel] of Object.entries(el.panels)) {
-    panel.classList.toggle('active', Number(k) === stepNum);
-  }
-  el.hiddenVideo.pause();
-  updatePlayButtonText();
-  if (stepNum === 3) {
-    syncPreviewToStart();
-    renderPreviewOnce();
-  }
-}
-
-function renderPresetButtons() {
-  el.presetGrid.innerHTML = '';
-  for (const p of CAPTION_PRESETS) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = `preset-btn ${p.id === state.presetId ? 'active' : ''}`;
-    btn.dataset.presetId = p.id;
-    btn.innerHTML = `<strong>${escHtml(p.name)}</strong><span>${escHtml(p.desc)}</span>`;
-    btn.addEventListener('click', () => {
-      state.presetId = p.id;
-      for (const b of el.presetGrid.querySelectorAll('.preset-btn')) {
-        b.classList.toggle('active', b.dataset.presetId === p.id);
-      }
-      renderPreviewOnce();
-    });
-    el.presetGrid.appendChild(btn);
-  }
-}
-
-function rebuildPhrases() {
-  const active = (state.words || []).filter((w) => w.end >= state.startSec && w.start <= state.endSec);
-  state.phraseGroups = groupWordsIntoPhrases(active, 4);
-}
-
-function renderMomentsCards() {
-  el.momentsContainer.innerHTML = '';
-  if (!state.moments || state.moments.length === 0) {
-    return;
-  }
-
-  for (const m of state.moments) {
-    const card = document.createElement('div');
-    card.className = `moment-card ${m.id === state.selectedMomentId ? 'selected' : ''}`;
-    card.innerHTML = `
-      <div class="moment-top">
-        <span class="score-pill">Skor ${m.score}/100</span>
-        <span class="time-pill">${formatDuration(m.startSec)} – ${formatDuration(m.endSec)}</span>
-      </div>
-      <h4>${escHtml(m.title)}</h4>
-      <p>${escHtml(m.reason)}</p>
-    `;
-    card.addEventListener('click', () => applyMomentSelection(m));
-    el.momentsContainer.appendChild(card);
-  }
-}
-
-function syncStartEndInputsAndSliders() {
-  el.clipStartInput.value = state.startSec.toFixed(1);
-  el.clipEndInput.value = state.endSec.toFixed(1);
-  el.sliderClipStart.value = String(state.startSec);
-  el.sliderClipEnd.value = String(state.endSec);
-  updateClipDurationBadge();
-}
-
-function applyMomentSelection(moment) {
-  state.selectedMomentId = moment.id;
-  state.startSec = moment.startSec;
-  state.endSec = moment.endSec;
-  state.hookTitle = moment.title || '';
-  state.transcriptManuallyEdited = false;
-  state.previewCameraTrack = [{ time: moment.startSec, centerX: 0.5 }];
-  if (el.btnScanFacePreview) {
-    el.btnScanFacePreview.textContent = 'Pindai Posisi Wajah untuk Preview';
-  }
-  state.words = Array.isArray(moment.words) && moment.words.length > 0
-    ? moment.words.map((w) => ({ ...w }))
-    : buildWordsFromTextAndWindow(moment.transcript || '', moment.startSec, moment.endSec);
-
-  syncStartEndInputsAndSliders();
-  el.clipTranscriptInput.value = moment.transcript || state.words.map((w) => w.word).join(' ');
-  el.hookTitleInput.value = state.hookTitle;
-
-  rebuildPhrases();
-  renderMomentsCards();
-}
-
-function revokeAgentRenderedClips() {
-  if (Array.isArray(state.agentRenderedClips)) {
-    for (const c of state.agentRenderedClips) {
-      if (c?.objectUrl) {
-        try {
-          URL.revokeObjectURL(c.objectUrl);
-        } catch {}
-      }
-    }
-  }
-  state.agentRenderedClips = [];
-  if (el.agentResultsGrid) el.agentResultsGrid.innerHTML = '';
-  el.agentResultsWrap?.classList.remove('visible');
-}
-
-function updateAgentStageUi(stageIndex, title, detail, percent) {
-  el.agentTracker?.classList.add('visible');
-  for (const chip of el.agentStageChips) {
-    const idx = Number(chip.dataset.agentStage);
-    chip.classList.toggle('done', idx < stageIndex);
-    chip.classList.toggle('active', idx === stageIndex);
-  }
-  if (el.agentStageTitle) el.agentStageTitle.textContent = title;
-  if (el.agentStageDetail) el.agentStageDetail.textContent = detail;
-  const clamped = Math.max(0, Math.min(100, Math.round(percent || 0)));
-  if (el.agentPctBadge) el.agentPctBadge.textContent = `${clamped}%`;
-  if (el.agentProgressFill) el.agentProgressFill.style.width = `${clamped}%`;
-}
-
-function appendAgentLog(text) {
-  state.agentLogs.push(text);
-  if (state.agentLogs.length > 10) {
-    state.agentLogs = state.agentLogs.slice(-10);
-  }
-  if (!el.agentLogList) return;
-  el.agentLogList.innerHTML = state.agentLogs
-    .map(
-      (line) => `
-      <div class="agent-log-line">
-        <span class="agent-log-dot">&rsaquo;</span>
-        <span>${escHtml(line)}</span>
-      </div>
-    `
-    )
-    .join('');
-}
-
-function appendAgentClipCard(clip, totalExpected) {
-  if (!el.agentResultsGrid || !el.agentResultsWrap) return;
-  el.agentResultsWrap.classList.add('visible');
-  if (el.agentResultsBadge) {
-    el.agentResultsBadge.textContent = `Hasil AI Agent: ${state.agentRenderedClips.length}/${totalExpected} Klip Selesai`;
-  }
-
-  const sizeMb = (clip.sizeBytes / (1024 * 1024)).toFixed(2);
-  const card = document.createElement('article');
-  card.className = 'agent-clip-card';
-  card.innerHTML = `
-    <div>
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
-        <span class="pill-tag lime">Klip #${clip.index} · Skor ${clip.score}/100</span>
-        <span class="pill-tag">${formatDuration(clip.startSec)} – ${formatDuration(clip.endSec)}</span>
-      </div>
-      <h4>${escHtml(clip.hookTitle)}</h4>
-      <p class="muted-copy" style="font-size:12.5px;margin:4px 0 10px;">
-        ${clip.width}×${clip.height} (9:16) · ${clip.durationSec.toFixed(1)} dtk · ${sizeMb} MB · Suara 48 kHz
-      </p>
-      <video src="${clip.objectUrl}" controls playsinline preload="metadata"></video>
-    </div>
-    <div class="btn-row">
-      <a class="btn btn-primary btn-sm" href="${clip.objectUrl}" download="${escHtml(clip.fileName)}" style="flex:1;">
-        Simpan Klip MP4
-      </a>
-      <button type="button" class="btn btn-secondary btn-sm btn-edit-agent-clip" data-clip-id="${escHtml(clip.id)}">
-        Edit di Studio
-      </button>
-    </div>
-  `;
-
-  card.querySelector('.btn-edit-agent-clip')?.addEventListener('click', () => {
-    applyMomentSelection(clip.moment);
-    if (Array.isArray(clip.cameraTrack) && clip.cameraTrack.length > 0) {
-      state.previewCameraTrack = clip.cameraTrack;
-    }
-    switchStep(3);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    showToast(`Klip #${clip.index} dibuka di Studio 9:16!`);
   });
-
-  el.agentResultsGrid.appendChild(card);
 }
 
-async function startAiClipAgent(prebuiltMoments = null) {
-  if (!state.file || !state.mediaInfo) {
-    showError('Pilih atau masukkan file video terlebih dahulu agar AI Agent dapat memotongnya.');
-    return;
+function syncSettingsInputs() {
+  const presetSel = $('set-default-preset');
+  if (presetSel && presetSel.options.length === 0) {
+    CAPTION_PRESETS.forEach((p) => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.tier === 'tambahan' ? `${p.name} (Paket Tambahan)` : p.name;
+      if (p.tier === 'tambahan' && !state.features.extraPresets) {
+        opt.disabled = true;
+      }
+      presetSel.appendChild(opt);
+    });
   }
-
-  if (state.agentAbortController) {
-    state.agentAbortController.abort();
+  if ($('set-creator-name')) $('set-creator-name').value = state.settings.creatorName || '';
+  if ($('set-default-watermark') && state.features.customWatermark) {
+    $('set-default-watermark').value = state.settings.defaultWatermark || '';
   }
-
-  showError('');
-  revokeAgentRenderedClips();
-  state.agentLogs = [];
-  if (el.agentLogList) el.agentLogList.innerHTML = '';
-
-  const abortCtrl = new AbortController();
-  state.agentAbortController = abortCtrl;
-  state.agentRunning = true;
-
-  if (el.btnRunAiAgent) el.btnRunAiAgent.disabled = true;
-  if (el.btnStopAiAgent) el.btnStopAiAgent.style.display = 'inline-flex';
-  if (el.agentStatePill) {
-    el.agentStatePill.textContent = 'AI Agent Sedang Bekerja...';
-    el.agentStatePill.className = 'pill-tag lime';
+  if (presetSel) presetSel.value = state.settings.defaultPreset || 'kreator-kuning';
+  if ($('set-gemini-key')) $('set-gemini-key').value = state.settings.geminiKey || '';
+  if ($('gemini-key-input')) $('gemini-key-input').value = state.settings.geminiKey || '';
+  if ($('watermark-text-input') && state.features.customWatermark && !state.watermarkText) {
+    state.watermarkText = state.settings.defaultWatermark || '';
+    $('watermark-text-input').value = state.watermarkText;
   }
+}
 
-  const clipCount = Number(el.agentClipCountSelect?.value || state.agentClipCount || 3);
-  state.agentClipCount = clipCount;
+async function handleSendErrorReport(customSummary = '') {
+  const noteInput = $('error-report-note-input');
+  const summary =
+    customSummary ||
+    noteInput?.value?.trim() ||
+    'Laporan diagnostik teknis dari tombol aplikasi Klip Auto';
 
-  appendAgentLog(`Memulai AI Agent untuk file "${state.file.name}" (target ${clipCount} klip 9:16)...`);
+  const btnMain = $('btn-send-error-report');
+  const btnSide = $('btn-sidebar-error-report');
+  if (btnMain) btnMain.disabled = true;
+  if (btnSide) btnSide.disabled = true;
 
   try {
-    const res = await runAutonomousClipAgent({
-      file: state.file,
-      mediaInfo: state.mediaInfo,
-      prebuiltMoments:
-        Array.isArray(prebuiltMoments) && prebuiltMoments.length > 0
-          ? prebuiltMoments
-          : null,
-      geminiApiKey: el.geminiKeyInput?.value || '',
-      clipCount,
-      presetId: state.presetId,
-      frameMode: state.frameMode,
-      autoFaceCenter: state.autoFaceCenter,
-      hookStyle: state.hookStyle,
-      watermarkImage: state.watermarkImage,
-      watermarkText: state.watermarkText,
-      watermarkPos: state.watermarkPos,
-      resolution: state.resolution,
-      voiceBoost: state.voiceBoost,
-      volumeGain: state.volumeGain,
-      monoToStereo: state.monoToStereo,
-      signal: abortCtrl.signal,
-      onStage: ({ stageIndex, stageTitle, detail, percent }) => {
-        updateAgentStageUi(stageIndex, stageTitle, detail, percent);
-      },
-      onLog: (msg) => {
-        appendAgentLog(msg);
-      },
-      onMomentsReady: (moments) => {
-        if (Array.isArray(moments) && moments.length > 0) {
-          state.moments = moments;
-          applyMomentSelection(moments[0]);
-          refreshDashboardAndBadges();
-        }
-      },
-      onClipRendered: (clipArtifact, _idx, total) => {
-        state.agentRenderedClips.push(clipArtifact);
-        appendAgentClipCard(clipArtifact, total);
-
-        // Simpan juga ke Riwayat Render pembeli
-        const prevHook = state.hookTitle;
-        const prevStart = state.startSec;
-        const prevEnd = state.endSec;
-        state.hookTitle = clipArtifact.hookTitle;
-        state.startSec = clipArtifact.startSec;
-        state.endSec = clipArtifact.endSec;
-        recordRenderedHistory({
-          durationSec: clipArtifact.durationSec,
-          width: clipArtifact.width,
-          height: clipArtifact.height,
-          sizeBytes: clipArtifact.sizeBytes
-        });
-        state.hookTitle = prevHook;
-        state.startSec = prevStart;
-        state.endSec = prevEnd;
-      }
+    const devReport = await runDeviceReadinessCheck();
+    const res = await sendSanitizedErrorReport({
+      summary,
+      diagnosticLogs: state.diagnosticLogs,
+      deviceSummary: devReport
     });
-
-    if (el.agentStatePill) {
-      el.agentStatePill.textContent = `${res.clips.length} Klip Selesai Otomatis`;
-    }
-    for (const chip of el.agentStageChips) {
-      chip.classList.remove('active');
-      chip.classList.add('done');
-    }
-    showToast(`AI Agent selesai membuat ${res.clips.length} klip MP4 9:16 siap unggah!`);
+    if (noteInput) noteInput.value = '';
+    showToast(`Laporan error terkirim (${res.reportId || 'Tanpa Data Pribadi'})`);
   } catch (err) {
-    if (err?.name === 'AbortError') {
-      appendAgentLog('Proses AI Agent dihentikan oleh pengguna.');
-      if (el.agentStatePill) {
-        el.agentStatePill.textContent = 'AI Agent Dihentikan';
-        el.agentStatePill.className = 'pill-tag';
-      }
-      showToast('AI Agent dihentikan.');
-    } else {
-      appendAgentLog(`Kendala: ${err.message || 'Gagal menyelesaikan pemotongan otomatis.'}`);
-      if (el.agentStatePill) {
-        el.agentStatePill.textContent = 'Perlu Perhatian';
-        el.agentStatePill.className = 'pill-tag';
-      }
-      showError(err.message || 'AI Agent mengalami kendala saat memproses video.');
-    }
+    showToast(err?.message || 'Gagal mengirim laporan error');
   } finally {
-    state.agentRunning = false;
-    state.agentAbortController = null;
-    if (el.btnRunAiAgent) el.btnRunAiAgent.disabled = !state.file;
-    if (el.btnStopAiAgent) el.btnStopAiAgent.style.display = 'none';
+    if (btnMain) btnMain.disabled = false;
+    if (btnSide) btnSide.disabled = false;
   }
 }
 
-async function handleSelectedVideoFile(file, prebuiltMoments = null, options = {}) {
-  showError('');
-  if (state.agentAbortController) {
-    state.agentAbortController.abort();
-  }
-  if (state.renderAbortController) {
-    state.renderAbortController.abort();
-  }
-  setStatusBar(el.step1Status, el.step1StatusText, el.step1ProgressFill, true, 'Membaca informasi video...', 35);
+function setupSettingsAndSupport() {
+  $('theme-toggle')?.addEventListener('click', toggleTheme);
+  $('btn-theme-mobile')?.addEventListener('click', toggleTheme);
 
-  try {
-    const info = await probeMediaFile(file);
-    state.file = file;
-    state.mediaInfo = info;
-
-    if (state.videoObjectUrl) URL.revokeObjectURL(state.videoObjectUrl);
-    state.videoObjectUrl = URL.createObjectURL(file);
-    el.hiddenVideo.src = state.videoObjectUrl;
-    el.hiddenVideo.load();
-
-    // Bersihkan hasil render & jejak kamera dari video sebelumnya agar tidak membingungkan
-    if (state.resultObjectUrl) {
-      try {
-        URL.revokeObjectURL(state.resultObjectUrl);
-      } catch {}
-      state.resultObjectUrl = null;
+  $('btn-save-settings')?.addEventListener('click', () => {
+    state.settings.creatorName = $('set-creator-name')?.value.trim() || state.user?.name || 'Kreator';
+    if (state.features.customWatermark) {
+      state.settings.defaultWatermark = $('set-default-watermark')?.value.trim() || '';
+      state.watermarkText = state.settings.defaultWatermark;
+      if ($('watermark-text-input')) $('watermark-text-input').value = state.watermarkText;
     }
-    if (el.resultVideo) {
-      el.resultVideo.pause?.();
-      el.resultVideo.removeAttribute('src');
-      el.resultVideo.load?.();
-    }
-    if (el.resultBox) el.resultBox.style.display = 'none';
-    if (el.renderStatus) el.renderStatus.style.display = 'none';
-    state.transcriptManuallyEdited = false;
-    state.previewCameraTrack = [{ time: 0, centerX: 0.5 }];
-    if (el.btnScanFacePreview) {
-      el.btnScanFacePreview.textContent = 'Pindai Posisi Wajah untuk Preview';
-    }
-    revokeAgentRenderedClips();
-
-    const defaultEnd = Number(Math.min(info.duration, Math.max(1, Math.min(45, info.duration))).toFixed(1));
-    state.startSec = 0;
-    state.endSec = defaultEnd;
-
-    const maxStart = String(Math.max(0, Number((info.duration - 0.5).toFixed(1))));
-    const maxEnd = String(Number(info.duration.toFixed(1)));
-    el.clipStartInput.max = maxStart;
-    el.clipEndInput.max = maxEnd;
-    el.sliderClipStart.max = maxStart;
-    el.sliderClipEnd.max = maxEnd;
-    syncStartEndInputsAndSliders();
-
-    const mb = (info.sizeBytes / (1024 * 1024)).toFixed(1);
-    el.fileSummaryText.textContent = `${file.name} · Durasi ${formatDuration(info.duration)} (${info.duration.toFixed(1)} dtk) · ${info.width}×${info.height} · ${mb} MB`;
-    el.fileSummary.style.display = 'flex';
-
-    el.btnAnalyzeGemini.disabled = false;
-    el.btnAnalyzeWhisper.disabled = false;
-    el.btnPickSrt.disabled = false;
-    if (el.btnRunAiAgent) el.btnRunAiAgent.disabled = false;
-
-    if (prebuiltMoments && prebuiltMoments.length > 0) {
-      state.moments = prebuiltMoments;
-      applyMomentSelection(prebuiltMoments[0]);
-    } else {
-      state.moments = [];
-      state.selectedMomentId = null;
-      state.hookTitle = '';
-      if (el.hookTitleInput) el.hookTitleInput.value = '';
-      el.clipTranscriptInput.value = DEFAULT_CAPTION_PLACEHOLDER;
-      state.words = buildWordsFromTextAndWindow(DEFAULT_CAPTION_PLACEHOLDER, state.startSec, state.endSec);
-      rebuildPhrases();
-      renderMomentsCards();
-    }
-
-    refreshDashboardAndBadges();
-    setStatusBar(el.step1Status, el.step1StatusText, el.step1ProgressFill, false);
-
-    const shouldRunAgent = Boolean(options.forceRunAgent || state.agentAutoRun);
-    if (shouldRunAgent) {
-      switchStep(1);
-      setTimeout(() => {
-        el.aiAgentCard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 60);
-      await startAiClipAgent(prebuiltMoments);
-    } else if (prebuiltMoments && prebuiltMoments.length > 0) {
-      switchStep(2);
-    }
-  } catch (err) {
-    setStatusBar(el.step1Status, el.step1StatusText, el.step1ProgressFill, false);
-    showError(err.message || 'Gagal membuka file video tersebut.');
-  }
-}
-
-async function copyAiHandoffPrompt() {
-  const videoTitle =
-    state.ytInfo?.title ||
-    state.file?.name ||
-    '(Tulis judul video podcast / live / webinar kamu di sini)';
-  const durationLabel = state.mediaInfo?.duration
-    ? `${formatDuration(state.mediaInfo.duration)} (${state.mediaInfo.duration.toFixed(1)} detik)`
-    : state.ytInfo?.durationSec
-    ? `${formatDuration(state.ytInfo.durationSec)} (${state.ytInfo.durationSec} detik)`
-    : '(Tulis durasi total video)';
-
-  let transcriptBody = '';
-  if (Array.isArray(state.moments) && state.moments.length > 0) {
-    transcriptBody = state.moments
-      .map(
-        (m, idx) =>
-          `${idx + 1}. [${formatDuration(m.startSec)} - ${formatDuration(m.endSec)}] (${m.startSec.toFixed(1)}s - ${m.endSec.toFixed(1)}s): ${m.transcript || (Array.isArray(m.words) ? m.words.map((w) => w.word).join(' ') : '')}`
-      )
-      .join('\n');
-  } else {
-    const manualTxt = (el.clipTranscriptInput?.value || '').trim();
-    if (manualTxt && manualTxt !== DEFAULT_CAPTION_PLACEHOLDER) {
-      transcriptBody = manualTxt;
-    } else {
-      transcriptBody = '[Tempelkan transkrip YouTube, teks subtitle .SRT, atau ringkasan obrolan videomu di sini]';
-    }
-  }
-
-  const promptText = [
-    'Kamu adalah editor konten video pendek (Reels, TikTok, YouTube Shorts) berbahasa Indonesia yang tajam memilih bagian obrolan paling menarik.',
-    '',
-    `Judul / File Video: ${videoTitle}`,
-    `Durasi Total: ${durationLabel}`,
-    '',
-    'Tugasmu: Pilih 5 sampai 10 momen terbaik berdurasi 15–45 detik dari transkrip di bawah yang langsung memancing rasa penasaran penonton di 3 detik pertama.',
-    '',
-    'Untuk setiap momen, tuliskan dengan urutan rapi:',
-    '1. Rentang Waktu: MM:SS - MM:SS (sertakan juga angka detik awal dan detik akhir untuk dimasukkan ke Klip Auto Studio)',
-    '2. Skor Daya Tarik: 1–100 beserta alasan singkat 1 kalimat kenapa bagian ini kuat',
-    '3. Judul Hook Atas: Maksimal 7 kata, bahasa Indonesia ngobrol yang natural, jelas, tanpa clickbait berlebihan',
-    '4. Teks Caption Bersih: Kalimat pembicara yang sudah dirapikan tanda bacanya dan siap ditempel ke kolom Teks Caption di Langkah 2 Klip Auto Studio',
-    '',
-    '--- TRANSKRIP / CATATAN VIDEO ---',
-    transcriptBody
-  ].join('\n');
-
-  let copied = false;
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(promptText);
-      copied = true;
-    }
-  } catch {}
-
-  if (!copied) {
-    const ta = document.createElement('textarea');
-    ta.value = promptText;
-    ta.setAttribute('readonly', '');
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    try {
-      document.execCommand('copy');
-      copied = true;
-    } catch {}
-    ta.remove();
-  }
-
-  showToast('Prompt kurasi momen disalin! Tempel langsung di ChatGPT atau Gemini.');
-}
-
-let previewAudioGraph = null;
-
-function syncPreviewAudioGraphParams() {
-  if (el.btnToggleMute) {
-    el.btnToggleMute.textContent = state.previewMuted ? 'Suara: Bisu' : 'Suara: Aktif';
-  }
-  if (el.audioVolumeLabel) {
-    el.audioVolumeLabel.textContent = `Volume: ${Math.round(state.volumeGain * 100)}%`;
-  }
-  if (!previewAudioGraph) {
-    el.hiddenVideo.muted = state.previewMuted;
-    el.hiddenVideo.volume = state.previewMuted ? 0 : Math.max(0, Math.min(1, state.volumeGain));
-    return;
-  }
-  const { hp, presence, comp, gain } = previewAudioGraph;
-  hp.frequency.value = state.voiceBoost ? 85 : 20;
-  presence.gain.value = state.voiceBoost ? 2.8 : 0;
-  comp.ratio.value = state.voiceBoost ? 3.0 : 1.0;
-  const boostLift = state.voiceBoost ? 1.12 : 1.0;
-  gain.gain.value = state.previewMuted ? 0 : Math.max(0, state.volumeGain * boostLift);
-}
-
-function ensurePreviewAudioGraph() {
-  el.hiddenVideo.muted = false;
-  el.hiddenVideo.volume = 1;
-  if (previewAudioGraph) {
-    if (previewAudioGraph.ctx.state === 'suspended') {
-      previewAudioGraph.ctx.resume().catch(() => {});
-    }
-    syncPreviewAudioGraphParams();
-    return;
-  }
-  const AudioCtx = window.AudioContext || window.webkitAudioContext;
-  if (!AudioCtx) return;
-  try {
-    const ctx = new AudioCtx();
-    const source = ctx.createMediaElementSource(el.hiddenVideo);
-    const hp = ctx.createBiquadFilter();
-    hp.type = 'highpass';
-    const presence = ctx.createBiquadFilter();
-    presence.type = 'peaking';
-    presence.frequency.value = 3100;
-    presence.Q.value = 1.05;
-    const comp = ctx.createDynamicsCompressor();
-    comp.threshold.value = -20;
-    comp.knee.value = 18;
-    comp.ratio.value = 3.0;
-    const gain = ctx.createGain();
-
-    source.connect(hp);
-    hp.connect(presence);
-    presence.connect(comp);
-    comp.connect(gain);
-    gain.connect(ctx.destination);
-
-    previewAudioGraph = { ctx, source, hp, presence, comp, gain };
-    syncPreviewAudioGraphParams();
-    if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => {});
-    }
-  } catch {
-    syncPreviewAudioGraphParams();
-  }
-}
-
-async function handleFetchYoutubeInfo() {
-  const rawUrl = el.ytUrlInput?.value?.trim() || '';
-  if (!rawUrl) {
-    showError('Tempelkan link video YouTube terlebih dahulu pada kolom Link YouTube.');
-    el.ytUrlInput?.focus();
-    return;
-  }
-
-  showError('');
-  el.btnYtFetch.disabled = true;
-  el.ytPreviewCard.classList.remove('visible');
-  setStatusBar(
-    el.ytStatus,
-    el.ytStatusText,
-    el.ytProgressFill,
-    true,
-    'Memeriksa link & mengambil daftar kualitas MP4 dari YouTube...',
-    32
-  );
-
-  try {
-    const info = await fetchYoutubeVideoInfo(rawUrl);
-    state.ytInfo = info;
-
-    el.ytThumb.onerror = () => {
-      el.ytThumb.src =
-        'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="480" height="270" viewBox="0 0 480 270"><rect width="480" height="270" fill="%2314140f"/><polygon points="215,105 275,135 215,165" fill="%23beff50"/></svg>';
-    };
-    el.ytThumb.src = info.thumbnailUrl;
-    el.ytDurationBadge.textContent = info.durationSec > 0 ? formatDuration(info.durationSec) : 'MP4 Siap';
-    el.ytChannelPill.textContent = info.author || 'YouTube';
-
-    if (info.captionMeta?.available) {
-      el.ytCaptionPill.textContent = `Subtitle Otomatis Siap (${info.captionMeta.wordCount} kata)`;
-      el.ytCaptionPill.className = 'pill-tag lime';
-    } else {
-      el.ytCaptionPill.textContent = 'Tanpa Subtitle Bawaan (Bisa Pakai Whisper/Gemini)';
-      el.ytCaptionPill.className = 'pill-tag';
-    }
-
-    el.ytTitle.textContent =
-      String(info.title || '')
-        .replace(/\p{Extended_Pictographic}|\uFE0F|\u203C|\u2049/gu, '')
-        .replace(/\s+/g, ' ')
-        .trim() || info.title;
-    el.ytQualitySelect.innerHTML = info.qualities
-      .map((q) => {
-        const sizeLabel = q.totalBytes > 0 ? ` — sekitar ${formatBytesReadable(q.totalBytes)}` : '';
-        return `<option value="${escHtml(q.id)}" ${q.recommended ? 'selected' : ''}>${escHtml(q.label)}${escHtml(sizeLabel)}</option>`;
-      })
-      .join('');
-
-    setStatusBar(el.ytStatus, el.ytStatusText, el.ytProgressFill, false);
-    el.ytPreviewCard.classList.add('visible');
-    showToast('Video YouTube ditemukan! Pilih Simpan MP4 atau Muat ke Studio.');
-  } catch (err) {
-    setStatusBar(el.ytStatus, el.ytStatusText, el.ytProgressFill, false);
-    showError(err.message || 'Gagal mengambil informasi video YouTube.');
-  } finally {
-    el.btnYtFetch.disabled = false;
-  }
-}
-
-async function runYoutubeDownloadAction(mode) {
-  if (!state.ytInfo) return;
-  showError('');
-  if (el.ytPostDownloadHint) el.ytPostDownloadHint.style.display = 'none';
-
-  const selectedQualityId = el.ytQualitySelect.value;
-  el.btnYtImportStudio.disabled = true;
-  el.btnYtDownloadMp4.disabled = true;
-  el.btnYtFetch.disabled = true;
-  el.btnYtCancel.style.display = 'inline-flex';
-
-  const abortCtrl = new AbortController();
-  state.ytAbortController = abortCtrl;
-
-  try {
-    if (mode === 'save') {
-      const saved = await saveYoutubeMp4ToDevice({
-        info: state.ytInfo,
-        qualityId: selectedQualityId,
-        signal: abortCtrl.signal,
-        onProgress: ({ phase, percent }) => {
-          setStatusBar(el.ytStatus, el.ytStatusText, el.ytProgressFill, true, phase, percent);
-        }
-      });
-
-      setStatusBar(el.ytStatus, el.ytStatusText, el.ytProgressFill, false);
-      if (el.ytPostDownloadHint) el.ytPostDownloadHint.style.display = 'block';
-      showToast(`Unduhan "${saved.fileName}" dimulai! Masukkan videonya setelah selesai untuk dipotong AI Agent.`);
-      return;
-    }
-
-    let downloaded = null;
-    if (
-      state.ytCachedDownload &&
-      state.ytCachedDownload.videoId === state.ytInfo.videoId &&
-      state.ytCachedDownload.qualityId === selectedQualityId
-    ) {
-      downloaded = state.ytCachedDownload;
-    } else {
-      const res = await downloadYoutubeAsMp4File({
-        info: state.ytInfo,
-        qualityId: selectedQualityId,
-        signal: abortCtrl.signal,
-        onProgress: ({ phase, percent }) => {
-          setStatusBar(el.ytStatus, el.ytStatusText, el.ytProgressFill, true, phase, percent);
-        }
-      });
-      downloaded = {
-        videoId: state.ytInfo.videoId,
-        qualityId: selectedQualityId,
-        file: res.file,
-        moments: res.moments
-      };
-      state.ytCachedDownload = downloaded;
-    }
-
-    setStatusBar(el.ytStatus, el.ytStatusText, el.ytProgressFill, false);
-
-    await handleSelectedVideoFile(
-      downloaded.file,
-      downloaded.moments && downloaded.moments.length > 0 ? downloaded.moments : null,
-      { forceRunAgent: true }
-    );
-  } catch (err) {
-    setStatusBar(el.ytStatus, el.ytStatusText, el.ytProgressFill, false);
-    if (err?.name !== 'AbortError') {
-      showError(err.message || 'Gagal mengunduh video dari YouTube.');
-    } else {
-      showToast('Unduhan video YouTube dibatalkan.');
-    }
-  } finally {
-    el.btnYtImportStudio.disabled = false;
-    el.btnYtDownloadMp4.disabled = false;
-    el.btnYtFetch.disabled = false;
-    el.btnYtCancel.style.display = 'none';
-    state.ytAbortController = null;
-  }
-}
-
-async function triggerSampleVideoFromAnywhere() {
-  switchView('wizard');
-  switchStep(1);
-  showError('');
-  el.btnLoadSample.disabled = true;
-  setStatusBar(
-    el.step1Status,
-    el.step1StatusText,
-    el.step1ProgressFill,
-    true,
-    'Menyiapkan video contoh podcast 2 pembicara bersuara asli (20 detik)...',
-    15
-  );
-  try {
-    const { file, moments } = await createSamplePodcastMp4((pct) => {
-      setStatusBar(
-        el.step1Status,
-        el.step1StatusText,
-        el.step1ProgressFill,
-        true,
-        `Menyiapkan video contoh bersuara jernih (${pct}%)...`,
-        pct
-      );
-    });
-    await handleSelectedVideoFile(file, moments);
-    showToast('Video contoh 2 pembicara bersuara jernih siap diputar!');
-  } catch (err) {
-    setStatusBar(el.step1Status, el.step1StatusText, el.step1ProgressFill, false);
-    showError(err.message || 'Gagal menyiapkan video contoh.');
-  } finally {
-    el.btnLoadSample.disabled = false;
-  }
-}
-
-function syncPreviewToStart() {
-  if (!state.file) return;
-  if (el.hiddenVideo.currentTime < state.startSec || el.hiddenVideo.currentTime > state.endSec) {
-    el.hiddenVideo.currentTime = state.startSec;
-  }
-}
-
-function updatePlayButtonText() {
-  const isPlaying = !el.hiddenVideo.paused && !el.hiddenVideo.ended;
-  el.btnTogglePlay.textContent = isPlaying ? 'Jeda Preview' : 'Putar Preview';
-  if (el.btnStep2PlayAudio) {
-    el.btnStep2PlayAudio.textContent =
-      isPlaying && state.activeStep === 2 ? 'Hentikan Suara' : 'Dengarkan Suara Momen Ini';
-  }
-  if (!isPlaying && el.step2AudioTime && state.activeStep === 2) {
-    el.step2AudioTime.textContent = `Rentang aktif: ${formatDuration(state.startSec)} – ${formatDuration(state.endSec)} (${Math.max(0.5, state.endSec - state.startSec).toFixed(1)} dtk)`;
-  }
-}
-
-function renderPreviewOnce() {
-  if (!state.file) return;
-  const cur = el.hiddenVideo.currentTime || state.startSec;
-  const relCur = Math.max(0, cur - state.startSec);
-  const clipDur = Math.max(0.5, state.endSec - state.startSec);
-  el.previewTimeLabel.textContent = `${relCur.toFixed(1)}s / ${clipDur.toFixed(1)}s`;
-
-  const centerX = state.autoFaceCenter
-    ? sampleCameraCenterX(state.previewCameraTrack, cur, state.manualOffset)
-    : Math.max(0, Math.min(1, 0.5 + state.manualOffset));
-
-  drawClipFrame(previewCtx, {
-    source: el.hiddenVideo,
-    sourceWidth: el.hiddenVideo.videoWidth || state.mediaInfo?.width || 1280,
-    sourceHeight: el.hiddenVideo.videoHeight || state.mediaInfo?.height || 720,
-    targetWidth: el.previewCanvas.width,
-    targetHeight: el.previewCanvas.height,
-    currentTimeSec: cur,
-    centerX,
-    frameMode: state.frameMode,
-    presetId: state.presetId,
-    phraseGroups: state.phraseGroups,
-    hookTitle: state.hookTitle,
-    hookStyle: state.hookStyle,
-    watermarkImage: state.watermarkImage,
-    watermarkText: state.watermarkText,
-    watermarkPos: state.watermarkPos,
-    watermarkOpacity: 0.88
-  });
-}
-
-function previewAnimationLoop() {
-  if (!el.hiddenVideo.paused && !el.hiddenVideo.ended) {
-    if (el.hiddenVideo.currentTime >= state.endSec) {
-      el.hiddenVideo.currentTime = state.startSec;
-    }
-    if (state.activeStep === 2 && el.step2AudioTime) {
-      const cur = Math.max(0, el.hiddenVideo.currentTime - state.startSec);
-      const tot = Math.max(0.5, state.endSec - state.startSec);
-      el.step2AudioTime.textContent = `Memutar suara momen: ${cur.toFixed(1)} dtk / ${tot.toFixed(1)} dtk`;
-    }
-    if (state.activeStep === 3) {
-      renderPreviewOnce();
-    }
-  }
-  requestAnimationFrame(previewAnimationLoop);
-}
-
-/* ================= BINDING SELURUH INTERAKSI ================= */
-function bindEvents() {
-  // Login Pembeli & Akses Cepat Kreator Utama (Salted SHA-256)
-  const hideLoginError = () => {
-    if (el.loginError) {
-      el.loginError.style.display = 'none';
-      el.loginError.textContent = '';
-    }
-  };
-  el.loginName?.addEventListener('input', hideLoginError);
-  el.loginEmail?.addEventListener('input', hideLoginError);
-  el.loginCode?.addEventListener('input', hideLoginError);
-
-  el.loginForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const rawName = el.loginName.value.trim();
-    const rawEmail = el.loginEmail.value.trim();
-    const codeHash = hashLicenseCode(el.loginCode.value);
-
-    const showLoginErr = (msg, inputEl) => {
-      el.loginError.textContent = msg;
-      el.loginError.style.display = 'block';
-      inputEl?.focus();
-    };
-
-    if (CREATOR_MASTER_HASHES.has(codeHash)) {
-      const isDevAgent = DEV_AGENT_HASHES.has(codeHash);
-      const creatorName = rawName || (isDevAgent ? 'Tim Developer' : 'Nifari (Kreator Utama)');
-      const creatorEmail = rawEmail || (isDevAgent ? 'dev@klipauto.id' : 'creator@nifari.id');
-      state.user = {
-        name: creatorName,
-        email: creatorEmail,
-        role: 'creator',
-        codeHash
-      };
-    } else {
-      if (!rawName) {
-        showLoginErr('Isi nama panggilan atau nama channel-mu dulu ya.', el.loginName);
-        return;
-      }
-      if (!EMAIL_REGEX.test(rawEmail)) {
-        showLoginErr('Masukkan alamat email yang valid (contoh: nama@email.com).', el.loginEmail);
-        return;
-      }
-      if (codeHash !== OFFICIAL_BUYER_HASH) {
-        showLoginErr(
-          'Kode akses belum sesuai. Cek lagi kode dari bukti pembelianmu, atau ambil akses resmi di halaman produk.',
-          el.loginCode
-        );
-        return;
-      }
-      state.user = {
-        name: rawName,
-        email: rawEmail,
-        role: 'buyer',
-        codeHash
-      };
-    }
-
-    hideLoginError();
-    saveJson(KEYS.USER, state.user);
-    if (!localStorage.getItem(KEYS.SETTINGS)) {
-      state.settings.creatorName = state.user.name.split('(')[0].trim();
-      saveJson(KEYS.SETTINGS, state.settings);
-    }
-    syncAuthView();
-    showToast('Selamat datang di Klip Auto Studio!');
-  });
-
-  el.btnLogout.addEventListener('click', () => {
-    localStorage.removeItem(KEYS.USER);
-    state.user = null;
-    if (el.loginCode) el.loginCode.value = '';
-    hideLoginError();
-    el.hiddenVideo.pause();
-    syncAuthView();
-  });
-
-  // Navigasi Sidebar & Mobile
-  for (const btn of el.navItems) {
-    btn.addEventListener('click', () => switchView(btn.dataset.view));
-  }
-  for (const mbtn of el.mnavBtns) {
-    mbtn.addEventListener('click', () => switchView(mbtn.dataset.mview));
-  }
-  el.btnOpenSidebar.addEventListener('click', () => {
-    el.sidebar.classList.add('open');
-    el.sidebarOverlay.classList.add('open');
-  });
-  el.sidebarOverlay.addEventListener('click', closeMobileSidebar);
-
-  // Dashboard Shortcuts
-  el.dashBtnOpenWizard.addEventListener('click', () => switchView('wizard'));
-  el.dashBtnYoutube?.addEventListener('click', () => {
-    switchView('wizard');
-    switchStep(1);
-    setTimeout(() => el.ytUrlInput?.focus(), 60);
-  });
-  el.dashBtnQuickSample.addEventListener('click', () => triggerSampleVideoFromAnywhere());
-  el.wizTopSampleBtn.addEventListener('click', () => triggerSampleVideoFromAnywhere());
-  el.dashSeeAllHistory.addEventListener('click', () => switchView('history'));
-
-  document.getElementById('stat-go-history')?.addEventListener('click', () => switchView('history'));
-  document.getElementById('stat-go-wizard')?.addEventListener('click', () => switchView('wizard'));
-  document.getElementById('stat-go-library')?.addEventListener('click', () => switchView('library'));
-  document.getElementById('stat-go-favorites')?.addEventListener('click', () => switchView('favorites'));
-
-  for (const jumpBtn of document.querySelectorAll('[data-jump-step]')) {
-    jumpBtn.addEventListener('click', () => {
-      const targetStep = Number(jumpBtn.dataset.jumpStep) || 1;
-      switchView('wizard');
-      if (targetStep > 1 && !state.file) {
-        switchStep(1);
-        showError('Pilih atau muat video dulu di Langkah 1 ya.');
-        showToast('Pilih atau muat video dulu di Langkah 1 ya.');
-        return;
-      }
-      switchStep(targetStep);
-    });
-  }
-
-  // Library Search, Filter & Modal
-  el.libSearchInput.addEventListener('input', () => {
-    state.libQuery = el.libSearchInput.value;
-    renderLibraryGrid();
-  });
-  el.libNicheSelect.addEventListener('change', () => {
-    state.libNiche = el.libNicheSelect.value;
-    renderLibraryGrid();
-  });
-  el.modalBtnClose.addEventListener('click', closeLibraryModal);
-  el.libModal.addEventListener('click', (e) => {
-    if (e.target === el.libModal) closeLibraryModal();
-  });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      if (el.libModal?.classList.contains('open')) {
-        closeLibraryModal();
-      }
-      if (el.sidebar?.classList.contains('open')) {
-        closeMobileSidebar();
-      }
-    }
-  });
-
-  el.modalBtnCopy.addEventListener('click', async () => {
-    const item = CREATOR_LIBRARY_ITEMS.find((i) => i.id === state.modalItemId);
-    if (!item) return;
-    try {
-      await navigator.clipboard.writeText(item.example);
-    } catch {}
-    showToast('Contoh teks berhasil disalin!');
-  });
-
-  el.modalBtnFav.addEventListener('click', () => {
-    if (!state.modalItemId) return;
-    const idx = state.favorites.indexOf(state.modalItemId);
-    if (idx >= 0) {
-      state.favorites.splice(idx, 1);
-      showToast('Dihapus dari Koleksi Favorit.');
-    } else {
-      state.favorites.push(state.modalItemId);
-      showToast('Disimpan ke Koleksi Favorit!');
-    }
-    saveJson(KEYS.FAVORITES, state.favorites);
-    el.modalBtnFav.textContent = state.favorites.includes(state.modalItemId)
-      ? 'Hapus dari Favorit'
-      : 'Simpan Favorit';
-    refreshDashboardAndBadges();
-    if (state.activeView === 'library') renderLibraryGrid();
-    if (state.activeView === 'favorites') renderFavoritesGrid();
-  });
-
-  el.modalBtnUseHook.addEventListener('click', () => {
-    const item = CREATOR_LIBRARY_ITEMS.find((i) => i.id === state.modalItemId);
-    if (!item) return;
-    state.hookTitle = item.hook;
-    el.hookTitleInput.value = item.hook;
-    closeLibraryModal();
-    switchView('wizard');
-    if (state.file) {
-      renderPreviewOnce();
-    }
-    showToast('Judul hook dipasang ke Studio Klip!');
-  });
-
-  el.btnOpenHookPicker.addEventListener('click', () => {
-    state.libCategory = 'Hook Judul Atas';
-    renderCategoryPills();
-    switchView('library');
-  });
-
-  // History & Settings
-  el.btnClearHistory.addEventListener('click', () => {
-    if (state.history.length === 0) {
-      showToast('Riwayat render sudah kosong.');
-      return;
-    }
-    if (!window.confirm('Yakin mau menghapus semua riwayat render?')) {
-      return;
-    }
-    state.history = [];
-    saveJson(KEYS.HISTORY, state.history);
-    renderHistory();
-    refreshDashboardAndBadges();
-    showToast('Riwayat render dibersihkan.');
-  });
-
-  el.btnSaveSettings.addEventListener('click', () => {
-    state.settings = {
-      creatorName: el.setCreatorName.value.trim() || 'Kreator',
-      defaultWatermark: el.setDefaultWatermark.value.trim(),
-      defaultPreset: el.setDefaultPreset.value || 'kreator-kuning'
-    };
-    saveJson(KEYS.SETTINGS, state.settings);
-
-    const k = el.setGeminiKey.value.trim();
-    localStorage.setItem(KEYS.GEMINI, k);
-    el.geminiKeyInput.value = k;
+    state.settings.defaultPreset = $('set-default-preset')?.value || 'kreator-kuning';
+    state.settings.geminiKey = $('set-gemini-key')?.value.trim() || '';
+    writeJson(KEYS.SETTINGS, state.settings);
 
     state.presetId = state.settings.defaultPreset;
-    state.watermarkText = state.settings.defaultWatermark;
-    el.watermarkTextInput.value = state.watermarkText;
-    renderPresetButtons();
-    syncAuthView();
-    showToast('Pengaturan studio berhasil disimpan!');
+    if ($('gemini-key-input')) $('gemini-key-input').value = state.settings.geminiKey;
+
+    renderPresetCards();
+    refreshDashboardAndBadges();
+    showToast('Pengaturan studio disimpan');
   });
 
-  el.btnExportJson.addEventListener('click', () => {
+  // Lepas ikatan perangkat mandiri (Pindah Perangkat ke Laptop Baru)
+  $('btn-release-device')?.addEventListener('click', async () => {
+    const btn = $('btn-release-device');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Melepas Ikatan Perangkat...';
+    }
+    await releaseCurrentDevice();
+    window.location.reload();
+  });
+
+  // Buka modal Cek Perangkat & Ruang Disk dari halaman Pengaturan
+  $('btn-settings-device-check')?.addEventListener('click', async () => {
+    const modal = $('modal-device-check');
+    const body = $('device-check-results');
+    if (modal) modal.classList.add('open');
+    await renderDeviceCheckIntoContainer(body);
+  });
+
+  // Kirim laporan error tanpa video & tanpa data pribadi
+  $('btn-send-error-report')?.addEventListener('click', () => handleSendErrorReport());
+  $('btn-sidebar-error-report')?.addEventListener('click', () => {
+    switchView('settings');
+    handleSendErrorReport('Laporan cepat dari tombol bilah samping');
+  });
+
+  // Keluar sesi
+  $('btn-logout')?.addEventListener('click', async () => {
+    stopPreviewPlayback();
+    stopStep2AudioPreview();
+    await logoutLicenseSession();
+    window.location.reload();
+  });
+
+  $('btn-clear-history')?.addEventListener('click', () => {
+    state.history = [];
+    writeJson(KEYS.HISTORY, []);
+    renderHistoryPage();
+    refreshDashboardAndBadges();
+    showToast('Riwayat render dibersihkan');
+  });
+
+  $('btn-export-json')?.addEventListener('click', () => {
     const payload = {
+      app: 'Klip Auto Studio',
+      version: APP_CLIENT_VERSION,
       exportedAt: new Date().toISOString(),
-      settings: state.settings,
-      favorites: state.favorites,
+      settings: {
+        creatorName: state.settings.creatorName,
+        defaultWatermark: state.settings.defaultWatermark,
+        defaultPreset: state.settings.defaultPreset
+      },
+      favorites: Array.from(state.favorites),
       history: state.history
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `cadangan-klip-auto-${Date.now()}.json`;
+    a.download = 'klip-auto-backup.json';
     a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    showToast('File cadangan JSON berhasil diunduh!');
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    showToast('File cadangan .json diunduh');
   });
 
-  el.btnImportJson.addEventListener('click', () => el.importJsonInput.click());
-  el.importJsonInput.addEventListener('change', async (e) => {
+  $('btn-import-json')?.addEventListener('click', () => $('import-json-input')?.click());
+  $('import-json-input')?.addEventListener('change', async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
     try {
       const parsed = JSON.parse(await f.text());
-      if (parsed.settings) {
-        state.settings = parsed.settings;
-        saveJson(KEYS.SETTINGS, state.settings);
+      if (parsed.settings && typeof parsed.settings === 'object') {
+        state.settings = { ...state.settings, ...parsed.settings };
+        writeJson(KEYS.SETTINGS, state.settings);
       }
       if (Array.isArray(parsed.favorites)) {
-        state.favorites = parsed.favorites;
-        saveJson(KEYS.FAVORITES, state.favorites);
+        state.favorites = new Set(parsed.favorites);
+        writeJson(KEYS.FAVORITES, parsed.favorites);
       }
       if (Array.isArray(parsed.history)) {
         state.history = parsed.history;
-        saveJson(KEYS.HISTORY, state.history);
+        writeJson(KEYS.HISTORY, parsed.history);
       }
-      populateSettingsForm();
-      syncAuthView();
-      showToast('Data cadangan berhasil dipulihkan!');
+      syncSettingsInputs();
+      refreshDashboardAndBadges();
+      showToast('Data cadangan berhasil dipulihkan');
     } catch {
-      showToast('Format file cadangan JSON tidak valid.');
+      showToast('File JSON tidak valid');
     }
   });
+}
 
-  // Wizard Core Events
-  for (const tab of el.stepTabs) {
-    tab.addEventListener('click', () => switchStep(Number(tab.dataset.step)));
+function setupNavigation() {
+  document.querySelectorAll('.nav-item').forEach((btn) => {
+    btn.addEventListener('click', () => switchView(btn.dataset.view));
+  });
+  document.querySelectorAll('.mnav-btn').forEach((btn) => {
+    btn.addEventListener('click', () => switchView(btn.dataset.mview));
+  });
+
+  $('btn-open-sidebar')?.addEventListener('click', openMobileSidebar);
+  $('sidebar-overlay')?.addEventListener('click', closeMobileSidebar);
+
+  $('dash-btn-open-wizard')?.addEventListener('click', () => {
+    switchView('wizard');
+    goToWizardStep(1);
+  });
+  $('dash-btn-youtube')?.addEventListener('click', () => {
+    switchView('wizard');
+    goToWizardStep(1);
+    setTimeout(() => $('yt-url-input')?.focus(), 80);
+  });
+  $('dash-btn-quick-sample')?.addEventListener('click', () => {
+    switchView('wizard');
+    goToWizardStep(1);
+    handleLoadSampleVideo();
+  });
+  $('wiz-top-sample-btn')?.addEventListener('click', () => {
+    goToWizardStep(1);
+    handleLoadSampleVideo();
+  });
+
+  $('stat-go-history')?.addEventListener('click', () => switchView('history'));
+  $('stat-go-wizard')?.addEventListener('click', () => switchView('wizard'));
+  $('stat-go-library')?.addEventListener('click', () => switchView('library'));
+  $('stat-go-favorites')?.addEventListener('click', () => switchView('favorites'));
+  $('dash-see-all-history')?.addEventListener('click', () => switchView('history'));
+
+  document.querySelectorAll('[data-jump-step]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const targetStep = Number(btn.dataset.jumpStep) || 1;
+      switchView('wizard');
+      if (targetStep > 1 && !state.file) {
+        goToWizardStep(1);
+        showToast('Pilih video lokal atau tempel link terlebih dahulu');
+      } else {
+        goToWizardStep(targetStep);
+      }
+    });
+  });
+}
+
+function setupLibraryAndFavorites() {
+  $('lib-search-input')?.addEventListener('input', (e) => {
+    state.libQuery = e.target.value || '';
+    renderLibraryGrid();
+  });
+  $('lib-niche-select')?.addEventListener('change', (e) => {
+    state.libNiche = e.target.value || 'Semua';
+    renderLibraryGrid();
+  });
+
+  $('modal-btn-close')?.addEventListener('click', closeLibraryModal);
+  $('lib-modal')?.addEventListener('click', (e) => {
+    if (e.target === $('lib-modal')) closeLibraryModal();
+  });
+  $('modal-btn-copy')?.addEventListener('click', async () => {
+    if (!state.modalItem) return;
+    try {
+      await navigator.clipboard.writeText(state.modalItem.example);
+      showToast('Contoh teks berhasil disalin');
+    } catch {
+      showToast('Gagal menyalin otomatis');
+    }
+  });
+  $('modal-btn-fav')?.addEventListener('click', () => {
+    if (!state.modalItem) return;
+    toggleFavoriteItem(state.modalItem.id);
+    $('modal-btn-fav').textContent = state.favorites.has(state.modalItem.id)
+      ? 'Hapus Favorit'
+      : 'Simpan Favorit';
+    if (state.activeView === 'library') renderLibraryGrid();
+    if (state.activeView === 'favorites') renderFavoritesPage();
+  });
+  $('modal-btn-use-hook')?.addEventListener('click', () => {
+    if (state.modalItem) applyItemAsHook(state.modalItem.id);
+  });
+}
+
+/* ============================================================================
+ * 6. PENYELARAS VOKAL PRESISI 10MS (#vocal-sync-canvas) & SINKRONISASI KATA
+ * ============================================================================ */
+
+async function refreshClipVocalEnvelopeAndWords({ relockExistingWords = false } = {}) {
+  const token = ++state.vocalAnalysisToken;
+  if (!state.file || state.clipEndSec <= state.clipStartSec) {
+    state.vocalEnvelope = null;
+    state.vocalClipSamples = null;
+    drawVocalSyncTimeline();
+    return;
   }
 
-  // Link YouTube: Cek Info, Simpan MP4, atau Muat ke Studio
-  el.btnYtFetch?.addEventListener('click', () => handleFetchYoutubeInfo());
-  el.ytUrlInput?.addEventListener('keydown', (e) => {
+  try {
+    const { samples } = await extractMonoAudio(state.file, {
+      startSec: state.clipStartSec,
+      endSec: state.clipEndSec,
+      targetSampleRate: 16000
+    });
+    if (token !== state.vocalAnalysisToken) return;
+
+    state.vocalClipSamples = samples;
+    state.vocalEnvelope = analyzeVocalEnvelope(samples, 16000, state.clipStartSec);
+
+    const badge = $('vocal-islands-badge');
+    if (badge) {
+      const count = state.vocalEnvelope.islands.length;
+      badge.textContent =
+        count > 0 ? `${count} Pulau Vokal Terkunci (10ms)` : 'Menunggu Sinyal Suara';
+    }
+
+    if (relockExistingWords && state.words.length > 0) {
+      state.words = refineWhisperWordsWithVocal(
+        state.words,
+        samples,
+        16000,
+        state.clipStartSec,
+        state.clipEndSec
+      );
+    }
+
+    drawVocalSyncTimeline();
+  } catch {
+    drawVocalSyncTimeline();
+  }
+}
+
+/**
+ * Menggambar pita gelombang energi vokal 165–3750 Hz, pulau bicara aktif (#beff50),
+ * penanda kata ber-timestamp, serta jarum waktu putar secara presisi di #vocal-sync-canvas.
+ */
+function drawVocalSyncTimeline(playheadSec = null) {
+  const canvas = $('vocal-sync-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width;
+  const H = canvas.height;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#1b1b15';
+  ctx.fillRect(0, 0, W, H);
+
+  const startSec = state.clipStartSec;
+  const endSec = Math.max(startSec + 0.5, state.clipEndSec);
+  const spanSec = endSec - startSec;
+  const env = state.vocalEnvelope;
+
+  const waveTop = 8;
+  const waveBottom = H - 28;
+  const waveMid = Math.round((waveTop + waveBottom) / 2);
+  const waveAmpMax = Math.max(10, Math.floor((waveBottom - waveTop) / 2) - 2);
+
+  // 1. Sorot latar pulau bicara aktif (Voiced Islands)
+  if (env && Array.isArray(env.islands)) {
+    ctx.fillStyle = 'rgba(190, 255, 80, 0.11)';
+    for (const isl of env.islands) {
+      const x0 = Math.max(0, ((isl.startSec - startSec) / spanSec) * W);
+      const x1 = Math.min(W, ((isl.endSec - startSec) / spanSec) * W);
+      if (x1 > x0) {
+        ctx.fillRect(x0, 2, Math.max(2, x1 - x0), waveBottom - 2);
+      }
+    }
+  }
+
+  // 2. Gambar batang gelombang energi RMS vokal (hijau limau saat vokal aktif, abu redup saat jeda napas)
+  if (env && env.rms && env.rms.length > 0) {
+    let maxRms = 0.02;
+    for (let i = 0; i < env.rms.length; i++) {
+      if (env.rms[i] > maxRms) maxRms = env.rms[i];
+    }
+
+    const barCount = Math.min(220, Math.max(60, Math.floor(W / 3.5)));
+    const barStepPx = W / barCount;
+
+    for (let b = 0; b < barCount; b++) {
+      const barTime = startSec + ((b + 0.5) / barCount) * spanSec;
+      const fIdx = Math.max(
+        0,
+        Math.min(env.rms.length - 1, Math.round((barTime - env.offsetSec) / env.frameSec))
+      );
+      const val = env.rms[fIdx] || 0;
+      const isVoiced = val >= env.speechThreshold;
+      const norm = Math.min(1, val / maxRms);
+      const halfBar = Math.max(1.5, norm * waveAmpMax);
+
+      ctx.fillStyle = isVoiced ? '#beff50' : '#4a4b44';
+      const x = Math.round(b * barStepPx);
+      const bw = Math.max(1.5, barStepPx - 1.2);
+      ctx.fillRect(x, waveMid - halfBar, bw, halfBar * 2);
+    }
+  } else {
+    ctx.fillStyle = '#8b8c84';
+    ctx.font = '500 12px "Plus Jakarta Sans", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Gelombang vokal klip akan tampil begitu video dipilih', W / 2, waveMid + 4);
+  }
+
+  // 3. Gambar blok penanda waktu kata di jalur bawah (mengikuti kalibrasi captionOffsetSec)
+  const trackY = H - 22;
+  ctx.fillStyle = '#25261e';
+  ctx.fillRect(0, trackY, W, 20);
+
+  const offset = Number(state.captionOffsetSec) || 0;
+  if (Array.isArray(state.words) && state.words.length > 0) {
+    ctx.font = '600 9.5px "Plus Jakarta Sans", system-ui, sans-serif';
+    ctx.textBaseline = 'middle';
+
+    for (let i = 0; i < state.words.length; i++) {
+      const w = state.words[i];
+      const ws = w.start + offset;
+      const we = w.end + offset;
+      if (we < startSec || ws > endSec) continue;
+
+      const x0 = Math.max(0, ((ws - startSec) / spanSec) * W);
+      const x1 = Math.min(W, ((we - startSec) / spanSec) * W);
+      const bw = Math.max(3, x1 - x0 - 1);
+
+      const isSpokenNow =
+        playheadSec != null && playheadSec >= ws - 0.02 && playheadSec <= we + 0.04;
+
+      ctx.fillStyle = isSpokenNow ? '#beff50' : 'rgba(245, 245, 235, 0.24)';
+      ctx.fillRect(x0, trackY + 2, bw, 16);
+
+      if (bw >= 26) {
+        ctx.fillStyle = isSpokenNow ? '#14140f' : '#f5f5eb';
+        ctx.textAlign = 'left';
+        const clippedLabel = String(w.word || '').slice(0, Math.max(3, Math.floor(bw / 6)));
+        ctx.fillText(clippedLabel, x0 + 3, trackY + 10.5);
+      }
+    }
+  }
+
+  // 4. Jarum penunjuk detik putar (Playhead)
+  if (playheadSec != null && playheadSec >= startSec && playheadSec <= endSec) {
+    const px = Math.round(((playheadSec - startSec) / spanSec) * W);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(px - 1, 0, 2, H);
+  }
+}
+
+/* ============================================================================
+ * 7. WIZARD PEMOTONG 9:16 (YOUTUBE LOKAL, BATCH OTOMATIS, PREVIEW, & EKSPOR MP4)
+ * ============================================================================ */
+
+function goToWizardStep(stepNum) {
+  [1, 2, 3].forEach((n) => {
+    $(`tab-step-${n}`)?.classList.toggle('active', n === stepNum);
+    $(`panel-step-${n}`)?.classList.toggle('active', n === stepNum);
+  });
+  showError('');
+
+  if (stepNum !== 2) {
+    stopStep2AudioPreview();
+  } else {
+    drawVocalSyncTimeline();
+  }
+
+  if (stepNum === 3 && state.file) {
+    preparePreviewPlayer();
+  } else {
+    stopPreviewPlayback();
+  }
+}
+
+function renderPresetCards() {
+  const grid = $('preset-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+
+  for (const preset of CAPTION_PRESETS) {
+    const isLockedTambahan = preset.tier === 'tambahan' && !state.features.extraPresets;
+    const card = document.createElement('div');
+    card.className = `preset-card ${preset.id === state.presetId ? 'selected' : ''}`;
+    card.dataset.presetId = preset.id;
+
+    let sampleStyle = `color:${preset.activeColor};`;
+    if (preset.activePillColor) {
+      sampleStyle += `background:${preset.activePillColor};padding:2px 6px;border-radius:4px;`;
+    }
+
+    const tierTag =
+      preset.tier === 'tambahan'
+        ? `<span style="display:inline-block;font-size:10px;padding:1px 6px;border-radius:99px;background:rgba(255,255,255,0.16);color:#f5f5eb;margin-left:5px;">${
+            isLockedTambahan ? 'Tambahan' : 'Aktif'
+          }</span>`
+        : '';
+
+    card.innerHTML = `
+      <div class="preset-sample" style="${
+        isLockedTambahan ? 'opacity:0.7;' : ''
+      }"><span style="color:#fff">KATA </span><span style="${sampleStyle}">AKTIF</span></div>
+      <div class="preset-name">${escapeHtml(preset.name)}${tierTag}</div>
+      <div class="preset-desc">${escapeHtml(preset.desc)}</div>
+    `;
+    card.addEventListener('click', () => {
+      if (isLockedTambahan) {
+        showToast('Gaya caption ekstra ini tersedia pada Paket Tambahan (Rp 49.000)');
+        return;
+      }
+      state.presetId = preset.id;
+      grid.querySelectorAll('.preset-card').forEach((el) => {
+        el.classList.toggle('selected', el.dataset.presetId === preset.id);
+      });
+      renderStaticPreviewFrame(getPreviewCurrentTime());
+    });
+    grid.appendChild(card);
+  }
+}
+
+async function refreshCompanionBridgeBadge() {
+  const pill = $('yt-bridge-status-pill');
+  if (!pill) return;
+  const status = await detectCompanionBridge();
+  if (status.active) {
+    pill.textContent = `Jembatan Internet Lokal Aktif (v${status.version || '2.1'})`;
+    pill.classList.add('lime');
+  } else {
+    pill.textContent = 'Mode File Lokal Siap · Pasang Ekstensi untuk Link Langsung';
+    pill.classList.remove('lime');
+  }
+}
+
+function showYoutubeFriendlyFallback(title, reasonText, offerExtGuide = true) {
+  const box = $('yt-fallback-box');
+  if (!box) return;
+  if ($('yt-fallback-title')) $('yt-fallback-title').textContent = title || 'Link Belum Bisa Dimuat Langsung';
+  if ($('yt-fallback-reason')) $('yt-fallback-reason').textContent = reasonText || '';
+  const guideBtn = $('btn-open-ext-guide');
+  if (guideBtn) guideBtn.style.display = offerExtGuide ? 'inline-flex' : 'none';
+  box.classList.add('visible');
+}
+
+function hideYoutubeFriendlyFallback() {
+  $('yt-fallback-box')?.classList.remove('visible');
+}
+
+async function handleFetchYoutubeUrl() {
+  const rawUrl = $('yt-url-input')?.value.trim() || '';
+  showError('');
+  hideYoutubeFriendlyFallback();
+
+  const fetchBtn = $('btn-yt-fetch');
+  if (fetchBtn) fetchBtn.disabled = true;
+  $('yt-preview-card')?.classList.remove('visible');
+  setStatus('yt', true, 'Memeriksa link YouTube lewat koneksi internet perangkatmu...', 24);
+
+  try {
+    const info = await fetchYoutubeVideoInfo(rawUrl);
+    state.ytInfo = info;
+    state.ytHeatmap = Array.isArray(info.heatmap) && info.heatmap.length > 0 ? info.heatmap : null;
+
+    if ($('yt-thumb')) $('yt-thumb').src = info.thumbnail || '';
+    if ($('yt-duration-badge')) $('yt-duration-badge').textContent = formatClock(info.durationSec || 0);
+    if ($('yt-channel-pill')) $('yt-channel-pill').textContent = info.author || 'YouTube';
+    if ($('yt-title')) $('yt-title').textContent = info.title || 'Video YouTube';
+
+    const capPill = $('yt-caption-pill');
+    if (capPill) {
+      if (info.hasCaptions && info.wordCount > 0) {
+        capPill.textContent = `Subtitle Siap (${info.captionLang.toUpperCase()} · ${info.wordCount} kata)`;
+        capPill.className = 'pill-tag lime';
+      } else {
+        capPill.textContent = 'Tanpa Subtitle — Siap Transkrip Whisper-Small';
+        capPill.className = 'pill-tag';
+      }
+    }
+
+    const hmPill = $('yt-heatmap-pill');
+    if (hmPill) {
+      hmPill.style.display = state.ytHeatmap ? 'inline-flex' : 'none';
+    }
+
+    const qSelect = $('yt-quality-select');
+    if (qSelect) {
+      qSelect.innerHTML = '';
+      (info.qualities || []).forEach((q) => {
+        const opt = document.createElement('option');
+        opt.value = q.id;
+        opt.textContent = q.label;
+        if (q.recommended) opt.selected = true;
+        qSelect.appendChild(opt);
+      });
+    }
+
+    setStatus('yt', false);
+    $('yt-preview-card')?.classList.add('visible');
+    showToast('Informasi video siap dipotong menjadi klip 9:16');
+  } catch (err) {
+    setStatus('yt', false);
+    recordDiagnostic(`Link YouTube dilewati (${err?.code || 'INFO'}): ${err?.message || ''}`);
+    const title =
+      err?.code === 'OFFLINE'
+        ? 'Koneksi Internet Sedang Terputus'
+        : err?.code === 'VIDEO_UNAVAILABLE'
+        ? 'Video Bersifat Pribadi atau Dibatasi Pemilik Channel'
+        : err?.code === 'INVALID_URL' || err?.code === 'EMPTY_URL'
+        ? 'Periksa Kembali Alamat Link YouTube'
+        : 'Gunakan File Video Lokal atau Aktifkan Jembatan Link Lokal';
+
+    showYoutubeFriendlyFallback(
+      title,
+      err?.message ||
+        'Link ini belum bisa diakses langsung. Silakan pilih file video lokal (.mp4, .mov, .mkv) dari laptopmu.',
+      Boolean(err?.offerExtensionGuide || err?.code === 'BRIDGE_REQUIRED')
+    );
+  } finally {
+    if (fetchBtn) fetchBtn.disabled = false;
+  }
+}
+
+async function handleYoutubeImportAction() {
+  if (!state.ytInfo) return;
+  showError('');
+  hideYoutubeFriendlyFallback();
+
+  const qualityId = $('yt-quality-select')?.value || null;
+  const importBtn = $('btn-yt-import-studio');
+  const fetchBtn = $('btn-yt-fetch');
+  const cancelBtn = $('btn-yt-cancel');
+
+  state.ytAbortController = new AbortController();
+  if (importBtn) importBtn.disabled = true;
+  if (fetchBtn) fetchBtn.disabled = true;
+  if (cancelBtn) cancelBtn.style.display = 'inline-flex';
+
+  setStatus('yt', true, 'Mengalirkan sumber video lewat internet perangkatmu...', 6);
+
+  try {
+    const res = await downloadYoutubeAsMp4File({
+      info: state.ytInfo,
+      qualityId,
+      signal: state.ytAbortController.signal,
+      onProgress: ({ phase, percent }) => {
+        setStatus('yt', true, phase, percent);
+      }
+    });
+
+    setStatus('yt', false);
+    state.ytHeatmap = Array.isArray(res.heatmap) && res.heatmap.length > 0 ? res.heatmap : null;
+
+    await handleVideoSelected(res.file, {
+      prebuiltMoments: res.moments && res.moments.length > 0 ? res.moments : null,
+      heatmap: state.ytHeatmap,
+      skipAutoJump: false
+    });
+  } catch (err) {
+    setStatus('yt', false);
+    if (err?.name === 'AbortError') {
+      showToast('Proses pemuatan link dibatalkan');
+    } else {
+      showYoutubeFriendlyFallback(
+        'Aliran Video Terputus atau Dibatasi',
+        `${
+          err?.message || 'Sumber video membatasi pembacaan langsung.'
+        } Silakan pilih file video lokal (.mp4, .mov, .mkv) dari laptopmu untuk segera dipotong.`,
+        true
+      );
+    }
+  } finally {
+    state.ytAbortController = null;
+    if (importBtn) importBtn.disabled = false;
+    if (fetchBtn) fetchBtn.disabled = false;
+    if (cancelBtn) cancelBtn.style.display = 'none';
+  }
+}
+
+/* ============================================================================
+ * 8. PEMOTONG BATCH OTOMATIS (4 SINYAL + ISOLASI ERROR PER KLIP + MULTI-VIDEO)
+ * ============================================================================ */
+
+function appendAgentLog(message) {
+  recordDiagnostic(message);
+  const logBox = $('agent-log-list');
+  if (!logBox) return;
+  const row = document.createElement('div');
+  row.className = 'agent-log-item';
+  const now = new Date();
+  const stamp = `${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+  row.innerHTML = `<span class="agent-log-time">${stamp}</span><span>${escapeHtml(message)}</span>`;
+  logBox.appendChild(row);
+  logBox.scrollTop = logBox.scrollHeight;
+}
+
+function setAgentStageVisual(stageIndex, title, detail, percent) {
+  $('agent-tracker')?.classList.add('visible');
+  if ($('agent-stage-title') && title) $('agent-stage-title').textContent = title;
+  if ($('agent-stage-detail') && detail) $('agent-stage-detail').textContent = detail;
+  if ($('agent-pct-badge') && percent != null) {
+    $('agent-pct-badge').textContent = `${Math.max(0, Math.min(100, Math.round(percent)))}%`;
+  }
+  if ($('agent-progress-fill') && percent != null) {
+    $('agent-progress-fill').style.width = `${Math.max(2, Math.min(100, percent))}%`;
+  }
+  document.querySelectorAll('[data-agent-stage]').forEach((chip) => {
+    const idx = Number(chip.dataset.agentStage);
+    chip.classList.toggle('active', idx === stageIndex);
+    chip.classList.toggle('done', idx < stageIndex);
+  });
+}
+
+function clearOldAgentClips() {
+  for (const clip of state.agentRenderedClips) {
+    if (clip.objectUrl) {
+      try {
+        URL.revokeObjectURL(clip.objectUrl);
+      } catch {}
+    }
+  }
+  state.agentRenderedClips = [];
+  state.agentFailedClips = [];
+  if ($('agent-results-grid')) $('agent-results-grid').innerHTML = '';
+  $('agent-results-wrap')?.classList.remove('visible');
+}
+
+function appendAgentClipCard(clip) {
+  const wrap = $('agent-results-wrap');
+  const grid = $('agent-results-grid');
+  if (!wrap || !grid) return;
+
+  wrap.classList.add('visible');
+  if ($('agent-results-badge')) {
+    $('agent-results-badge').textContent = `${state.agentRenderedClips.length} Klip 9:16 Siap Pakai`;
+  }
+
+  const sizeMb = (clip.sizeBytes / (1024 * 1024)).toFixed(2);
+  const modeLabel =
+    clip.effectiveFrameMode === 'podcast-split'
+      ? 'Podcast Split 2 Wajah'
+      : clip.effectiveFrameMode === 'blur-fit'
+      ? 'Cinema Blur'
+      : clip.effectiveFrameMode === 'gaming-split'
+      ? 'Gaming Split'
+      : 'Fullscreen Tengah';
+
+  const card = document.createElement('article');
+  card.className = 'agent-clip-card';
+  card.innerHTML = `
+    <div class="agent-clip-head">
+      <span class="pill-tag lime">Klip #${clip.index} · Skor ${clip.score || 80}</span>
+      <span class="muted-copy" style="font-size:12px;">${formatClock(clip.startSec)} – ${formatClock(clip.endSec)}</span>
+    </div>
+    <video class="agent-clip-video" src="${clip.objectUrl}" controls playsinline preload="metadata"></video>
+    <h4 class="agent-clip-title">${escapeHtml(clip.hookTitle)}</h4>
+    <p class="muted-copy" style="font-size:12.5px;margin-bottom:6px;">
+      ${escapeHtml(clip.reason || 'Dipilih dari lonjakan suara & kalimat utuh.')}
+    </p>
+    <p class="muted-copy" style="font-size:12px;margin-bottom:12px;">
+      ${modeLabel} · ${String(clip.encoderMode || 'gpu').toUpperCase()} · ${clip.width}×${clip.height} · ${clip.durationSec.toFixed(1)} dtk · ${sizeMb} MB
+    </p>
+    <div class="btn-row" style="gap:8px;">
+      <a class="btn btn-primary btn-sm" href="${clip.objectUrl}" download="${escapeHtml(clip.fileName)}" style="flex:1;text-align:center;">
+        Simpan MP4
+      </a>
+      <button type="button" class="btn btn-secondary btn-sm" data-customize-agent-clip="${clip.index}">
+         Poles di Studio
+      </button>
+    </div>
+  `;
+
+  card.querySelector('[data-customize-agent-clip]')?.addEventListener('click', async () => {
+    state.clipStartSec = clip.startSec;
+    state.clipEndSec = clip.endSec;
+    state.words = Array.isArray(clip.moment?.words) ? [...clip.moment.words] : [];
+    state.hookTitle = clip.hookTitle || '';
+    state.cameraTrack = clip.cameraTrack || null;
+    if ($('hook-title-input')) $('hook-title-input').value = state.hookTitle;
+    if ($('clip-transcript-input')) {
+      $('clip-transcript-input').value =
+        clip.moment?.transcript || state.words.map((w) => w.word).join(' ');
+    }
+    syncTrimmerInputs();
+    updateDetectedFacesBadge(clip.cameraTrack);
+    await refreshClipVocalEnvelopeAndWords({ relockExistingWords: false });
+    goToWizardStep(3);
+    showToast(`Klip #${clip.index} dibuka di Studio 9:16 untuk dipoles`);
+  });
+
+  grid.appendChild(card);
+}
+
+function appendFailedAgentClipCard(failedItem) {
+  const wrap = $('agent-results-wrap');
+  const grid = $('agent-results-grid');
+  if (!wrap || !grid) return;
+
+  wrap.classList.add('visible');
+  const card = document.createElement('article');
+  card.className = 'agent-clip-card';
+  card.style.borderStyle = 'dashed';
+  card.innerHTML = `
+    <div class="agent-clip-head">
+      <span class="pill-tag">Klip #${failedItem.index} Dilewati</span>
+      <span class="muted-copy" style="font-size:12px;">${formatClock(failedItem.startSec)} – ${formatClock(failedItem.endSec)}</span>
+    </div>
+    <h4 class="agent-clip-title">${escapeHtml(failedItem.title || `Klip #${failedItem.index}`)}</h4>
+    <p class="muted-copy" style="font-size:13px;margin:8px 0 12px;">
+      Klip ini dilewati otomatis agar klip lain tetap selesai: ${escapeHtml(failedItem.error)}
+    </p>
+  `;
+  grid.appendChild(card);
+}
+
+async function startAutonomousClipAgent({ prebuiltMoments = null } = {}) {
+  if (!state.file || !state.mediaInfo) {
+    showError('Pilih file video lokal atau tempel link YouTube terlebih dahulu.');
+    return;
+  }
+
+  if (state.agentAbortController) {
+    state.agentAbortController.abort();
+  }
+
+  showError('');
+  clearOldAgentClips();
+  if ($('agent-log-list')) $('agent-log-list').innerHTML = '';
+
+  const runBtn = $('btn-run-ai-agent');
+  const stopBtn = $('btn-stop-ai-agent');
+  const pill = $('agent-state-pill');
+  const clipCount = Number($('agent-clip-count-select')?.value || state.agentClipCount || 3);
+  state.agentClipCount = clipCount;
+
+  const geminiApiKey = $('gemini-key-input')?.value.trim() || state.settings.geminiKey || '';
+
+  state.agentAbortController = new AbortController();
+  if (runBtn) runBtn.disabled = true;
+  if (stopBtn) stopBtn.style.display = 'inline-flex';
+  if (pill) pill.textContent = 'Sedang Memotong & Merender...';
+
+  setAgentStageVisual(1, 'Memulai Pemotong Batch 9:16...', 'Memeriksa ruang disk & sinyal suara...', 5);
+
+  try {
+    await assertSufficientDiskForRender(75 * 1024 * 1024);
+
+    const res = await runAutonomousClipAgent({
+      file: state.file,
+      mediaInfo: state.mediaInfo,
+      prebuiltMoments,
+      heatmap: state.ytHeatmap,
+      geminiApiKey,
+      clipCount,
+      presetId: state.presetId,
+      frameMode: state.frameMode,
+      autoFaceCenter: state.autoFaceCenter,
+      captionOffsetSec: state.captionOffsetSec,
+      hookStyle: state.hookStyle,
+      hookDurationSec: state.hookDurationSec,
+      watermarkImage: state.features.customWatermark ? state.watermarkImage : null,
+      watermarkText: state.features.customWatermark ? state.watermarkText : '',
+      watermarkPos: state.watermarkPos,
+      resolution: state.resolution,
+      voiceBoost: state.voiceBoost,
+      volumeGain: state.volumeGain,
+      monoToStereo: state.monoToStereo,
+      signal: state.agentAbortController.signal,
+      onStage: ({ stageIndex, stageTitle, detail, percent }) => {
+        setAgentStageVisual(stageIndex, stageTitle, detail, percent);
+      },
+      onLog: (msg) => {
+        appendAgentLog(msg);
+      },
+      onMomentsReady: (moments) => {
+        state.moments = moments;
+        state.scoringMeta = moments.scoringMeta || null;
+        renderMomentsCards();
+        selectMoment(0, { skipVocalExtract: true });
+        refreshDashboardAndBadges();
+      },
+      onClipRendered: (clip) => {
+        state.agentRenderedClips.push(clip);
+        appendAgentClipCard(clip);
+        const sizeMb = (clip.sizeBytes / (1024 * 1024)).toFixed(2);
+        addRenderHistoryEntry({
+          hookTitle: clip.hookTitle,
+          sourceName: state.file?.name || 'video.mp4',
+          presetId: clip.presetId,
+          resolution: state.resolution,
+          durationSec: clip.durationSec,
+          sizeMb
+        });
+      },
+      onClipFailed: (failedInfo) => {
+        state.agentFailedClips.push(failedInfo);
+        appendFailedAgentClipCard(failedInfo);
+      }
+    });
+
+    if (pill) {
+      pill.textContent =
+        res.failedClips.length > 0
+          ? `Selesai (${res.clips.length} Berhasil, ${res.failedClips.length} Dilewati)`
+          : `Selesai · ${res.clips.length} Klip MP4 Siap`;
+    }
+    showToast(`${res.clips.length} klip vertikal 9:16 selesai dibuat`);
+    $('agent-results-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } catch (err) {
+    if (err?.name === 'AbortError') {
+      appendAgentLog('Pembuatan batch klip dihentikan oleh pengguna.');
+      if (pill) pill.textContent = 'Dibatalkan Pengguna';
+      showToast('Proses batch dibatalkan');
+    } else {
+      appendAgentLog(`Kendala batch: ${err?.message || err}`);
+      if (pill) pill.textContent = 'Perlu Perhatian';
+      showError(err?.message || 'Gagal menyelesaikan batch klip otomatis.');
+    }
+  } finally {
+    state.agentAbortController = null;
+    if (runBtn) runBtn.disabled = !state.file;
+    if (stopBtn) stopBtn.style.display = 'none';
+  }
+}
+
+async function runMultiVideoBatchQueue(filesList) {
+  if (!filesList || filesList.length === 0) return;
+  showToast(`Memproses antrean ${filesList.length} video secara berurutan...`);
+  for (let i = 0; i < filesList.length; i++) {
+    const f = filesList[i];
+    appendAgentLog(`=== Antrean Multi-Video #${i + 1}/${filesList.length}: ${f.name} ===`);
+    await handleVideoSelected(f, { skipAutoJump: true, forceWaitBatch: true });
+  }
+  showToast(`Antrean ${filesList.length} video selesai diproses`);
+}
+
+async function handleVideoSelected(
+  file,
+  { prebuiltMoments = null, heatmap = null, skipAutoJump = false, forceWaitBatch = false } = {}
+) {
+  if (!file) return;
+  showError('');
+  hideYoutubeFriendlyFallback();
+
+  if (state.agentAbortController) {
+    state.agentAbortController.abort();
+    state.agentAbortController = null;
+  }
+
+  if (state.videoObjectUrl) URL.revokeObjectURL(state.videoObjectUrl);
+  state.file = file;
+  state.videoObjectUrl = URL.createObjectURL(file);
+  state.cameraTrack = null;
+  state.moments = [];
+  state.scoringMeta = null;
+  state.words = [];
+  state.vocalEnvelope = null;
+  state.vocalClipSamples = null;
+  state.ytHeatmap = heatmap || null;
+
+  setStatus('step1', true, 'Membaca durasi, resolusi & jalur audio video...', 30);
+
+  try {
+    const info = await probeMediaFile(file);
+    state.mediaInfo = info;
+    const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+    const summary = $('file-summary');
+    const summaryText = $('file-summary-text');
+    if (summary && summaryText) {
+      summary.classList.add('visible');
+      summaryText.textContent = `${file.name} (${info.width}×${info.height} · ${formatClock(info.duration)} · ${sizeMb} MB)`;
+    }
+
+    ['btn-analyze-whisper', 'btn-pick-srt', 'btn-analyze-gemini', 'btn-run-ai-agent'].forEach(
+      (id) => {
+        if ($(id)) $(id).disabled = false;
+      }
+    );
+
+    const defEnd = Math.min(info.duration, Math.max(5, Math.min(30, info.duration)));
+    state.clipStartSec = 0;
+    state.clipEndSec = Number(defEnd.toFixed(1));
+    state.moments = [
+      {
+        id: 'manual-1',
+        title: 'Potongan Awal Video',
+        score: 76,
+        reason: 'Segmen pembuka siap digeser manual atau dianalisis dengan skor 4 sinyal.',
+        startSec: 0,
+        endSec: state.clipEndSec,
+        transcript: '',
+        words: []
+      }
+    ];
+    setStatus('step1', false);
+
+    const autoRunEnabled = Boolean($('agent-auto-run-checkbox')?.checked);
+
+    if (Array.isArray(prebuiltMoments) && prebuiltMoments.length > 0) {
+      state.moments = prebuiltMoments;
+      state.scoringMeta = prebuiltMoments.scoringMeta || null;
+      renderMomentsCards();
+      await selectMoment(0);
+      refreshDashboardAndBadges();
+
+      if (autoRunEnabled || forceWaitBatch) {
+        await startAutonomousClipAgent({ prebuiltMoments });
+        return;
+      }
+      if (!skipAutoJump) {
+        goToWizardStep(2);
+      }
+      return;
+    }
+
+    renderMomentsCards();
+    await selectMoment(0);
+    refreshDashboardAndBadges();
+
+    if (autoRunEnabled || forceWaitBatch) {
+      await startAutonomousClipAgent();
+    } else {
+      showToast('Video siap! Klik Buat Batch Klip atau Transkrip Whisper-Small');
+    }
+  } catch (err) {
+    setStatus('step1', false);
+    showError(
+      `File video tidak terbaca (${
+        err?.message || 'format rusak'
+      }). Gunakan rekaman video berformat .mp4, .mov, .mkv, atau .webm yang utuh.`
+    );
+  }
+}
+
+async function handleLoadSampleVideo() {
+  showError('');
+  const btn = $('btn-load-sample');
+  if (btn) btn.disabled = true;
+  setStatus('step1', true, 'Membuat video contoh podcast 2 pembicara (1280×720) beserta vokal...', 45);
+
+  try {
+    const { file, moments, prebuiltMoments, scoringMeta } = await createSamplePodcastMp4((p) => {
+      setStatus('step1', true, `Menyiapkan video contoh 2 pembicara (${p}%)...`, p);
+    });
+    const sampleMoments = moments || prebuiltMoments || null;
+    if (sampleMoments && scoringMeta) {
+      sampleMoments.scoringMeta = scoringMeta;
+    }
+    setStatus('step1', false);
+    await handleVideoSelected(file, { prebuiltMoments: sampleMoments, skipAutoJump: false });
+  } catch (err) {
+    setStatus('step1', false);
+    showError(`Gagal membuat video contoh: ${err.message}`);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function handleWhisperAnalysis() {
+  if (!state.file || !state.mediaInfo) return;
+  showError('');
+  const btn = $('btn-analyze-whisper');
+  if (btn) btn.disabled = true;
+
+  try {
+    const moments = await transcribeAndPickWithWhisperWeb({
+      file: state.file,
+      totalDurationSec: state.mediaInfo.duration,
+      heatmap: state.ytHeatmap,
+      onStatus: (txt, pct) => setStatus('step1', true, txt, pct)
+    });
+    state.moments = moments;
+    state.scoringMeta = moments.scoringMeta || null;
+    setStatus('step1', false);
+    renderMomentsCards();
+    await selectMoment(0);
+    refreshDashboardAndBadges();
+    goToWizardStep(2);
+    showToast(`${moments.length} momen terukur ditemukan dengan Whisper-Small`);
+  } catch (err) {
+    setStatus('step1', false);
+    showError(err.message || 'Gagal membaca transkrip vokal lokal.');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function handleGeminiAnalysis() {
+  if (!state.file || !state.mediaInfo) return;
+  const apiKey = $('gemini-key-input')?.value.trim() || '';
+  if (!apiKey) {
+    showError('Masukkan kunci API Gemini pribadimu terlebih dahulu, atau gunakan tombol Whisper-Small gratis di sebelah kiri.');
+    return;
+  }
+  state.settings.geminiKey = apiKey;
+  writeJson(KEYS.SETTINGS, state.settings);
+  if ($('set-gemini-key')) $('set-gemini-key').value = apiKey;
+
+  showError('');
+  const btn = $('btn-analyze-gemini');
+  if (btn) btn.disabled = true;
+
+  try {
+    const moments = await analyzePodcastWithGemini({
+      file: state.file,
+      apiKey,
+      totalDurationSec: state.mediaInfo.duration,
+      onStatus: (txt, pct) => setStatus('step1', true, txt, pct)
+    });
+    state.moments = moments;
+    state.scoringMeta = moments.scoringMeta || null;
+    setStatus('step1', false);
+    renderMomentsCards();
+    await selectMoment(0);
+    refreshDashboardAndBadges();
+    goToWizardStep(2);
+  } catch (err) {
+    setStatus('step1', false);
+    showError(err.message || 'Gagal menganalisis dengan kunci Gemini.');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function parseSrtTimestamp(raw) {
+  const clean = raw.trim().replace(',', '.');
+  const parts = clean.split(':').map(Number);
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  return 0;
+}
+
+async function handleSrtUpload(file) {
+  if (!file || !state.mediaInfo) return;
+  showError('');
+  try {
+    const text = await file.text();
+    const blocks = text.replace(/\r\n/g, '\n').split(/\n\s*\n/);
+    const allWords = [];
+
+    for (const block of blocks) {
+      const lines = block.split('\n').map((l) => l.trim()).filter(Boolean);
+      const timeLineIdx = lines.findIndex((l) => l.includes('-->'));
+      if (timeLineIdx === -1) continue;
+      const [startRaw, endRaw] = lines[timeLineIdx].split('-->');
+      const startSec = parseSrtTimestamp(startRaw);
+      const endSec = parseSrtTimestamp(endRaw.split(' ')[0]);
+      const captionText = lines
+        .slice(timeLineIdx + 1)
+        .join(' ')
+        .replace(/<[^>]+>/g, '')
+        .trim();
+      if (!captionText) continue;
+
+      allWords.push(...buildWordsFromTextAndWindow(captionText, startSec, endSec));
+    }
+
+    if (allWords.length === 0) {
+      throw new Error('Format file .SRT / .VTT kosong atau tidak memiliki penanda waktu.');
+    }
+
+    const moments = pickMomentsFromWordsLocally(allWords, state.mediaInfo.duration, {
+      heatmap: state.ytHeatmap
+    });
+    state.moments = moments;
+    state.scoringMeta = moments.scoringMeta || null;
+    renderMomentsCards();
+    await selectMoment(0);
+    refreshDashboardAndBadges();
+    goToWizardStep(2);
+    showToast('Subtitle .SRT/.VTT berhasil dikunci ke gelombang vokal');
+  } catch (err) {
+    showError(err.message || 'Gagal membaca file subtitle.');
+  }
+}
+
+async function handleCopyAiPromptHelper() {
+  const dur = state.mediaInfo ? formatClock(state.mediaInfo.duration) : '15:00';
+  const name = state.file ? state.file.name : 'rekaman-podcast.mp4';
+  const sampleTranscript = state.moments
+    .map((m) => `[${formatClock(m.startSec)} - ${formatClock(m.endSec)}] ${m.transcript || m.title}`)
+    .join('\n');
+
+  const promptText = [
+    `Saya sedang memotong video "${name}" (durasi ${dur}) menjadi klip vertikal 9:16 untuk Reels, TikTok, dan Shorts.`,
+    `Tolong pilihkan 5 bagian paling menarik berdurasi 20–45 detik yang punya:`,
+    `1. Kalimat pembuka kuat di 3 detik pertama (pertanyaan, angka konkret, atau pernyataan yang memancing rasa ingin tahu)`,
+    `2. Akhir kalimat utuh yang berhenti pas di jeda napas`,
+    `3. Usulan Judul Pembuka singkat maksimal 7 kata untuk tiap klip.`,
+    sampleTranscript ? `\nRingkasan transkrip saat ini:\n${sampleTranscript}` : ''
+  ].join('\n');
+
+  try {
+    await navigator.clipboard.writeText(promptText);
+    showToast('Prompt transkrip berhasil disalin ke papan klip');
+  } catch {
+    showToast('Gagal menyalin otomatis');
+  }
+}
+
+/* ============================================================================
+ * 9. LANGKAH 2: SKOR JUJUR 4 SINYAL, GESER DETIK & KUNCI TEKS KE VOKAL
+ * ============================================================================ */
+
+function renderMomentsCards() {
+  const container = $('moments-container');
+  const weightBanner = $('scoring-weight-banner');
+
+  if (weightBanner) {
+    const notice =
+      state.scoringMeta?.weightNotice ||
+      (state.ytHeatmap
+        ? 'Bobot skor aktif: Grafik Most-Replayed YouTube (35%) + Lonjakan Vokal (25%) + Kalimat Pembuka (25%) + Jeda Napas Akhir (15%).'
+        : 'Grafik Most-Replayed tidak tersedia pada sumber ini — bobot penilaian otomatis dialihkan ke Lonjakan Vokal (40%), Kekuatan Kalimat Pembuka (35%), dan Jeda Napas Kalimat Utuh (25%).');
+    weightBanner.textContent = notice;
+  }
+
+  if (!container) return;
+  container.innerHTML = '';
+
+  state.moments.forEach((m, idx) => {
+    const card = document.createElement('div');
+    card.className = `moment-card ${idx === state.selectedMomentIndex ? 'selected' : ''}`;
+    card.innerHTML = `
+      <div class="moment-head">
+        <div>
+          <span class="pill-tag lime" style="margin-bottom:6px;">Skor ${m.score || 78}/100</span>
+          <div class="moment-title">${idx + 1}. ${escapeHtml(m.title)}</div>
+        </div>
+        <span class="pill-tag">${formatClock(m.startSec)} – ${formatClock(m.endSec)} (${(m.endSec - m.startSec).toFixed(1)} dtk)</span>
+      </div>
+      <div class="moment-reason">${escapeHtml(m.reason || '')}</div>
+      ${
+        m.transcript
+          ? `<div class="moment-quote">"${escapeHtml(m.transcript.slice(0, 175))}${
+              m.transcript.length > 175 ? '...' : ''
+            }"</div>`
+          : ''
+      }
+    `;
+    card.addEventListener('click', () => selectMoment(idx));
+    container.appendChild(card);
+  });
+}
+
+async function selectMoment(index, { skipVocalExtract = false } = {}) {
+  const m = state.moments[index];
+  if (!m) return;
+  stopStep2AudioPreview();
+  state.selectedMomentIndex = index;
+  state.clipStartSec = Number(m.startSec.toFixed(2));
+  state.clipEndSec = Number(m.endSec.toFixed(2));
+  state.cameraTrack = null;
+
+  const totalDur = state.mediaInfo?.duration || 60;
+  ['slider-clip-start', 'slider-clip-end'].forEach((id) => {
+    if ($(id)) $(id).max = String(Math.ceil(totalDur));
+  });
+  syncTrimmerInputs();
+
+  const transcriptBox = $('clip-transcript-input');
+  if (Array.isArray(m.words) && m.words.length > 0) {
+    state.words = m.words.map((w) => ({ ...w }));
+    if (transcriptBox) transcriptBox.value = m.transcript || m.words.map((w) => w.word).join(' ');
+  } else {
+    const rawTxt = m.transcript || '';
+    if (transcriptBox) transcriptBox.value = rawTxt;
+    state.words = rawTxt
+      ? buildWordsFromTextAndWindow(rawTxt, state.clipStartSec, state.clipEndSec)
+      : [];
+  }
+
+  state.hookTitle = craftCleanHookTitle(m.title || m.transcript, index + 1);
+  if ($('hook-title-input')) $('hook-title-input').value = state.hookTitle;
+
+  document.querySelectorAll('.moment-card').forEach((el, i) => {
+    el.classList.toggle('selected', i === index);
+  });
+
+  if (!skipVocalExtract) {
+    await refreshClipVocalEnvelopeAndWords({ relockExistingWords: state.words.length > 0 });
+  }
+}
+
+function syncTrimmerInputs() {
+  if ($('clip-start-input')) $('clip-start-input').value = String(state.clipStartSec);
+  if ($('slider-clip-start')) $('slider-clip-start').value = String(state.clipStartSec);
+  if ($('clip-end-input')) $('clip-end-input').value = String(state.clipEndSec);
+  if ($('slider-clip-end')) $('slider-clip-end').value = String(state.clipEndSec);
+  const dur = Math.max(0.5, state.clipEndSec - state.clipStartSec);
+  if ($('label-clip-duration')) {
+    $('label-clip-duration').textContent = `Durasi Klip: ${dur.toFixed(1)} dtk`;
+  }
+}
+
+function handleTrimChange(source) {
+  const maxDur = state.mediaInfo?.duration || 3600;
+  let s = Number(
+    source === 'slider' ? $('slider-clip-start').value : $('clip-start-input').value
+  );
+  let e = Number(source === 'slider' ? $('slider-clip-end').value : $('clip-end-input').value);
+  s = Math.max(0, Math.min(maxDur - 1, s));
+  e = Math.max(s + 1, Math.min(maxDur, e));
+
+  state.clipStartSec = Number(s.toFixed(2));
+  state.clipEndSec = Number(e.toFixed(2));
+  state.cameraTrack = null;
+  syncTrimmerInputs();
+
+  clearTimeout(handleTrimChange._debounce);
+  handleTrimChange._debounce = setTimeout(async () => {
+    await refreshClipVocalEnvelopeAndWords({ relockExistingWords: false });
+    const txt = $('clip-transcript-input')?.value.trim() || '';
+    if (txt && state.vocalClipSamples) {
+      state.words = buildWordsFromTextAndWindow(
+        txt,
+        state.clipStartSec,
+        state.clipEndSec,
+        state.vocalClipSamples,
+        16000
+      );
+      drawVocalSyncTimeline();
+    }
+  }, 180);
+}
+
+async function handleSnapBoundsToBreathPause() {
+  if (!state.file || !state.mediaInfo) return;
+  if (!state.vocalEnvelope) {
+    await refreshClipVocalEnvelopeAndWords();
+  }
+  const snapped = snapClipBoundsToBreathPause(
+    state.clipStartSec,
+    state.clipEndSec,
+    state.vocalEnvelope,
+    state.mediaInfo.duration
+  );
+  state.clipStartSec = snapped.startSec;
+  state.clipEndSec = snapped.endSec;
+  syncTrimmerInputs();
+  await refreshClipVocalEnvelopeAndWords({ relockExistingWords: true });
+  showToast('Titik awal & akhir dirapatkan ke jeda napas terdekat');
+}
+
+async function handleLockEditedTextToVocal() {
+  const txt = $('clip-transcript-input')?.value.trim() || '';
+  if (!txt) {
+    state.words = [];
+    drawVocalSyncTimeline();
+    showToast('Teks caption dikosongkan');
+    return;
+  }
+  const btn = $('btn-lock-text-vocal');
+  if (btn) btn.disabled = true;
+  try {
+    const locked = await lockEditedTextToClipVocal(
+      state.file,
+      txt,
+      state.clipStartSec,
+      state.clipEndSec
+    );
+    state.words = locked;
+    if (state.moments[state.selectedMomentIndex]) {
+      state.moments[state.selectedMomentIndex].words = locked;
+      state.moments[state.selectedMomentIndex].transcript = txt;
+    }
+    await refreshClipVocalEnvelopeAndWords({ relockExistingWords: false });
+    showToast(`${locked.length} kata berhasil dikunci presisi ke gelombang vokal`);
+  } catch (err) {
+    showError(err?.message || 'Gagal mengunci teks ke gelombang vokal.');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function stopStep2AudioPreview() {
+  if (state.step2AudioRafId) {
+    cancelAnimationFrame(state.step2AudioRafId);
+    state.step2AudioRafId = null;
+  }
+  if (state.step2AudioEl) {
+    state.step2AudioEl.pause();
+  }
+  const btn = $('btn-step2-play-audio');
+  if (btn) btn.textContent = 'Dengarkan Suara & Cek Ketukan Kata';
+  drawVocalSyncTimeline(null);
+}
+
+async function toggleStep2AudioPreview(seekToSec = null) {
+  if (!state.videoObjectUrl) return;
+  if (!state.step2AudioEl) {
+    state.step2AudioEl = document.createElement('video');
+    state.step2AudioEl.className = 'offscreen-media-player';
+    state.step2AudioEl.playsInline = true;
+    document.body.appendChild(state.step2AudioEl);
+  }
+  const media = state.step2AudioEl;
+  if (media.src !== state.videoObjectUrl) {
+    media.src = state.videoObjectUrl;
+  }
+
+  if (seekToSec == null && !media.paused) {
+    stopStep2AudioPreview();
+    return;
+  }
+
+  const targetStart =
+    seekToSec != null
+      ? Math.max(state.clipStartSec, Math.min(state.clipEndSec - 0.1, seekToSec))
+      : state.clipStartSec;
+
+  media.currentTime = targetStart;
+  media.muted = false;
+  media.volume = 1;
+
+  try {
+    await media.play();
+    const btn = $('btn-step2-play-audio');
+    if (btn) btn.textContent = 'Hentikan Suara';
+
+    const tick = () => {
+      if (media.paused) return;
+      if (media.currentTime >= state.clipEndSec) {
+        stopStep2AudioPreview();
+        return;
+      }
+      const cur = media.currentTime;
+      const offset = Number(state.captionOffsetSec) || 0;
+      const activeWord = state.words.find(
+        (w) => cur - offset >= w.start - 0.02 && cur - offset <= w.end + 0.05
+      );
+      if ($('step2-audio-time')) {
+        $('step2-audio-time').textContent = `Memutar ${formatClock(cur)} / ${formatClock(
+          state.clipEndSec
+        )}${activeWord ? ` · Kata aktif: "${activeWord.word}"` : ' · (Jeda napas)'}`;
+      }
+      drawVocalSyncTimeline(cur);
+      state.step2AudioRafId = requestAnimationFrame(tick);
+    };
+    if (state.step2AudioRafId) cancelAnimationFrame(state.step2AudioRafId);
+    state.step2AudioRafId = requestAnimationFrame(tick);
+  } catch {
+    showError('Klik sekali lagi untuk mengaktifkan pemutar suara di browser.');
+  }
+}
+
+async function handleResyncClipWithWhisper() {
+  if (!state.file) return;
+  const btn = $('btn-resync-whisper');
+  if (btn) btn.disabled = true;
+  showError('');
+
+  try {
+    const words = await syncClipWordsWithWhisper(
+      state.file,
+      state.clipStartSec,
+      state.clipEndSec,
+      (txt, pct) => setStatus('step2', true, txt, pct)
+    );
+    setStatus('step2', false);
+
+    if (words.length > 0) {
+      state.words = words;
+      const joined = words.map((w) => w.word).join(' ');
+      if ($('clip-transcript-input')) $('clip-transcript-input').value = joined;
+      state.hookTitle = craftCleanHookTitle(joined, state.selectedMomentIndex + 1);
+      if ($('hook-title-input')) $('hook-title-input').value = state.hookTitle;
+      await refreshClipVocalEnvelopeAndWords({ relockExistingWords: false });
+      showToast(`${words.length} kata berhasil dibaca & dikunci ke vokal`);
+    } else {
+      showError('Tidak terdengar vokal ucapan pada rentang detik ini. Coba geser titik mulai/selesai klip.');
+    }
+  } catch (err) {
+    setStatus('step2', false);
+    showError(err.message || 'Gagal membaca ulang vokal klip.');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+/* ============================================================================
+ * 10. LANGKAH 3: FRAMING 1/2 WAJAH, GENERATOR DESKRIPSI, PREVIEW & EKSPOR MP4
+ * ============================================================================ */
+
+function updateDetectedFacesBadge(cameraTrack) {
+  const badge = $('detected-faces-badge');
+  if (!badge) return;
+  const meta = cameraTrack?.meta;
+  if (!meta) {
+    badge.textContent = 'Deteksi Otomatis 1 / 2 Wajah';
+    return;
+  }
+  const effective = resolveEffectiveFrameMode(state.frameMode, cameraTrack);
+  if (meta.detectedFaces >= 2) {
+    badge.textContent =
+      effective === 'podcast-split'
+        ? '2 Wajah Terdeteksi -> Podcast Split Atas-Bawah'
+        : `2 Wajah Terdeteksi (${effective})`;
+  } else {
+    badge.textContent =
+      effective === 'crop-fill'
+        ? '1 Pembicara Terdeteksi -> Fullscreen Tengah'
+        : `1 Pembicara Terdeteksi (${effective})`;
+  }
+}
+
+function generatePostDescriptionAndHashtags() {
+  if (!state.features.descriptionHashtagGenerator) {
+    showToast('Generator Deskripsi & Hashtag tersedia pada Paket Tambahan (Rp 49.000)');
+    return;
+  }
+
+  const hook = ($('hook-title-input')?.value || state.hookTitle || 'Poin Penting Hari Ini').trim();
+  const rawTranscript = (
+    $('clip-transcript-input')?.value ||
+    state.words.map((w) => w.word).join(' ') ||
+    ''
+  ).trim();
+
+  // Ambil 1-2 kalimat pembuka yang bersih dari transkrip klip
+  const cleanSummary = rawTranscript
+    ? rawTranscript.split(/(?<=[.!?])\s+/).slice(0, 2).join(' ').slice(0, 240)
+    : 'Simak cuplikan lengkapnya dalam kurang dari satu menit.';
+
+  // Ekstrak kata kunci topik bermakna (> 4 huruf, bukan kata sambung umum) untuk hashtag relevan
+  const stopWords = new Set([
+    'yang', 'untuk', 'dalam', 'dengan', 'adalah', 'karena', 'kalau', 'tidak', 'bukan',
+    'sudah', 'masih', 'akan', 'bisa', 'harus', 'lebih', 'sangat', 'banyak', 'semua',
+    'seperti', 'ketika', 'terus', 'kemudian', 'sekarang', 'mereka', 'kita', 'kamu',
+    'saya', 'dari', 'pada', 'atau', 'tapi', 'jadi', 'banget', 'gimana', 'kenapa'
+  ]);
+  const wordFreq = new Map();
+  const combinedTokens = `${hook} ${rawTranscript}`
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length >= 5 && !stopWords.has(w) && !/^\d+$/.test(w));
+
+  for (const tok of combinedTokens) {
+    wordFreq.set(tok, (wordFreq.get(tok) || 0) + 1);
+  }
+
+  const topTags = Array.from(wordFreq.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([w]) => `#${w}`);
+
+  const baseTags = ['#klippodcast', '#potonganvideo', '#edukasikreator', '#reelsindonesia', '#belajarbisnis'];
+  const mergedTags = Array.from(new Set([...topTags, ...baseTags])).slice(0, 7);
+
+  const creatorHandle = state.watermarkText ? `\nSumber: ${state.watermarkText}` : '';
+  const finalDesc = `${hook}\n\n${cleanSummary}${creatorHandle}\n\nTulis pendapatmu di kolom komentar dan simpan klip ini bila bermanfaat.\n\n${mergedTags.join(' ')}`;
+
+  const outBox = $('generated-desc-output');
+  const copyBtn = $('btn-copy-desc');
+  if (outBox) {
+    outBox.value = finalDesc;
+    outBox.style.display = 'block';
+  }
+  if (copyBtn) {
+    copyBtn.style.display = 'inline-flex';
+  }
+  showToast('Deskripsi & hashtag siap disalin');
+}
+
+function getPreviewCurrentTime() {
+  const vid = $('hidden-preview-video');
+  if (vid && !Number.isNaN(vid.currentTime) && vid.currentTime >= state.clipStartSec) {
+    return vid.currentTime;
+  }
+  return state.clipStartSec;
+}
+
+function ensurePreviewAudioBoostGraph(vid) {
+  if (!vid) return;
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx) return;
+
+  if (!state.previewWebAudioCtx) {
+    try {
+      const ctx = new AudioCtx();
+      const src = ctx.createMediaElementSource(vid);
+      const hpf = ctx.createBiquadFilter();
+      hpf.type = 'highpass';
+      hpf.frequency.value = 80;
+      const gain = ctx.createGain();
+      gain.gain.value = state.volumeGain;
+      src.connect(hpf);
+      hpf.connect(gain);
+      gain.connect(ctx.destination);
+      state.previewWebAudioCtx = ctx;
+      state.previewWebAudioGain = gain;
+    } catch {}
+  }
+
+  if (state.previewWebAudioCtx?.state === 'suspended') {
+    state.previewWebAudioCtx.resume().catch(() => {});
+  }
+  if (state.previewWebAudioGain) {
+    state.previewWebAudioGain.gain.value = state.isPreviewMuted ? 0 : state.volumeGain;
+  }
+}
+
+function disposePreviewStaticDecoder() {
+  if (state.previewStaticInput) {
+    try {
+      state.previewStaticInput.dispose();
+    } catch {}
+  }
+  state.previewStaticInput = null;
+  state.previewStaticSink = null;
+  state.previewStaticBusy = false;
+  state.previewStaticPendingSec = null;
+}
+
+async function preparePreviewPlayer() {
+  const vid = $('hidden-preview-video');
+  if (!vid || !state.videoObjectUrl) return;
+
+  if (vid.dataset.boundUrl !== state.videoObjectUrl) {
+    disposePreviewStaticDecoder();
+    vid.src = state.videoObjectUrl;
+    vid.dataset.boundUrl = state.videoObjectUrl;
+    await new Promise((resolve) => {
+      if (vid.readyState >= 2) return resolve();
+      vid.onloadeddata = () => resolve();
+      vid.onerror = () => resolve();
+      setTimeout(resolve, 1400);
+    });
+  }
+
+  vid.muted = state.isPreviewMuted;
+  vid.volume = 1.0;
+  vid.currentTime = state.clipStartSec;
+
+  if (!state.words || state.words.length === 0) {
+    const rawTxt = $('clip-transcript-input')?.value.trim() || '';
+    if (rawTxt && rawTxt !== DEFAULT_CAPTION_PLACEHOLDER) {
+      state.words = buildWordsFromTextAndWindow(
+        rawTxt,
+        state.clipStartSec,
+        state.clipEndSec,
+        state.vocalClipSamples,
+        16000
+      );
+    }
+  }
+
+  updateDetectedFacesBadge(state.cameraTrack);
+  await renderStaticPreviewFrame(state.clipStartSec);
+
+  if (!state.cameraTrack && state.file && !state.autoPreviewFaceScanning) {
+    state.autoPreviewFaceScanning = true;
+    handleScanFacePreview().finally(() => {
+      state.autoPreviewFaceScanning = false;
+    });
+  }
+}
+
+function paintCurrentStateToPreviewCanvas(frameSource, srcW, srcH, timeSec) {
+  const canvas = $('preview-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const phraseGroups = groupWordsIntoPhrases(state.words, 4);
+
+  let centerX = 0.5 + state.manualCenterXOffset;
+  if (state.autoFaceCenter && state.cameraTrack) {
+    centerX = sampleCameraCenterX(state.cameraTrack, timeSec) + state.manualCenterXOffset;
+  }
+  centerX = Math.max(0.05, Math.min(0.95, centerX));
+
+  drawClipFrame(ctx, {
+    source: frameSource,
+    sourceWidth: srcW,
+    sourceHeight: srcH,
+    targetWidth: canvas.width,
+    targetHeight: canvas.height,
+    currentTimeSec: timeSec,
+    clipStartSec: state.clipStartSec,
+    centerX,
+    frameMode: state.frameMode,
+    cameraMeta: state.cameraTrack?.meta || null,
+    presetId: state.presetId,
+    phraseGroups,
+    captionOffsetSec: state.captionOffsetSec,
+    hookTitle: $('hook-title-input')?.value ?? state.hookTitle,
+    hookStyle: $('hook-style-select')?.value || state.hookStyle,
+    hookDurationSec: state.hookDurationSec,
+    watermarkImage: state.features.customWatermark ? state.watermarkImage : null,
+    watermarkText: state.features.customWatermark
+      ? $('watermark-text-input')?.value || state.watermarkText
+      : '',
+    watermarkPos: $('watermark-pos-select')?.value || state.watermarkPos,
+    watermarkOpacity: 0.88
+  });
+
+  const relCur = Math.max(0, timeSec - state.clipStartSec);
+  const relDur = Math.max(0.5, state.clipEndSec - state.clipStartSec);
+  if ($('preview-time-label')) {
+    $('preview-time-label').textContent = `${relCur.toFixed(1)}s / ${relDur.toFixed(1)}s`;
+  }
+}
+
+async function renderStaticPreviewFrame(timeSec) {
+  if (!state.file || state.isPlayingPreview) return;
+
+  if (state.previewStaticBusy) {
+    state.previewStaticPendingSec = timeSec;
+    return;
+  }
+  state.previewStaticBusy = true;
+
+  try {
+    if (!state.previewStaticSink) {
+      const input = new Input({
+        source: new BlobSource(state.file),
+        formats: ALL_FORMATS
+      });
+      const vTrack = await input.getPrimaryVideoTrack();
+      if (vTrack) {
+        state.previewStaticInput = input;
+        state.previewStaticSink = new CanvasSink(vTrack, { poolSize: 2 });
+      } else {
+        input.dispose();
+      }
+    }
+
+    if (state.previewStaticSink) {
+      const wrapped = await state.previewStaticSink.getCanvas(Math.max(0, timeSec));
+      if (wrapped?.canvas) {
+        paintCurrentStateToPreviewCanvas(
+          wrapped.canvas,
+          wrapped.canvas.width,
+          wrapped.canvas.height,
+          timeSec
+        );
+        return;
+      }
+    }
+
+    const vid = $('hidden-preview-video');
+    if (vid && vid.videoWidth > 0) {
+      paintCurrentStateToPreviewCanvas(vid, vid.videoWidth, vid.videoHeight, timeSec);
+    }
+  } catch {
+    const vid = $('hidden-preview-video');
+    if (vid && vid.videoWidth > 0) {
+      paintCurrentStateToPreviewCanvas(vid, vid.videoWidth, vid.videoHeight, timeSec);
+    }
+  } finally {
+    state.previewStaticBusy = false;
+    if (state.previewStaticPendingSec !== null) {
+      const nextSec = state.previewStaticPendingSec;
+      state.previewStaticPendingSec = null;
+      renderStaticPreviewFrame(nextSec);
+    }
+  }
+}
+
+function startPreviewPlayback() {
+  const vid = $('hidden-preview-video');
+  if (!vid || !state.file) return;
+
+  if (vid.currentTime < state.clipStartSec || vid.currentTime >= state.clipEndSec - 0.15) {
+    vid.currentTime = state.clipStartSec;
+  }
+  vid.muted = state.isPreviewMuted;
+  vid.volume = 1.0;
+  ensurePreviewAudioBoostGraph(vid);
+
+  vid
+    .play()
+    .then(() => {
+      state.isPlayingPreview = true;
+      if ($('btn-toggle-play')) $('btn-toggle-play').textContent = 'Jeda Preview';
+      const loop = () => {
+        if (!state.isPlayingPreview) return;
+        if (vid.currentTime >= state.clipEndSec) {
+          vid.currentTime = state.clipStartSec;
+        }
+        if (vid.videoWidth > 0) {
+          paintCurrentStateToPreviewCanvas(
+            vid,
+            vid.videoWidth,
+            vid.videoHeight,
+            vid.currentTime
+          );
+        }
+        state.previewRafId = requestAnimationFrame(loop);
+      };
+      state.previewRafId = requestAnimationFrame(loop);
+    })
+    .catch(() => {
+      showError('Klik tombol Putar Preview sekali lagi untuk mengaktifkan suara & video.');
+    });
+}
+
+function stopPreviewPlayback() {
+  state.isPlayingPreview = false;
+  if (state.previewRafId) {
+    cancelAnimationFrame(state.previewRafId);
+    state.previewRafId = null;
+  }
+  const vid = $('hidden-preview-video');
+  if (vid && !vid.paused) vid.pause();
+  if ($('btn-toggle-play')) $('btn-toggle-play').textContent = 'Putar Preview';
+}
+
+async function handleScanFacePreview() {
+  if (!state.file) return;
+  const btn = $('btn-scan-face-preview');
+  if (btn) btn.disabled = true;
+  showError('');
+  setStatus('render', true, 'Mendeteksi 1 atau 2 wajah pembicara di sepanjang klip...', 25);
+
+  let scanInput = null;
+  try {
+    scanInput = new Input({
+      source: new BlobSource(state.file),
+      formats: ALL_FORMATS
+    });
+    const vTrack = await scanInput.getPrimaryVideoTrack();
+    if (!vTrack) {
+      throw new Error('Jalur video tidak ditemukan pada file sumber.');
+    }
+    const canvasSink = new CanvasSink(vTrack, { poolSize: 2 });
+    state.cameraTrack = await buildFaceTrackForClip({
+      canvasSink,
+      startSec: state.clipStartSec,
+      endSec: state.clipEndSec,
+      onProgress: (p) => setStatus('render', true, `Memindai tata letak wajah pembicara (${p}%)...`, p)
+    });
+    setStatus('render', false);
+    updateDetectedFacesBadge(state.cameraTrack);
+    renderStaticPreviewFrame(getPreviewCurrentTime());
+    const facesCount = state.cameraTrack?.meta?.detectedFaces || 1;
+    showToast(
+      facesCount >= 2
+        ? '2 wajah terdeteksi: Podcast Split Atas-Bawah siap tanpa keyframe manual'
+        : '1 pembicara terdeteksi: Fullscreen Tengah terkunci mulus'
+    );
+  } catch (err) {
+    setStatus('render', false);
+    showError(`Gagal memindai posisi wajah: ${err.message}`);
+  } finally {
+    try {
+      scanInput?.dispose();
+    } catch {}
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function handleRenderMp4() {
+  if (!state.file) return;
+  stopPreviewPlayback();
+  showError('');
+  $('result-box')?.classList.remove('visible');
+
+  try {
+    await assertSufficientDiskForRender(65 * 1024 * 1024);
+  } catch (diskErr) {
+    showError(diskErr.message);
+    return;
+  }
+
+  const renderBtn = $('btn-render-mp4');
+  const cancelBtn = $('btn-cancel-render');
+  if (renderBtn) renderBtn.disabled = true;
+  if (cancelBtn) cancelBtn.style.display = 'inline-flex';
+
+  state.renderAbortController = new AbortController();
+  const resolution = $('resolution-select')?.value || '720p';
+  const hookTitleVal = $('hook-title-input')?.value || '';
+  const wmTextVal = state.features.customWatermark
+    ? $('watermark-text-input')?.value || state.watermarkText
+    : '';
+
+  try {
+    const res = await renderClipToMp4({
+      file: state.file,
+      startSec: state.clipStartSec,
+      endSec: state.clipEndSec,
+      resolution,
+      fps: 30,
+      frameMode: state.frameMode,
+      autoFaceCenter: state.autoFaceCenter,
+      manualCenterXOffset: state.manualCenterXOffset,
+      prebuiltCameraTrack: state.autoFaceCenter ? state.cameraTrack : null,
+      presetId: state.presetId,
+      words: state.words,
+      captionOffsetSec: state.captionOffsetSec,
+      hookTitle: hookTitleVal,
+      hookStyle: $('hook-style-select')?.value || 'white',
+      hookDurationSec: state.hookDurationSec,
+      forceCpuMode: typeof window !== 'undefined' && Boolean(window.__KLIP_FORCE_CPU_ENCODE),
+      watermarkImage: state.features.customWatermark ? state.watermarkImage : null,
+      watermarkText: wmTextVal,
+      watermarkPos: $('watermark-pos-select')?.value || 'top-right',
+      watermarkOpacity: 0.88,
+      voiceBoost: state.voiceBoost,
+      volumeGain: state.volumeGain,
+      monoToStereo: state.monoToStereo,
+      signal: state.renderAbortController.signal,
+      onProgress: ({ phase, percent }) => setStatus('render', true, phase, percent)
+    });
+
+    state.cameraTrack = res.cameraTrack || state.cameraTrack;
+    updateDetectedFacesBadge(state.cameraTrack);
+    setStatus('render', false);
+
+    if (state.lastRenderedObjectUrl) URL.revokeObjectURL(state.lastRenderedObjectUrl);
+    state.lastRenderedObjectUrl = URL.createObjectURL(res.blob);
+
+    const outVideo = $('result-video');
+    if (outVideo) {
+      outVideo.src = state.lastRenderedObjectUrl;
+      outVideo.load();
+    }
+
+    const dlBtn = $('btn-download-mp4');
+    const cleanBase = state.file.name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9-_]/g, '-');
+    if (dlBtn) {
+      dlBtn.href = state.lastRenderedObjectUrl;
+      dlBtn.download = `${cleanBase}-klip-9x16.mp4`;
+    }
+
+    const sizeMb = (res.sizeBytes / (1024 * 1024)).toFixed(2);
+    const modeLabel =
+      res.effectiveFrameMode === 'podcast-split'
+        ? 'Podcast Split 2 Wajah'
+        : res.effectiveFrameMode === 'blur-fit'
+        ? 'Cinema Blur'
+        : res.effectiveFrameMode === 'gaming-split'
+        ? 'Gaming Split'
+        : 'Fullscreen Tengah';
+
+    if ($('result-meta')) {
+      $('result-meta').textContent = `${modeLabel} · Mesin ${String(
+        res.encoderMode || 'gpu'
+      ).toUpperCase()} · Resolusi ${res.width}×${res.height} · Durasi ${res.durationSec.toFixed(
+        1
+      )} dtk · Ukuran ${sizeMb} MB · Selesai dalam ${res.renderSeconds} detik.`;
+    }
+    $('result-box')?.classList.add('visible');
+
+    addRenderHistoryEntry({
+      hookTitle: hookTitleVal || state.moments[state.selectedMomentIndex]?.title,
+      sourceName: state.file.name,
+      presetId: state.presetId,
+      resolution,
+      durationSec: res.durationSec,
+      sizeMb
+    });
+
+    showToast('File MP4 9:16 selesai dibuat');
+  } catch (err) {
+    setStatus('render', false);
+    if (err.name === 'AbortError') {
+      showError('Proses render MP4 dibatalkan.');
+    } else {
+      showError(`Gagal merender MP4: ${err.message}`);
+    }
+  } finally {
+    if (renderBtn) renderBtn.disabled = false;
+    if (cancelBtn) cancelBtn.style.display = 'none';
+    state.renderAbortController = null;
+  }
+}
+
+/* ============================================================================
+ * 11. PENDAFTARAN EVENT HANDLER STUDIO WIZARD
+ * ============================================================================ */
+
+function setupWizardControls() {
+  renderPresetCards();
+
+  // Navigasi 3 Tab Langkah Wizard
+  [1, 2, 3].forEach((n) => {
+    $(`tab-step-${n}`)?.addEventListener('click', () => {
+      if (n > 1 && !state.file) {
+        showError('Pilih file video lokal atau tempel link YouTube terlebih dahulu di Langkah 1.');
+        return;
+      }
+      goToWizardStep(n);
+    });
+  });
+
+  // Kartu Link YouTube Lewat Internet Pembeli Sendiri + Fallback Ramah
+  $('btn-yt-fetch')?.addEventListener('click', handleFetchYoutubeUrl);
+  $('yt-url-input')?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      handleFetchYoutubeInfo();
+      handleFetchYoutubeUrl();
     }
   });
-  el.btnYtImportStudio?.addEventListener('click', () => runYoutubeDownloadAction('import'));
-  el.btnYtDownloadMp4?.addEventListener('click', () => runYoutubeDownloadAction('save'));
-  el.btnYtCancel?.addEventListener('click', () => {
-    if (state.ytAbortController) state.ytAbortController.abort();
+  $('btn-yt-import-studio')?.addEventListener('click', handleYoutubeImportAction);
+  $('btn-yt-cancel')?.addEventListener('click', () => state.ytAbortController?.abort());
+
+  // Tombol Fallback Pilih File Lokal & Modal Panduan Ekstensi Jembatan Lokal
+  $('btn-fallback-pick-local')?.addEventListener('click', () => $('video-file-input')?.click());
+  $('btn-open-ext-guide')?.addEventListener('click', () => $('modal-ext-guide')?.classList.add('open'));
+  $('btn-close-ext-guide')?.addEventListener('click', () => $('modal-ext-guide')?.classList.remove('open'));
+  $('btn-ext-modal-pick-local')?.addEventListener('click', () => {
+    $('modal-ext-guide')?.classList.remove('open');
+    $('video-file-input')?.click();
+  });
+  $('modal-ext-guide')?.addEventListener('click', (e) => {
+    if (e.target === $('modal-ext-guide')) $('modal-ext-guide')?.classList.remove('open');
   });
 
-  el.btnPickFile.addEventListener('click', () => el.fileInput.click());
-  el.fileInput.addEventListener('change', (e) => {
-    const f = e.target.files?.[0];
-    if (f) {
-      el.fileInput.value = '';
-      handleSelectedVideoFile(f);
-    }
+  // Pemotong Batch Otomatis & Multi-Video (Pro)
+  $('btn-run-ai-agent')?.addEventListener('click', () => startAutonomousClipAgent());
+  $('btn-stop-ai-agent')?.addEventListener('click', () => state.agentAbortController?.abort());
+  $('agent-clip-count-select')?.addEventListener('change', (e) => {
+    state.agentClipCount = Number(e.target.value) || 3;
   });
-
-  el.dropzone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    el.dropzone.classList.add('dragover');
-  });
-  el.dropzone.addEventListener('dragleave', () => el.dropzone.classList.remove('dragover'));
-  el.dropzone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    el.dropzone.classList.remove('dragover');
-    const f = e.dataTransfer?.files?.[0];
-    if (f) handleSelectedVideoFile(f);
-  });
-
-  // Kontrol AI Agent Pemotong Klip Otomatis
-  el.agentAutoRunCheckbox?.addEventListener('change', () => {
-    state.agentAutoRun = Boolean(el.agentAutoRunCheckbox.checked);
-    if (el.agentStatePill && !state.agentRunning) {
-      el.agentStatePill.textContent = state.agentAutoRun
-        ? 'AI Agent Aktif Otomatis'
-        : 'Mode Manual (Klik untuk Jalankan)';
-      el.agentStatePill.className = state.agentAutoRun ? 'pill-tag lime' : 'pill-tag';
-    }
-  });
-
-  el.agentClipCountSelect?.addEventListener('change', () => {
-    state.agentClipCount = Number(el.agentClipCountSelect.value || 3);
-  });
-
-  el.btnRunAiAgent?.addEventListener('click', () => {
-    startAiClipAgent(null);
-  });
-
-  el.btnCopyAiPrompt?.addEventListener('click', () => {
-    copyAiHandoffPrompt();
-  });
-  el.btnCopyAiPromptStep2?.addEventListener('click', () => {
-    copyAiHandoffPrompt();
-  });
-
-  el.btnStopAiAgent?.addEventListener('click', () => {
-    if (state.agentAbortController) {
-      state.agentAbortController.abort();
-    }
-  });
-
-  el.btnDownloadAllAgent?.addEventListener('click', () => {
-    if (!state.agentRenderedClips.length) return;
+  $('btn-download-all-agent')?.addEventListener('click', () => {
+    if (state.agentRenderedClips.length === 0) return;
     state.agentRenderedClips.forEach((clip, idx) => {
       setTimeout(() => {
         const a = document.createElement('a');
         a.href = clip.objectUrl;
         a.download = clip.fileName;
-        document.body.appendChild(a);
         a.click();
-        a.remove();
-      }, idx * 450);
+      }, idx * 280);
     });
-    showToast(`Mengunduh ${state.agentRenderedClips.length} klip MP4 ke perangkatmu...`);
+    showToast(`Mengunduh ${state.agentRenderedClips.length} file MP4 ke perangkatmu...`);
   });
 
-  el.btnLoadSample.addEventListener('click', () => triggerSampleVideoFromAnywhere());
-  el.btnSkipToStep2.addEventListener('click', () => switchStep(2));
+  $('btn-pick-multi-video')?.addEventListener('click', () => {
+    if (!state.features.multiVideoBatch) {
+      showToast('Batch Multi-Video tersedia pada Paket Pro');
+      return;
+    }
+    $('multi-video-input')?.click();
+  });
+  $('multi-video-input')?.addEventListener('change', (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) runMultiVideoBatchQueue(files);
+  });
 
-  // Impor Subtitle .SRT / .VTT Instan
-  el.btnPickSrt.addEventListener('click', () => el.srtFileInput.click());
-  el.srtFileInput.addEventListener('change', async (e) => {
-    const srtFile = e.target.files?.[0];
-    if (!srtFile || !state.file || !state.mediaInfo) return;
-    try {
-      const rawText = await srtFile.text();
-      const words = parseSubtitleToWords(rawText, state.mediaInfo.duration);
-      if (words.length === 0) {
-        showError('File subtitle tidak berisi penanda waktu standar .SRT / .VTT.');
-        return;
-      }
-      const moments = pickMomentsFromWordsLocally(words, state.mediaInfo.duration);
-      if (moments.length > 0) {
-        state.moments = moments;
-        applyMomentSelection(moments[0]);
-      } else {
-        state.transcriptManuallyEdited = false;
-        state.words = words;
-        el.clipTranscriptInput.value = words.map((w) => w.word).join(' ');
-        rebuildPhrases();
-      }
-      refreshDashboardAndBadges();
-      switchStep(2);
-      showToast('Subtitle berhasil dipetakan ke daftar momen!');
-    } catch (err) {
-      showError(err.message || 'Gagal membaca file subtitle.');
+  // Dropzone & Pilih File Video Lokal (.MP4, .MOV, .MKV, .WEBM)
+  const dropzone = $('dropzone');
+  const fileInput = $('video-file-input');
+  $('btn-pick-file')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    fileInput?.click();
+  });
+  $('btn-load-sample')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    handleLoadSampleVideo();
+  });
+  dropzone?.addEventListener('click', (e) => {
+    if (e.target.closest('button')) return;
+    fileInput?.click();
+  });
+  dropzone?.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropzone.classList.add('dragover');
+  });
+  dropzone?.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+  dropzone?.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    if (e.dataTransfer?.files?.[0]) handleVideoSelected(e.dataTransfer.files[0]);
+  });
+  fileInput?.addEventListener('change', () => {
+    if (fileInput.files?.[0]) handleVideoSelected(fileInput.files[0]);
+  });
+
+  $('btn-skip-to-step2')?.addEventListener('click', () => goToWizardStep(2));
+  $('btn-analyze-whisper')?.addEventListener('click', handleWhisperAnalysis);
+  $('btn-analyze-gemini')?.addEventListener('click', handleGeminiAnalysis);
+  $('btn-pick-srt')?.addEventListener('click', () => $('srt-file-input')?.click());
+  $('srt-file-input')?.addEventListener('change', (e) => {
+    if (e.target.files?.[0]) handleSrtUpload(e.target.files[0]);
+  });
+
+  $('btn-copy-ai-prompt')?.addEventListener('click', handleCopyAiPromptHelper);
+  $('btn-copy-ai-prompt-step2')?.addEventListener('click', handleCopyAiPromptHelper);
+  $('btn-open-hook-picker')?.addEventListener('click', () => {
+    state.libCategory = 'Hook Video Viral';
+    populateLibraryFilters();
+    switchView('library');
+  });
+
+  // Langkah 2: Geser Detik, Rapatkan ke Jeda Napas, Kalibrasi Offset Vokal, & Kunci Teks
+  $('slider-clip-start')?.addEventListener('input', () => handleTrimChange('slider'));
+  $('slider-clip-end')?.addEventListener('input', () => handleTrimChange('slider'));
+  $('clip-start-input')?.addEventListener('change', () => handleTrimChange('number'));
+  $('clip-end-input')?.addEventListener('change', () => handleTrimChange('number'));
+  $('btn-snap-breath')?.addEventListener('click', handleSnapBoundsToBreathPause);
+  $('btn-step2-play-audio')?.addEventListener('click', () => toggleStep2AudioPreview());
+
+  // Klik langsung pada kanvas gelombang vokal untuk mengecek ketukan kata di titik mana saja!
+  $('vocal-sync-canvas')?.addEventListener('click', (ev) => {
+    const canvas = $('vocal-sync-canvas');
+    if (!canvas || !state.file) return;
+    const rect = canvas.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (ev.clientX - rect.left) / Math.max(1, rect.width)));
+    const targetSec = state.clipStartSec + ratio * (state.clipEndSec - state.clipStartSec);
+    toggleStep2AudioPreview(targetSec);
+  });
+
+  $('caption-offset-range')?.addEventListener('input', (e) => {
+    const val = Number(e.target.value) || 0;
+    state.captionOffsetSec = val;
+    const ms = Math.round(val * 1000);
+    if ($('caption-offset-label')) {
+      $('caption-offset-label').textContent =
+        ms === 0 ? '0 ms (Pas Otomatis)' : `${ms > 0 ? '+' : ''}${ms} ms`;
+    }
+    drawVocalSyncTimeline();
+    renderStaticPreviewFrame(getPreviewCurrentTime());
+  });
+
+  $('btn-lock-text-vocal')?.addEventListener('click', handleLockEditedTextToVocal);
+  $('clip-transcript-input')?.addEventListener('input', (e) => {
+    const txt = e.target.value.trim();
+    state.words = txt
+      ? buildWordsFromTextAndWindow(
+          txt,
+          state.clipStartSec,
+          state.clipEndSec,
+          state.vocalClipSamples,
+          16000
+        )
+      : [];
+    drawVocalSyncTimeline();
+  });
+
+  $('btn-resync-whisper')?.addEventListener('click', handleResyncClipWithWhisper);
+  $('btn-go-step3')?.addEventListener('click', () => goToWizardStep(3));
+
+  // Langkah 3: Preview 9:16, Mode Framing, Judul 3 Detik, Watermark, Generator Deskripsi & Ekspor MP4
+  $('btn-toggle-play')?.addEventListener('click', () => {
+    if (state.isPlayingPreview) stopPreviewPlayback();
+    else startPreviewPlayback();
+  });
+
+  $('btn-toggle-mute')?.addEventListener('click', () => {
+    state.isPreviewMuted = !state.isPreviewMuted;
+    const vid = $('hidden-preview-video');
+    if (vid) vid.muted = state.isPreviewMuted;
+    if (state.previewWebAudioGain) {
+      state.previewWebAudioGain.gain.value = state.isPreviewMuted ? 0 : state.volumeGain;
+    }
+    if ($('btn-toggle-mute')) {
+      $('btn-toggle-mute').textContent = state.isPreviewMuted ? 'Suara: Bisu' : 'Suara: Aktif';
     }
   });
 
-  el.btnAnalyzeGemini.addEventListener('click', async () => {
-    if (!state.file) return;
-    showError('');
-    el.btnAnalyzeGemini.disabled = true;
-    try {
-      const moments = await analyzePodcastWithGemini({
-        file: state.file,
-        apiKey: el.geminiKeyInput.value,
-        totalDurationSec: state.mediaInfo.duration,
-        onStatus: (txt, pct) => {
-          setStatusBar(el.step1Status, el.step1StatusText, el.step1ProgressFill, true, txt, pct);
-        }
-      });
-      state.moments = moments;
-      applyMomentSelection(moments[0]);
-      refreshDashboardAndBadges();
-      setStatusBar(el.step1Status, el.step1StatusText, el.step1ProgressFill, false);
-      switchStep(2);
-    } catch (err) {
-      setStatusBar(el.step1Status, el.step1StatusText, el.step1ProgressFill, false);
-      showError(err.message);
-    } finally {
-      el.btnAnalyzeGemini.disabled = false;
+  $('frame-mode-select')?.addEventListener('change', (e) => {
+    const chosen = e.target.value;
+    if (chosen === 'gaming-split' && !state.features.gamingSplit) {
+      e.target.value = state.frameMode;
+      showToast('Mode Gaming Split tersedia pada Paket Pro');
+      return;
     }
+    state.frameMode = chosen;
+    updateDetectedFacesBadge(state.cameraTrack);
+    renderStaticPreviewFrame(getPreviewCurrentTime());
   });
 
-  el.btnAnalyzeWhisper.addEventListener('click', async () => {
-    if (!state.file) return;
-    showError('');
-    el.btnAnalyzeWhisper.disabled = true;
-    try {
-      const moments = await transcribeAndPickWithWhisperWeb({
-        file: state.file,
-        totalDurationSec: state.mediaInfo.duration,
-        onStatus: (txt, pct) => {
-          setStatusBar(el.step1Status, el.step1StatusText, el.step1ProgressFill, true, txt, pct);
-        }
-      });
-      state.moments = moments;
-      applyMomentSelection(moments[0]);
-      refreshDashboardAndBadges();
-      setStatusBar(el.step1Status, el.step1StatusText, el.step1ProgressFill, false);
-      switchStep(2);
-    } catch (err) {
-      setStatusBar(el.step1Status, el.step1StatusText, el.step1ProgressFill, false);
-      showError(err.message);
-    } finally {
-      el.btnAnalyzeWhisper.disabled = false;
-    }
+  $('auto-face-checkbox')?.addEventListener('change', (e) => {
+    state.autoFaceCenter = e.target.checked;
+    renderStaticPreviewFrame(getPreviewCurrentTime());
   });
 
-  const applyClipRangeUpdate = (rawStart, rawEnd) => {
-    if (!state.mediaInfo) return;
-    let s = Math.max(0, Number(rawStart) || 0);
-    let e = Math.min(state.mediaInfo.duration, Number(rawEnd) || s + 5);
-    if (e <= s + 0.5) e = Math.min(state.mediaInfo.duration, s + 1);
-    state.startSec = Number(s.toFixed(2));
-    state.endSec = Number(e.toFixed(2));
-    syncStartEndInputsAndSliders();
-
-    const selectedMoment = state.moments.find((m) => m.id === state.selectedMomentId);
-    if (state.transcriptManuallyEdited) {
-      const editedText =
-        el.clipTranscriptInput.value ||
-        (Array.isArray(state.words) ? state.words.map((w) => w.word).join(' ') : '');
-      state.words = buildWordsFromTextAndWindow(editedText, state.startSec, state.endSec);
-    } else if (selectedMoment && Array.isArray(selectedMoment.words) && selectedMoment.words.length > 0) {
-      state.words = selectedMoment.words.map((w) => ({ ...w }));
-      const visibleWords = state.words.filter((w) => w.end >= state.startSec && w.start <= state.endSec);
-      if (visibleWords.length > 0) {
-        el.clipTranscriptInput.value = visibleWords.map((w) => w.word).join(' ');
-      }
-    } else {
-      state.words = buildWordsFromTextAndWindow(el.clipTranscriptInput.value, state.startSec, state.endSec);
-    }
-    rebuildPhrases();
-  };
-
-  el.clipStartInput.addEventListener('change', () =>
-    applyClipRangeUpdate(el.clipStartInput.value, el.clipEndInput.value)
-  );
-  el.clipEndInput.addEventListener('change', () =>
-    applyClipRangeUpdate(el.clipStartInput.value, el.clipEndInput.value)
-  );
-  el.sliderClipStart.addEventListener('input', () =>
-    applyClipRangeUpdate(el.sliderClipStart.value, el.sliderClipEnd.value)
-  );
-  el.sliderClipEnd.addEventListener('input', () =>
-    applyClipRangeUpdate(el.sliderClipStart.value, el.sliderClipEnd.value)
-  );
-
-  el.clipTranscriptInput.addEventListener('input', () => {
-    state.transcriptManuallyEdited = true;
-    state.words = buildWordsFromTextAndWindow(el.clipTranscriptInput.value, state.startSec, state.endSec);
-    rebuildPhrases();
+  $('manual-offset-range')?.addEventListener('input', (e) => {
+    state.manualCenterXOffset = Number(e.target.value);
+    renderStaticPreviewFrame(getPreviewCurrentTime());
   });
 
-  el.btnResyncWhisper.addEventListener('click', async () => {
-    if (!state.file) return;
-    showError('');
-    el.btnResyncWhisper.disabled = true;
-    try {
-      const words = await syncClipWordsWithWhisper(
-        state.file,
-        state.startSec,
-        state.endSec,
-        (txt, pct) => setStatusBar(el.step2Status, el.step2StatusText, el.step2ProgressFill, true, txt, pct)
-      );
-      if (words.length > 0) {
-        state.transcriptManuallyEdited = false;
-        state.words = words;
-        el.clipTranscriptInput.value = words.map((w) => w.word).join(' ');
-        rebuildPhrases();
-      }
-      setStatusBar(el.step2Status, el.step2StatusText, el.step2ProgressFill, false);
-    } catch (err) {
-      setStatusBar(el.step2Status, el.step2StatusText, el.step2ProgressFill, false);
-      showError(err.message || 'Gagal menyelaraskan ulang kata dengan Whisper.');
-    } finally {
-      el.btnResyncWhisper.disabled = false;
-    }
+  $('btn-scan-face-preview')?.addEventListener('click', handleScanFacePreview);
+
+  $('hook-title-input')?.addEventListener('input', (e) => {
+    state.hookTitle = e.target.value;
+    renderStaticPreviewFrame(getPreviewCurrentTime());
   });
 
-  el.btnGoStep3.addEventListener('click', () => switchStep(3));
-
-  el.btnStep2PlayAudio?.addEventListener('click', () => {
-    if (!state.file) return;
-    ensurePreviewAudioGraph();
-    if (el.hiddenVideo.paused) {
-      state.previewMuted = false;
-      syncPreviewAudioGraphParams();
-      el.hiddenVideo.currentTime = state.startSec;
-      el.hiddenVideo.play().catch(() => {});
-    } else {
-      el.hiddenVideo.pause();
-    }
+  $('hook-duration-select')?.addEventListener('change', (e) => {
+    state.hookDurationSec = e.target.value === 'full' ? 'full' : 3.0;
+    renderStaticPreviewFrame(getPreviewCurrentTime());
   });
 
-  el.hiddenVideo.addEventListener('loadeddata', () => renderPreviewOnce());
-  el.hiddenVideo.addEventListener('seeked', () => renderPreviewOnce());
-  el.hiddenVideo.addEventListener('play', updatePlayButtonText);
-  el.hiddenVideo.addEventListener('pause', updatePlayButtonText);
-
-  el.btnTogglePlay.addEventListener('click', () => {
-    if (!state.file) return;
-    ensurePreviewAudioGraph();
-    if (el.hiddenVideo.paused) {
-      if (el.hiddenVideo.currentTime < state.startSec || el.hiddenVideo.currentTime >= state.endSec) {
-        el.hiddenVideo.currentTime = state.startSec;
-      }
-      el.hiddenVideo.play().catch(() => {});
-    } else {
-      el.hiddenVideo.pause();
-    }
+  $('hook-style-select')?.addEventListener('change', (e) => {
+    state.hookStyle = e.target.value;
+    renderStaticPreviewFrame(getPreviewCurrentTime());
   });
 
-  el.btnToggleMute?.addEventListener('click', () => {
-    state.previewMuted = !state.previewMuted;
-    ensurePreviewAudioGraph();
-    syncPreviewAudioGraphParams();
+  $('watermark-text-input')?.addEventListener('input', (e) => {
+    if (!state.features.customWatermark) return;
+    state.watermarkText = e.target.value;
+    renderStaticPreviewFrame(getPreviewCurrentTime());
   });
 
-  el.audioVolumeRange?.addEventListener('input', () => {
-    const pct = Number(el.audioVolumeRange.value);
-    state.volumeGain = Math.max(0, Math.min(2, pct / 100));
-    if (state.volumeGain > 0 && state.previewMuted) {
-      state.previewMuted = false;
-    }
-    syncPreviewAudioGraphParams();
+  $('watermark-pos-select')?.addEventListener('change', (e) => {
+    state.watermarkPos = e.target.value;
+    renderStaticPreviewFrame(getPreviewCurrentTime());
   });
 
-  el.voiceBoostCheckbox?.addEventListener('change', () => {
-    state.voiceBoost = Boolean(el.voiceBoostCheckbox.checked);
-    syncPreviewAudioGraphParams();
-  });
-
-  el.monoStereoCheckbox?.addEventListener('change', () => {
-    state.monoToStereo = Boolean(el.monoStereoCheckbox.checked);
-  });
-
-  el.frameModeSelect.addEventListener('change', () => {
-    state.frameMode = el.frameModeSelect.value;
-    renderPreviewOnce();
-  });
-  el.autoFaceCheckbox.addEventListener('change', () => {
-    state.autoFaceCenter = el.autoFaceCheckbox.checked;
-    renderPreviewOnce();
-  });
-  el.manualOffsetRange.addEventListener('input', () => {
-    state.manualOffset = Number(el.manualOffsetRange.value) || 0;
-    renderPreviewOnce();
-  });
-
-  el.btnScanFacePreview.addEventListener('click', async () => {
-    if (!state.file) return;
-    el.btnScanFacePreview.disabled = true;
-    el.btnScanFacePreview.textContent = 'Memindai posisi wajah...';
-    const input = new Input({ source: new BlobSource(state.file), formats: ALL_FORMATS });
-    try {
-      const vt = await input.getPrimaryVideoTrack();
-      const sink = new CanvasSink(vt);
-      state.previewCameraTrack = await buildFaceTrackForClip({
-        canvasSink: sink,
-        startSec: state.startSec,
-        endSec: state.endSec,
-        sampleIntervalSec: 0.35
-      });
-      renderPreviewOnce();
-      el.btnScanFacePreview.textContent = 'Posisi Wajah Terkunci di Tengah';
-      showToast('Fokus wajah dikunci di tengah bingkai 9:16!');
-    } catch (err) {
-      showError(err.message);
-      el.btnScanFacePreview.textContent = 'Pindai Posisi Wajah untuk Preview';
-    } finally {
-      input.dispose();
-      el.btnScanFacePreview.disabled = false;
-    }
-  });
-
-  el.hookTitleInput.addEventListener('input', () => {
-    state.hookTitle = el.hookTitleInput.value;
-    renderPreviewOnce();
-  });
-  el.hookStyleSelect.addEventListener('change', () => {
-    state.hookStyle = el.hookStyleSelect.value;
-    renderPreviewOnce();
-  });
-  el.watermarkTextInput.addEventListener('input', () => {
-    state.watermarkText = el.watermarkTextInput.value;
-    renderPreviewOnce();
-  });
-  el.watermarkPosSelect.addEventListener('change', () => {
-    state.watermarkPos = el.watermarkPosSelect.value;
-    renderPreviewOnce();
-  });
-  el.watermarkFileInput.addEventListener('change', (e) => {
-    const imgFile = e.target.files?.[0];
-    if (!imgFile) {
+  $('watermark-file-input')?.addEventListener('change', (e) => {
+    if (!state.features.customWatermark) return;
+    const f = e.target.files?.[0];
+    if (!f) {
       state.watermarkImage = null;
-      renderPreviewOnce();
+      renderStaticPreviewFrame(getPreviewCurrentTime());
       return;
     }
     const img = new Image();
     img.onload = () => {
       state.watermarkImage = img;
-      renderPreviewOnce();
+      renderStaticPreviewFrame(getPreviewCurrentTime());
     };
-    img.src = URL.createObjectURL(imgFile);
+    img.src = URL.createObjectURL(f);
   });
 
-  el.resolutionSelect.addEventListener('change', () => {
-    state.resolution = el.resolutionSelect.value;
-  });
-
-  // Render & Ekspor MP4
-  el.btnRenderMp4.addEventListener('click', async () => {
-    if (!state.file) return;
-    showError('');
-    el.hiddenVideo.pause();
-    el.resultBox.style.display = 'none';
-    el.btnRenderMp4.disabled = true;
-    el.btnCancelRender.style.display = 'inline-flex';
-
-    const abortController = new AbortController();
-    state.renderAbortController = abortController;
-
+  // Generator Deskripsi & Hashtag
+  $('btn-generate-desc')?.addEventListener('click', generatePostDescriptionAndHashtags);
+  $('btn-copy-desc')?.addEventListener('click', async () => {
+    const val = $('generated-desc-output')?.value || '';
+    if (!val) return;
     try {
-      const result = await renderClipToMp4({
-        file: state.file,
-        startSec: state.startSec,
-        endSec: state.endSec,
-        resolution: state.resolution,
-        fps: 30,
-        frameMode: state.frameMode,
-        autoFaceCenter: state.autoFaceCenter,
-        manualCenterXOffset: state.manualOffset,
-        presetId: state.presetId,
-        words: state.words,
-        hookTitle: state.hookTitle,
-        hookStyle: state.hookStyle,
-        watermarkImage: state.watermarkImage,
-        watermarkText: state.watermarkText,
-        watermarkPos: state.watermarkPos,
-        watermarkOpacity: 0.88,
-        voiceBoost: state.voiceBoost,
-        volumeGain: state.volumeGain,
-        monoToStereo: state.monoToStereo,
-        signal: abortController.signal,
-        onProgress: ({ phase, percent }) => {
-          setStatusBar(el.renderStatus, el.renderStatusText, el.renderProgressFill, true, phase, percent);
-        }
-      });
-
-      state.previewCameraTrack = result.cameraTrack;
-      if (state.resultObjectUrl) URL.revokeObjectURL(state.resultObjectUrl);
-      state.resultObjectUrl = URL.createObjectURL(result.blob);
-
-      const sizeMb = (result.sizeBytes / (1024 * 1024)).toFixed(2);
-      el.resultMeta.textContent = `Resolusi ${result.width}×${result.height} (9:16) · Durasi ${result.durationSec.toFixed(1)} dtk · Ukuran ${sizeMb} MB · Selesai dalam ${result.renderSeconds} detik`;
-      el.resultVideo.src = state.resultObjectUrl;
-      el.btnDownloadMp4.href = state.resultObjectUrl;
-      el.btnDownloadMp4.download = `klip-auto-${Date.now()}.mp4`;
-      el.resultBox.style.display = 'block';
-
-      recordRenderedHistory(result);
-      showToast('Klip MP4 9:16 selesai dirender & siap disimpan!');
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        showError(err.message || 'Gagal merender klip MP4.');
-      } else {
-        setStatusBar(el.renderStatus, el.renderStatusText, el.renderProgressFill, false);
-      }
-    } finally {
-      el.btnRenderMp4.disabled = false;
-      el.btnCancelRender.style.display = 'none';
-      state.renderAbortController = null;
+      await navigator.clipboard.writeText(val);
+      showToast('Deskripsi & hashtag disalin ke papan klip');
+    } catch {
+      showToast('Gagal menyalin otomatis');
     }
   });
 
-  el.btnCancelRender.addEventListener('click', () => {
-    if (state.renderAbortController) {
-      state.renderAbortController.abort();
+  // Kejernihan & Volume Audio
+  $('audio-volume-range')?.addEventListener('input', (e) => {
+    const pct = Number(e.target.value) || 100;
+    state.volumeGain = pct / 100;
+    if ($('audio-volume-label')) $('audio-volume-label').textContent = `Volume: ${pct}%`;
+    if (state.previewWebAudioGain && !state.isPreviewMuted) {
+      state.previewWebAudioGain.gain.value = state.volumeGain;
     }
   });
+
+  $('voice-boost-checkbox')?.addEventListener('change', (e) => {
+    state.voiceBoost = e.target.checked;
+  });
+
+  $('mono-stereo-checkbox')?.addEventListener('change', (e) => {
+    state.monoToStereo = e.target.checked;
+  });
+
+  $('resolution-select')?.addEventListener('change', (e) => {
+    state.resolution = e.target.value;
+  });
+
+  $('btn-render-mp4')?.addEventListener('click', handleRenderMp4);
+  $('btn-cancel-render')?.addEventListener('click', () => state.renderAbortController?.abort());
 }
-
-initPreferences();
-initLibraryControls();
-renderPresetButtons();
-bindEvents();
-syncAuthView();
-requestAnimationFrame(previewAnimationLoop);
