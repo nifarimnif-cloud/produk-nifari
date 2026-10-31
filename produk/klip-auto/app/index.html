@@ -3,7 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Klip Auto Studio — Tempel Link atau Pilih Video Jadi Klip 9:16 Siap Upload</title>
+  <title>Klip Auto Studio — Tempel Link YouTube, Unduh MP4 &amp; Potong Klip 9:16 Siap Upload</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Fredoka:wght@600;700&family=Inter:wght@400;500;600;700&family=Merriweather:wght@700;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@700;800;900&family=Poppins:wght@700;800&family=Rubik:wght@700;800&family=Space+Grotesk:wght@700&display=swap"
+  />
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
@@ -29,9 +35,9 @@
         </div>
 
         <ul class="login-lime-points">
-          <li>Deteksi otomatis 1 atau 2 wajah: Fullscreen Tengah, Podcast Split atas-bawah, &amp; Cinema Blur</li>
-          <li>Caption per kata terkunci ke gelombang vokal pembicara + model lokal Whisper-Small (ID &amp; EN)</li>
-          <li>Video tidak pernah di-upload ke server — aman untuk podcast 60–120+ menit di laptop RAM 8 GB</li>
+          <li>Copy-paste link YouTube langsung tanpa ekstensi tambahan — bisa unduh MP4 penuh maupun potong klip 9:16</li>
+          <li>Subtitle anti-miss terkunci ke gelombang vokal 10ms + bebas pilih 9 jenis font subtitle kreator</li>
+          <li>Deteksi 1 atau 2 wajah otomatis (Fullscreen &amp; Podcast Split) — aman untuk podcast 60–120+ menit di RAM 8 GB</li>
         </ul>
       </div>
 
@@ -88,7 +94,7 @@
           </div>
 
           <p class="muted-copy" id="login-version-note" style="font-size:12px;text-align:center;margin-top:6px;">
-            Versi aplikasi v2.1.0 · Tanpa API Key &amp; Tanpa Kuota Klip
+            Versi aplikasi v2.2.0 · Tanpa Ekstensi, Tanpa API Key &amp; Tanpa Kuota Klip
           </p>
         </form>
       </div>
@@ -112,7 +118,7 @@
         </span>
         <div>
           <div class="brand-wordmark">Klip Auto</div>
-          <div id="sidebar-tier-badge" style="font-size:11px;color:var(--color-graphite);">Paket Inti · v2.1</div>
+          <div id="sidebar-tier-badge" style="font-size:11px;color:var(--color-graphite);">Paket Inti · v2.2</div>
         </div>
       </div>
 
@@ -218,7 +224,7 @@
                 Selamat berkarya, Kreator
               </h1>
               <p>
-                Tempel link YouTube atau pilih file rekaman video panjang (.mp4, .mov, .mkv) — dapatkan 5–10 klip 9:16 siap upload dengan wajah utuh, caption per kata sinkron vokal, dan judul pembuka 3 detik.
+                Copy-paste link YouTube langsung tanpa ekstensi tambahan — unduh video MP4 utuh (hingga 1080p) atau jadikan 5–10 klip 9:16 siap upload dengan subtitle anti-miss dan 9 pilihan font kreator.
               </p>
             </div>
             <div class="btn-row">
@@ -226,7 +232,7 @@
                 Mulai Potong Video Baru
               </button>
               <button type="button" class="btn btn-secondary" id="dash-btn-youtube" style="background:#ffffff;color:#14140f;border-color:#14140f;">
-                Tempel Link, Jadi Klip
+                Tempel Link / Unduh YouTube
               </button>
               <button type="button" class="btn btn-secondary" id="dash-btn-quick-sample" style="background:#ffffff;color:#14140f;border-color:#14140f;">
                 Muat Video Contoh 2 Pembicara
@@ -342,15 +348,15 @@
 
           <!-- LANGKAH 1: MASUKIN VIDEO & TRANSKRIP -->
           <div class="panel active" id="panel-step-1">
-            <!-- KARTU LINK YOUTUBE LEWAT INTERNET PEMBELI SENDIRI -->
+            <!-- KARTU COPY-PASTE LINK YOUTUBE LANGSUNG TANPA EKSTENSI + PENGUNDUH VIDEO MP4 -->
             <div class="white-card yt-import-card">
               <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-                <span class="eyebrow">Jalur Link · Internet Perangkat Sendiri</span>
-                <span class="pill-tag" id="yt-bridge-status-pill">Memeriksa Jembatan Lokal...</span>
+                <span class="eyebrow">Jalur Link Langsung · Tanpa Ekstensi Tambahan</span>
+                <span class="pill-tag lime" id="yt-bridge-status-pill">Langsung Tempel Link · Tanpa Ekstensi</span>
               </div>
-              <h2 class="section-heading" style="margin:6px 0 8px;">Tempel Link YouTube, Jadi Klip 9:16</h2>
+              <h2 class="section-heading" style="margin:6px 0 8px;">Tempel Link YouTube — Potong Klip 9:16 atau Unduh Video (.MP4)</h2>
               <p class="muted-copy">
-                Tempelkan link video podcast, diskusi, atau rekaman publik dari YouTube. Pembacaan video, subtitle, dan grafik Most-Replayed berjalan langsung lewat koneksi internetmu sendiri tanpa layanan pihak ketiga.
+                Cukup copy-paste link video podcast, diskusi, Shorts, atau rekaman publik YouTube tanpa pasang ekstensi apa pun. Kamu bisa langsung memotongnya menjadi klip 9:16 bersubtitle anti-miss maupun mengunduh file video YouTube utuh (.MP4 hingga 1080p Full HD).
               </p>
 
               <div class="yt-input-row">
@@ -362,29 +368,29 @@
                   aria-label="Alamat Link Video YouTube"
                 />
                 <button type="button" class="btn btn-primary" id="btn-yt-fetch">
-                  Muat dari Link
+                  Muat Link YouTube
                 </button>
               </div>
 
               <div class="status-bar" id="yt-status">
-                <div class="status-bar-text" id="yt-status-text">Memeriksa link lewat koneksi lokal...</div>
+                <div class="status-bar-text" id="yt-status-text">Membaca informasi video &amp; subtitle YouTube...</div>
                 <div class="progress-track">
                   <div class="progress-fill" id="yt-progress-fill"></div>
                 </div>
               </div>
 
-              <!-- Kotak Pemulihan Ramah Saat Link Tidak Bisa Diakses / Ekstensi Belum Aktif -->
+              <!-- Kotak Pemulihan Ramah Saat Video Bersifat Private / Dibatasi -->
               <div class="yt-fallback-box" id="yt-fallback-box" role="region" aria-label="Solusi Alternatif File Lokal">
                 <strong style="display:block;font-size:14.5px;margin-bottom:6px;" id="yt-fallback-title">
-                  Link Belum Bisa Dimuat Langsung
+                  Video Ini Dibatasi atau Bersifat Pribadi
                 </strong>
                 <p class="muted-copy" id="yt-fallback-reason" style="font-size:13.5px;margin-bottom:12px;"></p>
                 <div class="btn-row">
                   <button type="button" class="btn btn-primary btn-sm" id="btn-fallback-pick-local">
                     Pilih File Video Lokal (.MP4, .MOV, .MKV)
                   </button>
-                  <button type="button" class="btn btn-secondary btn-sm" id="btn-open-ext-guide">
-                    Cara Pasang Jembatan Link Lokal (15 Detik)
+                  <button type="button" class="btn btn-secondary btn-sm" id="btn-open-ext-guide" style="display:none;">
+                    Panduan Jembatan Cadangan
                   </button>
                 </div>
               </div>
@@ -404,13 +410,16 @@
                   <h3 class="card-subheading" id="yt-title" style="margin-bottom:12px;">Judul Video</h3>
 
                   <div class="field" style="margin-bottom:14px;">
-                    <label for="yt-quality-select">Kualitas Sumber untuk Dipotong</label>
+                    <label for="yt-quality-select">Pilih Resolusi Video (untuk Dipotong Klip atau Diunduh .MP4)</label>
                     <select id="yt-quality-select"></select>
                   </div>
 
-                  <div class="btn-row">
+                  <div class="btn-row" style="flex-wrap:wrap;gap:10px;">
                     <button type="button" class="btn btn-primary" id="btn-yt-import-studio">
-                      Tempel Link, Jadi Klip Sekarang
+                      Potong Jadi Klip 9:16 Sekarang
+                    </button>
+                    <button type="button" class="btn btn-ink" id="btn-yt-download-mp4">
+                      Unduh Video YouTube (.MP4)
                     </button>
                     <button type="button" class="btn btn-ghost btn-sm" id="btn-yt-cancel" style="display:none;">
                       Batalkan
@@ -488,15 +497,22 @@
                   <input type="checkbox" id="agent-auto-run-checkbox" checked style="width:18px;height:18px;" />
                 </div>
 
-                <div class="field" style="margin-bottom:0;">
-                  <label for="agent-clip-count-select">Jumlah Klip 9:16 yang Dibuat Sekaligus</label>
-                  <select id="agent-clip-count-select">
-                    <option value="1">1 Klip Terbaik (Uji Cepat)</option>
-                    <option value="3" selected>3 Klip Terbaik</option>
-                    <option value="5">5 Klip Terbaik (Standar Podcast)</option>
-                    <option value="8">8 Klip Terbaik (Video 60+ Menit)</option>
-                    <option value="10">10 Klip Maksimal Sekaligus</option>
-                  </select>
+                <div class="grid-2" style="gap:10px;">
+                  <div class="field" style="margin-bottom:0;">
+                    <label for="agent-clip-count-select">Jumlah Klip Sekaligus</label>
+                    <select id="agent-clip-count-select">
+                      <option value="1">1 Klip Terbaik (Uji Cepat)</option>
+                      <option value="3" selected>3 Klip Terbaik</option>
+                      <option value="5">5 Klip Terbaik (Standar Podcast)</option>
+                      <option value="8">8 Klip Terbaik (Video 60+ Menit)</option>
+                      <option value="10">10 Klip Maksimal Sekaligus</option>
+                    </select>
+                  </div>
+
+                  <div class="field" style="margin-bottom:0;">
+                    <label for="agent-font-select">Font Subtitle Pilihan</label>
+                    <select id="agent-font-select"></select>
+                  </div>
                 </div>
               </div>
 
@@ -724,12 +740,17 @@
                 </div>
               </div>
 
-              <div class="btn-row" style="justify-content:space-between;margin-top:16px;">
-                <button type="button" class="btn btn-secondary" id="btn-resync-whisper">
-                  Baca Ulang Vokal Klip Ini (Whisper-Small)
-                </button>
+              <div class="btn-row" style="justify-content:space-between;margin-top:16px;flex-wrap:wrap;gap:10px;">
+                <div class="btn-row" style="flex-wrap:wrap;gap:8px;">
+                  <button type="button" class="btn btn-secondary" id="btn-resync-whisper">
+                    Baca Ulang Vokal Klip Ini (Whisper-Small)
+                  </button>
+                  <button type="button" class="btn btn-secondary" id="btn-ensure-zero-miss">
+                    Cek &amp; Tambal Subtitle Anti-Miss
+                  </button>
+                </div>
                 <button type="button" class="btn btn-primary" id="btn-go-step3">
-                  Lanjut Pilih Framing 9:16 &amp; Render MP4
+                  Lanjut Pilih Font, Framing &amp; Render MP4
                 </button>
               </div>
             </div>
@@ -794,12 +815,47 @@
                 </div>
 
                 <div class="parchment-card">
-                  <span class="eyebrow">Caption Per Kata Sinkron Vokal</span>
-                  <h2 class="card-subheading" style="margin:4px 0 6px;">Pilih Gaya Caption (6 Gaya Inti + 2 Tambahan)</h2>
+                  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
+                    <span class="eyebrow">Subtitle Anti-Miss &amp; Kustomisasi Tipografi</span>
+                    <span class="pill-tag lime" id="selected-font-badge">Font: Plus Jakarta Sans</span>
+                  </div>
+                  <h2 class="card-subheading" style="margin:4px 0 6px;">Pilih Gaya Warna &amp; Jenis Font Subtitle</h2>
                   <p class="muted-copy" style="font-size:14px;">
-                    Setiap kata menyala tepat saat diucapkan pembicara dan berhenti bersih pada jeda napas.
+                    Setiap kata tampil utuh tanpa kedipan kosong (anti-miss), menyala tepat mengikuti vokal pembicara, dan bebas diganti karakter hurufnya.
                   </p>
                   <div class="preset-grid" id="preset-grid"></div>
+
+                  <div style="margin-top:20px;padding-top:18px;border-top:1px solid var(--color-ash);">
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                      <strong style="font-size:14.5px;">Pilih Jenis Huruf (Font) Subtitle — 9 Karakter Kreator</strong>
+                      <span class="muted-copy" style="font-size:12px;">Langsung terlihat di pratinjau &amp; file MP4</span>
+                    </div>
+                    <div class="font-picker-grid" id="caption-font-grid" role="radiogroup" aria-label="Pemilih Font Subtitle"></div>
+
+                    <div class="grid-2" style="margin-top:14px;">
+                      <div class="field" style="margin-bottom:0;">
+                        <label for="caption-size-range">
+                          Ukuran Huruf Subtitle: <strong id="caption-size-label">100%</strong>
+                        </label>
+                        <input
+                          type="range"
+                          id="caption-size-range"
+                          min="80"
+                          max="135"
+                          step="5"
+                          value="100"
+                        />
+                      </div>
+                      <div class="field" style="margin-bottom:0;">
+                        <label for="caption-case-select">Format Huruf Besar / Kecil</label>
+                        <select id="caption-case-select">
+                          <option value="auto" selected>Ikuti Gaya Preset</option>
+                          <option value="uppercase">HURUF BESAR SEMUA (KAPITAL)</option>
+                          <option value="normal">Huruf Normal Sesuai Kalimat</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div class="parchment-card">
@@ -1023,6 +1079,10 @@
               <div class="field">
                 <label for="set-default-preset">Preset Caption Bawaan</label>
                 <select id="set-default-preset"></select>
+              </div>
+              <div class="field">
+                <label for="set-default-font">Font Subtitle Bawaan</label>
+                <select id="set-default-font"></select>
               </div>
               <div class="field">
                 <label for="set-gemini-key">Kunci API Gemini Pribadi (Opsional)</label>

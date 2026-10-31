@@ -8,7 +8,7 @@
 
 const DEVICE_ID_KEY = 'klip_auto_device_id_v2';
 const LEASE_STORAGE_KEY = 'klip_auto_lease_v2';
-export const APP_CLIENT_VERSION = '2.1.0';
+export const APP_CLIENT_VERSION = '2.2.0';
 
 export function getOrCreateDeviceId() {
   try {

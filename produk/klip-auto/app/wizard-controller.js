@@ -1,10 +1,10 @@
 /**
- * Klip Auto Studio v2.1 — Pengendali Utama Ruang Kerja Terotentikasi & Mesin Pemotong 9:16
+ * Klip Auto Studio v2.2 — Pengendali Utama Ruang Kerja Terotentikasi & Mesin Pemotong 9:16
  * PENTING (Sesuai GUIDE-KLIP-AUTO.md):
  * - TIDAK ADA kode lisensi, hash, maupun salt di dalam file ini (100% divalidasi oleh server).
- * - Menyediakan Penyelaras Vokal Presisi 10ms (#vocal-sync-canvas + Whisper-Small ID/EN),
- *   Skor Jujur 4 Sinyal Asli, Deteksi Otomatis 1 atau 2 Wajah (Fullscreen / Podcast Split / Cinema Blur / Gaming Split),
- *   Judul Pembuka 3 Detik, Akselerasi GPU + Fallback CPU Otomatis, Isolasi Error Batch, & Dukungan Mandiri.
+ * - Copy-Paste Link YouTube Tanpa Ekstensi Tambahan + Unduh Video YouTube Utuh (.MP4 360p–1080p).
+ * - Subtitle Anti-Miss (Penyelaras Vokal Presisi 10ms + Jembatan Jeda Mikro + Tambal Otomatis Whisper-Small).
+ * - Pemilih 9 Jenis Font Subtitle Kreator + Pengatur Ukuran & Kapitalisasi Huruf.
  */
 
 import { ALL_FORMATS, BlobSource, CanvasSink, Input } from './vendor/mediabunny.min.mjs';
@@ -16,7 +16,14 @@ import {
   extractMonoAudio,
   probeMediaFile
 } from './engine/audio-processor.js';
-import { CAPTION_PRESETS, drawClipFrame, groupWordsIntoPhrases } from './engine/caption-presets.js';
+import {
+  CAPTION_FONTS,
+  CAPTION_PRESETS,
+  drawClipFrame,
+  ensureCaptionFontLoaded,
+  getCaptionFontById,
+  groupWordsIntoPhrases
+} from './engine/caption-presets.js';
 import { assertSufficientDiskForRender, runDeviceReadinessCheck } from './engine/device-checker.js';
 import {
   buildFaceTrackForClip,
@@ -34,8 +41,10 @@ import { renderClipToMp4 } from './engine/mp4-exporter.js';
 import {
   analyzePodcastWithGemini,
   buildWordsFromTextAndWindow,
+  ensureZeroMissClipSubtitles,
   lockEditedTextToClipVocal,
   pickMomentsFromWordsLocally,
+  sliceSourceWordsForWindow,
   syncClipWordsWithWhisper,
   transcribeAndPickWithWhisperWeb
 } from './engine/transcriber-moments.js';
@@ -47,7 +56,9 @@ import {
 import {
   detectCompanionBridge,
   downloadYoutubeAsMp4File,
-  fetchYoutubeVideoInfo
+  fetchYoutubeVideoInfo,
+  pickQualityOption,
+  saveYoutubeMp4ToDevice
 } from './engine/youtube-downloader.js';
 
 const KEYS = {
@@ -78,6 +89,7 @@ const state = {
     creatorName: '',
     defaultWatermark: '',
     defaultPreset: 'kreator-kuning',
+    defaultFont: 'jakarta',
     geminiKey: ''
   },
   history: [],
@@ -93,6 +105,7 @@ const state = {
   videoObjectUrl: null,
   mediaInfo: null,
   ytInfo: null,
+  ytDownloadedCache: null,
   ytAbortController: null,
   ytHeatmap: null,
   moments: [],
@@ -101,12 +114,17 @@ const state = {
   clipStartSec: 0,
   clipEndSec: 15,
   words: [],
+  fullSourceWords: null,
+  transcriptManuallyEdited: false,
   captionOffsetSec: 0,
   vocalEnvelope: null,
   vocalClipSamples: null,
   vocalAnalysisToken: 0,
 
   presetId: 'kreator-kuning',
+  fontFamilyId: 'jakarta',
+  fontScale: 1.0,
+  textCase: 'auto',
   frameMode: 'auto',
   autoFaceCenter: true,
   manualCenterXOffset: 0,
@@ -281,6 +299,7 @@ function loadLocalPreferences() {
   } catch {}
 
   state.presetId = state.settings.defaultPreset || 'kreator-kuning';
+  state.fontFamilyId = state.settings.defaultFont || 'jakarta';
   if (state.features.customWatermark && state.settings.defaultWatermark) {
     state.watermarkText = state.settings.defaultWatermark;
   } else {
@@ -448,6 +467,7 @@ export async function bootStudioWithSession(session) {
   applyPackageTierPermissions();
   syncSettingsInputs();
   renderPresetCards();
+  renderFontCards();
   populateLibraryFilters();
   refreshDashboardAndBadges();
   refreshCompanionBridgeBadge();
@@ -745,13 +765,22 @@ function applyItemAsHook(itemId) {
  * 5. RIWAYAT RENDER, PENGATURAN, PINDAH PERANGKAT, & LAPORAN ERROR
  * ============================================================================ */
 
-function addRenderHistoryEntry({ hookTitle, sourceName, presetId, resolution, durationSec, sizeMb }) {
+function addRenderHistoryEntry({
+  hookTitle,
+  sourceName,
+  presetId,
+  fontFamilyId,
+  resolution,
+  durationSec,
+  sizeMb
+}) {
   const presetObj = CAPTION_PRESETS.find((p) => p.id === presetId) || CAPTION_PRESETS[0];
+  const fontObj = getCaptionFontById(fontFamilyId || state.fontFamilyId);
   const entry = {
     id: `hist-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     hookTitle: hookTitle || sourceName || 'Klip Vertikal 9:16',
     sourceName: sourceName || 'video.mp4',
-    presetName: presetObj.name,
+    presetName: `${presetObj.name} · ${fontObj.name}`,
     resolution,
     durationLabel: `${durationSec.toFixed(1)} dtk · ${sizeMb} MB`,
     dateLabel: new Date().toLocaleDateString('id-ID', {
@@ -829,11 +858,31 @@ function syncSettingsInputs() {
       presetSel.appendChild(opt);
     });
   }
+  const fontSel = $('set-default-font');
+  if (fontSel && fontSel.options.length === 0) {
+    CAPTION_FONTS.forEach((f) => {
+      const opt = document.createElement('option');
+      opt.value = f.id;
+      opt.textContent = `${f.name} — ${f.styleLabel}`;
+      fontSel.appendChild(opt);
+    });
+  }
+  const agentFontSel = $('agent-font-select');
+  if (agentFontSel && agentFontSel.options.length === 0) {
+    CAPTION_FONTS.forEach((f) => {
+      const opt = document.createElement('option');
+      opt.value = f.id;
+      opt.textContent = `${f.name} (${f.styleLabel})`;
+      agentFontSel.appendChild(opt);
+    });
+  }
   if ($('set-creator-name')) $('set-creator-name').value = state.settings.creatorName || '';
   if ($('set-default-watermark') && state.features.customWatermark) {
     $('set-default-watermark').value = state.settings.defaultWatermark || '';
   }
   if (presetSel) presetSel.value = state.settings.defaultPreset || 'kreator-kuning';
+  if (fontSel) fontSel.value = state.settings.defaultFont || 'jakarta';
+  if (agentFontSel) agentFontSel.value = state.fontFamilyId || 'jakarta';
   if ($('set-gemini-key')) $('set-gemini-key').value = state.settings.geminiKey || '';
   if ($('gemini-key-input')) $('gemini-key-input').value = state.settings.geminiKey || '';
   if ($('watermark-text-input') && state.features.customWatermark && !state.watermarkText) {
@@ -883,15 +932,19 @@ function setupSettingsAndSupport() {
       if ($('watermark-text-input')) $('watermark-text-input').value = state.watermarkText;
     }
     state.settings.defaultPreset = $('set-default-preset')?.value || 'kreator-kuning';
+    state.settings.defaultFont = $('set-default-font')?.value || 'jakarta';
     state.settings.geminiKey = $('set-gemini-key')?.value.trim() || '';
     writeJson(KEYS.SETTINGS, state.settings);
 
     state.presetId = state.settings.defaultPreset;
+    state.fontFamilyId = state.settings.defaultFont;
+    if ($('agent-font-select')) $('agent-font-select').value = state.fontFamilyId;
     if ($('gemini-key-input')) $('gemini-key-input').value = state.settings.geminiKey;
 
     renderPresetCards();
+    renderFontCards();
     refreshDashboardAndBadges();
-    showToast('Pengaturan studio disimpan');
+    showToast('Pengaturan studio & font bawaan disimpan');
   });
 
   // Lepas ikatan perangkat mandiri (Pindah Perangkat ke Laptop Baru)
@@ -1302,20 +1355,92 @@ function renderPresetCards() {
   }
 }
 
+function renderFontCards() {
+  const activeFont = getCaptionFontById(state.fontFamilyId);
+  if ($('selected-font-badge')) {
+    $('selected-font-badge').textContent = `Font: ${activeFont.name}`;
+  }
+
+  const agentSelect = $('agent-font-select');
+  if (agentSelect) {
+    agentSelect.innerHTML = CAPTION_FONTS.map(
+      (f) => `<option value="${f.id}">${escapeHtml(f.name)} — ${escapeHtml(f.category)}</option>`
+    ).join('');
+    agentSelect.value = activeFont.id;
+  }
+
+  if ($('caption-size-range')) {
+    $('caption-size-range').value = String(Math.round((state.fontScale || 1) * 100));
+  }
+  if ($('caption-size-label')) {
+    $('caption-size-label').textContent = `${Math.round((state.fontScale || 1) * 100)}%`;
+  }
+  if ($('caption-case-select')) {
+    $('caption-case-select').value = state.textCase || 'auto';
+  }
+
+  const grid = $('caption-font-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+
+  for (const font of CAPTION_FONTS) {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = `font-card ${font.id === activeFont.id ? 'selected' : ''}`;
+    card.dataset.fontId = font.id;
+    card.setAttribute('role', 'radio');
+    card.setAttribute('aria-checked', font.id === activeFont.id ? 'true' : 'false');
+
+    const sampleCss = [
+      `font-family:${font.fontFamily}`,
+      `font-weight:${font.loadWeight || font.fixedWeight || 800}`,
+      font.letterSpacingEm ? `letter-spacing:${font.letterSpacingEm}em` : ''
+    ]
+      .filter(Boolean)
+      .join(';');
+
+    card.innerHTML = `
+      <span class="font-card-sample" style="${sampleCss}">${escapeHtml(font.sampleText)}</span>
+      <span class="font-card-name">${escapeHtml(font.name)}</span>
+      <span class="font-card-meta">${escapeHtml(font.styleLabel || '')}</span>
+    `;
+
+    card.addEventListener('click', async () => {
+      state.fontFamilyId = font.id;
+      grid.querySelectorAll('.font-card').forEach((el) => {
+        const isSelected = el.dataset.fontId === font.id;
+        el.classList.toggle('selected', isSelected);
+        el.setAttribute('aria-checked', isSelected ? 'true' : 'false');
+      });
+      if ($('selected-font-badge')) {
+        $('selected-font-badge').textContent = `Font: ${font.name}`;
+      }
+      if ($('agent-font-select')) {
+        $('agent-font-select').value = font.id;
+      }
+      await ensureCaptionFontLoaded(font.id, 48);
+      renderStaticPreviewFrame(getPreviewCurrentTime());
+    });
+
+    grid.appendChild(card);
+  }
+
+  ensureCaptionFontLoaded(activeFont.id, 48).catch(() => {});
+}
+
 async function refreshCompanionBridgeBadge() {
   const pill = $('yt-bridge-status-pill');
   if (!pill) return;
   const status = await detectCompanionBridge();
-  if (status.active) {
-    pill.textContent = `Jembatan Internet Lokal Aktif (v${status.version || '2.1'})`;
-    pill.classList.add('lime');
+  pill.classList.add('lime');
+  if (status.active && status.mode === 'companion-bridge') {
+    pill.textContent = `Langsung Tanpa Ekstensi + Jembatan Cadangan Aktif`;
   } else {
-    pill.textContent = 'Mode File Lokal Siap · Pasang Ekstensi untuk Link Langsung';
-    pill.classList.remove('lime');
+    pill.textContent = 'Langsung Tempel Link · Tanpa Ekstensi Tambahan';
   }
 }
 
-function showYoutubeFriendlyFallback(title, reasonText, offerExtGuide = true) {
+function showYoutubeFriendlyFallback(title, reasonText, offerExtGuide = false) {
   const box = $('yt-fallback-box');
   if (!box) return;
   if ($('yt-fallback-title')) $('yt-fallback-title').textContent = title || 'Link Belum Bisa Dimuat Langsung';
@@ -1337,25 +1462,31 @@ async function handleFetchYoutubeUrl() {
   const fetchBtn = $('btn-yt-fetch');
   if (fetchBtn) fetchBtn.disabled = true;
   $('yt-preview-card')?.classList.remove('visible');
-  setStatus('yt', true, 'Memeriksa link YouTube lewat koneksi internet perangkatmu...', 24);
+  setStatus('yt', true, 'Membaca video, pilihan resolusi MP4 & subtitle YouTube tanpa ekstensi...', 24);
 
   try {
     const info = await fetchYoutubeVideoInfo(rawUrl);
+    if (state.ytDownloadedCache && state.ytDownloadedCache.videoId !== info.videoId) {
+      state.ytDownloadedCache = null;
+    }
     state.ytInfo = info;
     state.ytHeatmap = Array.isArray(info.heatmap) && info.heatmap.length > 0 ? info.heatmap : null;
 
     if ($('yt-thumb')) $('yt-thumb').src = info.thumbnail || '';
-    if ($('yt-duration-badge')) $('yt-duration-badge').textContent = formatClock(info.durationSec || 0);
+    if ($('yt-duration-badge')) {
+      $('yt-duration-badge').textContent =
+        Number(info.durationSec || 0) > 0 ? formatClock(info.durationSec) : 'MP4 Utuh';
+    }
     if ($('yt-channel-pill')) $('yt-channel-pill').textContent = info.author || 'YouTube';
     if ($('yt-title')) $('yt-title').textContent = info.title || 'Video YouTube';
 
     const capPill = $('yt-caption-pill');
     if (capPill) {
       if (info.hasCaptions && info.wordCount > 0) {
-        capPill.textContent = `Subtitle Siap (${info.captionLang.toUpperCase()} · ${info.wordCount} kata)`;
+        capPill.textContent = `Subtitle Anti-Miss Siap (${info.captionLang.toUpperCase()} · ${info.wordCount} kata)`;
         capPill.className = 'pill-tag lime';
       } else {
-        capPill.textContent = 'Tanpa Subtitle — Siap Transkrip Whisper-Small';
+        capPill.textContent = 'Tanpa Subtitle Bawaan — Siap Transkrip Whisper-Small';
         capPill.className = 'pill-tag';
       }
     }
@@ -1379,7 +1510,7 @@ async function handleFetchYoutubeUrl() {
 
     setStatus('yt', false);
     $('yt-preview-card')?.classList.add('visible');
-    showToast('Informasi video siap dipotong menjadi klip 9:16');
+    showToast('Video siap dipotong jadi klip 9:16 atau diunduh utuh sebagai .MP4');
   } catch (err) {
     setStatus('yt', false);
     recordDiagnostic(`Link YouTube dilewati (${err?.code || 'INFO'}): ${err?.message || ''}`);
@@ -1390,16 +1521,74 @@ async function handleFetchYoutubeUrl() {
         ? 'Video Bersifat Pribadi atau Dibatasi Pemilik Channel'
         : err?.code === 'INVALID_URL' || err?.code === 'EMPTY_URL'
         ? 'Periksa Kembali Alamat Link YouTube'
-        : 'Gunakan File Video Lokal atau Aktifkan Jembatan Link Lokal';
+        : 'Video Ini Membatasi Akses Langsung';
 
     showYoutubeFriendlyFallback(
       title,
       err?.message ||
-        'Link ini belum bisa diakses langsung. Silakan pilih file video lokal (.mp4, .mov, .mkv) dari laptopmu.',
-      Boolean(err?.offerExtensionGuide || err?.code === 'BRIDGE_REQUIRED')
+        'Link ini membatasi pembacaan langsung. Silakan pilih file video lokal (.mp4, .mov, .mkv) dari laptopmu.',
+      Boolean(err?.offerExtensionGuide)
     );
   } finally {
     if (fetchBtn) fetchBtn.disabled = false;
+  }
+}
+
+async function handleYoutubeDirectDownloadAction() {
+  if (!state.ytInfo) return;
+  showError('');
+  hideYoutubeFriendlyFallback();
+
+  const qualityId = $('yt-quality-select')?.value || null;
+  const dlBtn = $('btn-yt-download-mp4');
+  const importBtn = $('btn-yt-import-studio');
+  const fetchBtn = $('btn-yt-fetch');
+  const cancelBtn = $('btn-yt-cancel');
+
+  state.ytAbortController = new AbortController();
+  if (dlBtn) dlBtn.disabled = true;
+  if (importBtn) importBtn.disabled = true;
+  if (fetchBtn) fetchBtn.disabled = true;
+  if (cancelBtn) cancelBtn.style.display = 'inline-flex';
+
+  setStatus('yt', true, 'Menyiapkan unduhan video YouTube (.MP4) langsung ke perangkatmu...', 5);
+
+  try {
+    const res = await saveYoutubeMp4ToDevice({
+      info: state.ytInfo,
+      qualityId,
+      cachedResult: state.ytDownloadedCache,
+      signal: state.ytAbortController.signal,
+      onProgress: ({ phase, percent }) => {
+        setStatus('yt', true, phase, percent);
+      }
+    });
+
+    state.ytDownloadedCache = {
+      ...res,
+      videoId: state.ytInfo.videoId
+    };
+    setStatus('yt', false);
+    showToast(`Video YouTube (.MP4 ${res.qualityLabel || ''}) berhasil diunduh ke perangkatmu!`);
+  } catch (err) {
+    setStatus('yt', false);
+    if (err?.name === 'AbortError') {
+      showToast('Unduhan video YouTube dibatalkan');
+    } else {
+      showYoutubeFriendlyFallback(
+        'Unduhan Video Terputus Sementara',
+        `${
+          err?.message || 'Sumber video membatasi unduhan pada resolusi ini.'
+        } Coba pilih resolusi 360p/720p atau klik ulang tombol Unduh Video YouTube (.MP4).`,
+        false
+      );
+    }
+  } finally {
+    state.ytAbortController = null;
+    if (dlBtn) dlBtn.disabled = false;
+    if (importBtn) importBtn.disabled = false;
+    if (fetchBtn) fetchBtn.disabled = false;
+    if (cancelBtn) cancelBtn.style.display = 'none';
   }
 }
 
@@ -1409,32 +1598,51 @@ async function handleYoutubeImportAction() {
   hideYoutubeFriendlyFallback();
 
   const qualityId = $('yt-quality-select')?.value || null;
+  const pickedQ = pickQualityOption(state.ytInfo, qualityId);
+  const expectedCacheKey = `${state.ytInfo.videoId}:${pickedQ.id}`;
+
+  const dlBtn = $('btn-yt-download-mp4');
   const importBtn = $('btn-yt-import-studio');
   const fetchBtn = $('btn-yt-fetch');
   const cancelBtn = $('btn-yt-cancel');
 
   state.ytAbortController = new AbortController();
+  if (dlBtn) dlBtn.disabled = true;
   if (importBtn) importBtn.disabled = true;
   if (fetchBtn) fetchBtn.disabled = true;
   if (cancelBtn) cancelBtn.style.display = 'inline-flex';
 
-  setStatus('yt', true, 'Mengalirkan sumber video lewat internet perangkatmu...', 6);
+  setStatus('yt', true, 'Memuat video & mengunci semua kata subtitle tanpa ekstensi...', 6);
 
   try {
-    const res = await downloadYoutubeAsMp4File({
-      info: state.ytInfo,
-      qualityId,
-      signal: state.ytAbortController.signal,
-      onProgress: ({ phase, percent }) => {
-        setStatus('yt', true, phase, percent);
-      }
-    });
+    let res = null;
+    if (
+      state.ytDownloadedCache &&
+      state.ytDownloadedCache.cacheKey === expectedCacheKey &&
+      state.ytDownloadedCache.file
+    ) {
+      res = state.ytDownloadedCache;
+    } else {
+      res = await downloadYoutubeAsMp4File({
+        info: state.ytInfo,
+        qualityId,
+        signal: state.ytAbortController.signal,
+        onProgress: ({ phase, percent }) => {
+          setStatus('yt', true, phase, percent);
+        }
+      });
+      state.ytDownloadedCache = {
+        ...res,
+        videoId: state.ytInfo.videoId
+      };
+    }
 
     setStatus('yt', false);
     state.ytHeatmap = Array.isArray(res.heatmap) && res.heatmap.length > 0 ? res.heatmap : null;
 
     await handleVideoSelected(res.file, {
       prebuiltMoments: res.moments && res.moments.length > 0 ? res.moments : null,
+      allSourceWords: Array.isArray(res.allWords) && res.allWords.length > 0 ? res.allWords : null,
       heatmap: state.ytHeatmap,
       skipAutoJump: false
     });
@@ -1444,15 +1652,16 @@ async function handleYoutubeImportAction() {
       showToast('Proses pemuatan link dibatalkan');
     } else {
       showYoutubeFriendlyFallback(
-        'Aliran Video Terputus atau Dibatasi',
+        'Aliran Video Terputus Sementara',
         `${
           err?.message || 'Sumber video membatasi pembacaan langsung.'
-        } Silakan pilih file video lokal (.mp4, .mov, .mkv) dari laptopmu untuk segera dipotong.`,
-        true
+        } Coba pilih resolusi 360p/720p atau gunakan file video lokal (.mp4, .mov, .mkv).`,
+        false
       );
     }
   } finally {
     state.ytAbortController = null;
+    if (dlBtn) dlBtn.disabled = false;
     if (importBtn) importBtn.disabled = false;
     if (fetchBtn) fetchBtn.disabled = false;
     if (cancelBtn) cancelBtn.style.display = 'none';
@@ -1631,10 +1840,14 @@ async function startAutonomousClipAgent({ prebuiltMoments = null } = {}) {
       file: state.file,
       mediaInfo: state.mediaInfo,
       prebuiltMoments,
+      allSourceWords: state.fullSourceWords,
       heatmap: state.ytHeatmap,
       geminiApiKey,
       clipCount,
       presetId: state.presetId,
+      fontFamilyId: state.fontFamilyId,
+      fontScale: state.fontScale,
+      textCase: state.textCase,
       frameMode: state.frameMode,
       autoFaceCenter: state.autoFaceCenter,
       captionOffsetSec: state.captionOffsetSec,
@@ -1657,6 +1870,9 @@ async function startAutonomousClipAgent({ prebuiltMoments = null } = {}) {
       onMomentsReady: (moments) => {
         state.moments = moments;
         state.scoringMeta = moments.scoringMeta || null;
+        if (Array.isArray(moments.allWords) && moments.allWords.length > 0) {
+          state.fullSourceWords = moments.allWords;
+        }
         renderMomentsCards();
         selectMoment(0, { skipVocalExtract: true });
         refreshDashboardAndBadges();
@@ -1669,6 +1885,7 @@ async function startAutonomousClipAgent({ prebuiltMoments = null } = {}) {
           hookTitle: clip.hookTitle,
           sourceName: state.file?.name || 'video.mp4',
           presetId: clip.presetId,
+          fontFamilyId: clip.fontFamilyId || state.fontFamilyId,
           resolution: state.resolution,
           durationSec: clip.durationSec,
           sizeMb
@@ -1718,7 +1935,13 @@ async function runMultiVideoBatchQueue(filesList) {
 
 async function handleVideoSelected(
   file,
-  { prebuiltMoments = null, heatmap = null, skipAutoJump = false, forceWaitBatch = false } = {}
+  {
+    prebuiltMoments = null,
+    allSourceWords = null,
+    heatmap = null,
+    skipAutoJump = false,
+    forceWaitBatch = false
+  } = {}
 ) {
   if (!file) return;
   showError('');
@@ -1736,6 +1959,13 @@ async function handleVideoSelected(
   state.moments = [];
   state.scoringMeta = null;
   state.words = [];
+  state.fullSourceWords =
+    Array.isArray(allSourceWords) && allSourceWords.length > 0
+      ? allSourceWords
+      : Array.isArray(prebuiltMoments?.allWords) && prebuiltMoments.allWords.length > 0
+      ? prebuiltMoments.allWords
+      : null;
+  state.transcriptManuallyEdited = false;
   state.vocalEnvelope = null;
   state.vocalClipSamples = null;
   state.ytHeatmap = heatmap || null;
@@ -1853,6 +2083,9 @@ async function handleWhisperAnalysis() {
     });
     state.moments = moments;
     state.scoringMeta = moments.scoringMeta || null;
+    if (Array.isArray(moments.allWords) && moments.allWords.length > 0) {
+      state.fullSourceWords = moments.allWords;
+    }
     setStatus('step1', false);
     renderMomentsCards();
     await selectMoment(0);
@@ -1944,6 +2177,7 @@ async function handleSrtUpload(file) {
     const moments = pickMomentsFromWordsLocally(allWords, state.mediaInfo.duration, {
       heatmap: state.ytHeatmap
     });
+    state.fullSourceWords = allWords;
     state.moments = moments;
     state.scoringMeta = moments.scoringMeta || null;
     renderMomentsCards();
@@ -2033,6 +2267,7 @@ async function selectMoment(index, { skipVocalExtract = false } = {}) {
   state.clipStartSec = Number(m.startSec.toFixed(2));
   state.clipEndSec = Number(m.endSec.toFixed(2));
   state.cameraTrack = null;
+  state.transcriptManuallyEdited = false;
 
   const totalDur = state.mediaInfo?.duration || 60;
   ['slider-clip-start', 'slider-clip-end'].forEach((id) => {
@@ -2041,7 +2276,15 @@ async function selectMoment(index, { skipVocalExtract = false } = {}) {
   syncTrimmerInputs();
 
   const transcriptBox = $('clip-transcript-input');
-  if (Array.isArray(m.words) && m.words.length > 0) {
+  const slicedFromFull =
+    Array.isArray(state.fullSourceWords) && state.fullSourceWords.length > 0
+      ? sliceSourceWordsForWindow(state.fullSourceWords, state.clipStartSec, state.clipEndSec)
+      : [];
+
+  if (slicedFromFull.length > 0 && (!Array.isArray(m.words) || slicedFromFull.length >= m.words.length)) {
+    state.words = slicedFromFull.map((w) => ({ ...w }));
+    if (transcriptBox) transcriptBox.value = state.words.map((w) => w.word).join(' ');
+  } else if (Array.isArray(m.words) && m.words.length > 0) {
     state.words = m.words.map((w) => ({ ...w }));
     if (transcriptBox) transcriptBox.value = m.transcript || m.words.map((w) => w.word).join(' ');
   } else {
@@ -2091,6 +2334,24 @@ function handleTrimChange(source) {
 
   clearTimeout(handleTrimChange._debounce);
   handleTrimChange._debounce = setTimeout(async () => {
+    if (
+      Array.isArray(state.fullSourceWords) &&
+      state.fullSourceWords.length > 0 &&
+      !state.transcriptManuallyEdited
+    ) {
+      const sliced = sliceSourceWordsForWindow(
+        state.fullSourceWords,
+        state.clipStartSec,
+        state.clipEndSec
+      );
+      state.words = sliced;
+      if ($('clip-transcript-input')) {
+        $('clip-transcript-input').value = sliced.map((w) => w.word).join(' ');
+      }
+      await refreshClipVocalEnvelopeAndWords({ relockExistingWords: sliced.length > 0 });
+      return;
+    }
+
     await refreshClipVocalEnvelopeAndWords({ relockExistingWords: false });
     const txt = $('clip-transcript-input')?.value.trim() || '';
     if (txt && state.vocalClipSamples) {
@@ -2120,8 +2381,27 @@ async function handleSnapBoundsToBreathPause() {
   state.clipStartSec = snapped.startSec;
   state.clipEndSec = snapped.endSec;
   syncTrimmerInputs();
+
+  if (
+    Array.isArray(state.fullSourceWords) &&
+    state.fullSourceWords.length > 0 &&
+    !state.transcriptManuallyEdited
+  ) {
+    const sliced = sliceSourceWordsForWindow(
+      state.fullSourceWords,
+      state.clipStartSec,
+      state.clipEndSec
+    );
+    if (sliced.length > 0) {
+      state.words = sliced;
+      if ($('clip-transcript-input')) {
+        $('clip-transcript-input').value = sliced.map((w) => w.word).join(' ');
+      }
+    }
+  }
+
   await refreshClipVocalEnvelopeAndWords({ relockExistingWords: true });
-  showToast('Titik awal & akhir dirapatkan ke jeda napas terdekat');
+  showToast('Titik awal & akhir dirapatkan ke jeda napas terdekat tanpa kata tertinggal');
 }
 
 async function handleLockEditedTextToVocal() {
@@ -2243,6 +2523,7 @@ async function handleResyncClipWithWhisper() {
 
     if (words.length > 0) {
       state.words = words;
+      state.transcriptManuallyEdited = false;
       const joined = words.map((w) => w.word).join(' ');
       if ($('clip-transcript-input')) $('clip-transcript-input').value = joined;
       state.hookTitle = craftCleanHookTitle(joined, state.selectedMomentIndex + 1);
@@ -2255,6 +2536,52 @@ async function handleResyncClipWithWhisper() {
   } catch (err) {
     setStatus('step2', false);
     showError(err.message || 'Gagal membaca ulang vokal klip.');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function handleEnsureZeroMissSubtitles() {
+  if (!state.file) return;
+  const btn = $('btn-ensure-zero-miss');
+  if (btn) btn.disabled = true;
+  showError('');
+
+  try {
+    setStatus('step2', true, 'Memeriksa pulau vokal & menambal kata yang terlewat (Anti-Miss)...', 18);
+    const patched = await ensureZeroMissClipSubtitles({
+      file: state.file,
+      clipSamples16k: state.vocalClipSamples,
+      startSec: state.clipStartSec,
+      endSec: state.clipEndSec,
+      words: state.words,
+      fullSourceWords: state.transcriptManuallyEdited ? null : state.fullSourceWords,
+      allowWhisperGapFill: true,
+      onStatus: (txt, pct) => setStatus('step2', true, txt, pct)
+    });
+    setStatus('step2', false);
+
+    if (patched.length > 0) {
+      const addedCount = Math.max(0, patched.length - (state.words?.length || 0));
+      state.words = patched;
+      const joined = patched.map((w) => w.word).join(' ');
+      if ($('clip-transcript-input')) $('clip-transcript-input').value = joined;
+      if (state.moments[state.selectedMomentIndex]) {
+        state.moments[state.selectedMomentIndex].words = patched;
+        state.moments[state.selectedMomentIndex].transcript = joined;
+      }
+      drawVocalSyncTimeline();
+      showToast(
+        addedCount > 0
+          ? `Anti-Miss selesai: +${addedCount} kata yang sempat kosong berhasil ditambal (${patched.length} kata total)`
+          : `Seluruh ${patched.length} kata sudah utuh & terkunci presisi tanpa ada miss!`
+      );
+    } else {
+      showToast('Tidak terdengar vokal ucapan aktif pada rentang klip ini.');
+    }
+  } catch (err) {
+    setStatus('step2', false);
+    showError(err?.message || 'Gagal memeriksa celah subtitle.');
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -2428,6 +2755,7 @@ async function preparePreviewPlayer() {
     }
   }
 
+  await ensureCaptionFontLoaded(state.fontFamilyId, 48);
   updateDetectedFacesBadge(state.cameraTrack);
   await renderStaticPreviewFrame(state.clipStartSec);
 
@@ -2463,6 +2791,9 @@ function paintCurrentStateToPreviewCanvas(frameSource, srcW, srcH, timeSec) {
     frameMode: state.frameMode,
     cameraMeta: state.cameraTrack?.meta || null,
     presetId: state.presetId,
+    fontFamilyId: state.fontFamilyId,
+    fontScale: state.fontScale,
+    textCase: state.textCase,
     phraseGroups,
     captionOffsetSec: state.captionOffsetSec,
     hookTitle: $('hook-title-input')?.value ?? state.hookTitle,
@@ -2669,7 +3000,11 @@ async function handleRenderMp4() {
       manualCenterXOffset: state.manualCenterXOffset,
       prebuiltCameraTrack: state.autoFaceCenter ? state.cameraTrack : null,
       presetId: state.presetId,
+      fontFamilyId: state.fontFamilyId,
+      fontScale: state.fontScale,
+      textCase: state.textCase,
       words: state.words,
+      fullSourceWords: state.transcriptManuallyEdited ? null : state.fullSourceWords,
       captionOffsetSec: state.captionOffsetSec,
       hookTitle: hookTitleVal,
       hookStyle: $('hook-style-select')?.value || 'white',
@@ -2707,6 +3042,7 @@ async function handleRenderMp4() {
     }
 
     const sizeMb = (res.sizeBytes / (1024 * 1024)).toFixed(2);
+    const fontObj = getCaptionFontById(state.fontFamilyId);
     const modeLabel =
       res.effectiveFrameMode === 'podcast-split'
         ? 'Podcast Split 2 Wajah'
@@ -2717,7 +3053,7 @@ async function handleRenderMp4() {
         : 'Fullscreen Tengah';
 
     if ($('result-meta')) {
-      $('result-meta').textContent = `${modeLabel} · Mesin ${String(
+      $('result-meta').textContent = `${modeLabel} · Font ${fontObj.name} · Mesin ${String(
         res.encoderMode || 'gpu'
       ).toUpperCase()} · Resolusi ${res.width}×${res.height} · Durasi ${res.durationSec.toFixed(
         1
@@ -2729,6 +3065,7 @@ async function handleRenderMp4() {
       hookTitle: hookTitleVal || state.moments[state.selectedMomentIndex]?.title,
       sourceName: state.file.name,
       presetId: state.presetId,
+      fontFamilyId: state.fontFamilyId,
       resolution,
       durationSec: res.durationSec,
       sizeMb
@@ -2755,6 +3092,7 @@ async function handleRenderMp4() {
 
 function setupWizardControls() {
   renderPresetCards();
+  renderFontCards();
 
   // Navigasi 3 Tab Langkah Wizard
   [1, 2, 3].forEach((n) => {
@@ -2767,7 +3105,7 @@ function setupWizardControls() {
     });
   });
 
-  // Kartu Link YouTube Lewat Internet Pembeli Sendiri + Fallback Ramah
+  // Kartu Link YouTube Tanpa Ekstensi + Unduh Video YouTube (.MP4) + Fallback Ramah
   $('btn-yt-fetch')?.addEventListener('click', handleFetchYoutubeUrl);
   $('yt-url-input')?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
@@ -2776,6 +3114,7 @@ function setupWizardControls() {
     }
   });
   $('btn-yt-import-studio')?.addEventListener('click', handleYoutubeImportAction);
+  $('btn-yt-download-mp4')?.addEventListener('click', handleYoutubeDirectDownloadAction);
   $('btn-yt-cancel')?.addEventListener('click', () => state.ytAbortController?.abort());
 
   // Tombol Fallback Pilih File Lokal & Modal Panduan Ekstensi Jembatan Lokal
@@ -2795,6 +3134,12 @@ function setupWizardControls() {
   $('btn-stop-ai-agent')?.addEventListener('click', () => state.agentAbortController?.abort());
   $('agent-clip-count-select')?.addEventListener('change', (e) => {
     state.agentClipCount = Number(e.target.value) || 3;
+  });
+  $('agent-font-select')?.addEventListener('change', async (e) => {
+    state.fontFamilyId = e.target.value || 'jakarta';
+    renderFontCards();
+    await ensureCaptionFontLoaded(state.fontFamilyId, 48);
+    renderStaticPreviewFrame(getPreviewCurrentTime());
   });
   $('btn-download-all-agent')?.addEventListener('click', () => {
     if (state.agentRenderedClips.length === 0) return;
@@ -2898,6 +3243,7 @@ function setupWizardControls() {
 
   $('btn-lock-text-vocal')?.addEventListener('click', handleLockEditedTextToVocal);
   $('clip-transcript-input')?.addEventListener('input', (e) => {
+    state.transcriptManuallyEdited = true;
     const txt = e.target.value.trim();
     state.words = txt
       ? buildWordsFromTextAndWindow(
@@ -2912,6 +3258,7 @@ function setupWizardControls() {
   });
 
   $('btn-resync-whisper')?.addEventListener('click', handleResyncClipWithWhisper);
+  $('btn-ensure-zero-miss')?.addEventListener('click', handleEnsureZeroMissSubtitles);
   $('btn-go-step3')?.addEventListener('click', () => goToWizardStep(3));
 
   // Langkah 3: Preview 9:16, Mode Framing, Judul 3 Detik, Watermark, Generator Deskripsi & Ekspor MP4
@@ -2955,6 +3302,18 @@ function setupWizardControls() {
   });
 
   $('btn-scan-face-preview')?.addEventListener('click', handleScanFacePreview);
+
+  $('caption-size-range')?.addEventListener('input', (e) => {
+    const pct = Math.max(80, Math.min(135, Number(e.target.value) || 100));
+    state.fontScale = pct / 100;
+    if ($('caption-size-label')) $('caption-size-label').textContent = `${pct}%`;
+    renderStaticPreviewFrame(getPreviewCurrentTime());
+  });
+
+  $('caption-case-select')?.addEventListener('change', (e) => {
+    state.textCase = e.target.value || 'auto';
+    renderStaticPreviewFrame(getPreviewCurrentTime());
+  });
 
   $('hook-title-input')?.addEventListener('input', (e) => {
     state.hookTitle = e.target.value;

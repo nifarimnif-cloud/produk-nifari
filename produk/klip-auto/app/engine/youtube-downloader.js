@@ -1,8 +1,10 @@
 /**
- * Klip Auto — Penghubung Link YouTube Lewat Internet Pembeli Sendiri (0% Layanan Pihak Ketiga)
- * - Bekerja murni lewat koneksi internet perangkat pembeli sendiri (via Jembatan Ekstensi Chrome/Edge Lokal)
- * - Mengambil informasi video, subtitle kata asli, serta Grafik Most-Replayed (`heatmap`)
- * - Tanpa proxy server, tanpa layanan konverter luar, dan memiliki pesan pemulihan jelas + tombol pilih file lokal
+ * Klip Auto — Mesin Pembaca & Pengunduh Video YouTube Langsung Tanpa Ekstensi Tambahan (v2.2)
+ * - Tempel link YouTube (watch, youtu.be, shorts, live) langsung di browser — TANPA perlu pasang ekstensi!
+ * - Mendukung dua aksi sekaligus dari satu pratinjau:
+ *   1. Potong Jadi Klip 9:16 Sekarang (lengkap dengan subtitle kata anti-miss & grafik Most-Replayed)
+ *   2. Unduh Video YouTube Utuh (.MP4 — 360p, 480p, 720p HD, hingga 1080p Full HD) langsung ke perangkat
+ * - Dilengkapi pemakaian ulang cerdas di memori (unduh sekali -> simpan MP4 & potong klip tanpa unduh ulang)
  */
 
 import {
@@ -69,7 +71,7 @@ export function normalizeTitleSlug(text) {
       .trim()
       .replace(/[\s_-]+/g, '-')
       .replace(/^-|-$/g, '')
-      .slice(0, 56) || 'video-sumber'
+      .slice(0, 56) || 'video-youtube'
   );
 }
 
@@ -79,14 +81,15 @@ export function sanitizeYoutubeFilename(title, suffix = '') {
 }
 
 /**
- * Memeriksa apakah Jembatan Ekstensi Chrome/Edge Lokal Klip Auto sudah aktif di browser pembeli.
+ * Pemeriksaan opsional senyap apabila ekstensi pendamping lama kebetulan terpasang (tidak pernah diwajibkan).
  */
-export async function detectCompanionBridge(timeoutMs = 300) {
+export async function detectCompanionBridge(timeoutMs = 180) {
   if (typeof window === 'undefined') return { active: false, version: null };
 
   const attrVer = document.documentElement?.getAttribute('data-klip-yt-bridge');
-  const reqId = `ping-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  if (attrVer) return { active: true, version: attrVer };
 
+  const reqId = `ping-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   return new Promise((resolve) => {
     let settled = false;
     const finish = (val) => {
@@ -98,14 +101,14 @@ export async function detectCompanionBridge(timeoutMs = 300) {
 
     const onMsg = (ev) => {
       if (ev.source === window && ev.data?.channel === 'KLIP_AUTO_YT_RES' && ev.data?.requestId === reqId) {
-        finish({ active: Boolean(ev.data.ok), version: ev.data.version || attrVer || '2.1.0' });
+        finish({ active: Boolean(ev.data.ok), version: ev.data.version || '2.2.0' });
       }
     };
 
     window.addEventListener('message', onMsg);
     window.postMessage({ channel: 'KLIP_AUTO_YT_REQ', requestId: reqId, action: 'PING' }, '*');
     setTimeout(() => {
-      finish({ active: Boolean(attrVer), version: attrVer || null });
+      finish({ active: false, version: null });
     }, timeoutMs);
   });
 }
@@ -140,7 +143,7 @@ function callCompanionBridge(action, payload, signal = null, timeoutMs = 45000) 
       if (ev.data.ok) {
         resolve(ev.data.data);
       } else {
-        const err = new Error(ev.data.error || 'Gagal membaca data dari YouTube lewat koneksi lokal.');
+        const err = new Error(ev.data.error || 'Gagal membaca data dari YouTube.');
         err.code = 'YT_BRIDGE_ERROR';
         reject(err);
       }
@@ -149,9 +152,7 @@ function callCompanionBridge(action, payload, signal = null, timeoutMs = 45000) 
     const timer = setTimeout(() => {
       if (settled) return;
       cleanup();
-      const err = new Error(
-        'Waktu tunggu koneksi ke YouTube habis. Periksa koneksi internet kamu atau pilih file video lokal (.mp4 / .mov / .mkv).'
-      );
+      const err = new Error('Waktu tunggu koneksi ke YouTube habis.');
       err.code = 'YT_TIMEOUT';
       reject(err);
     }, timeoutMs);
@@ -163,7 +164,7 @@ function callCompanionBridge(action, payload, signal = null, timeoutMs = 45000) 
 }
 
 /**
- * Menyimpan cache subtitle & grafik Most-Replayed YouTube di localStorage perangkat pembeli.
+ * Menyimpan cache subtitle utuh & grafik Most-Replayed YouTube di localStorage perangkat pembeli.
  */
 export function saveYoutubeTranscriptCache(info) {
   if (!info || !info.videoId) return;
@@ -171,7 +172,11 @@ export function saveYoutubeTranscriptCache(info) {
     const raw = localStorage.getItem(YT_TRANSCRIPT_CACHE_KEY);
     const list = raw ? JSON.parse(raw) : [];
     const prev = Array.isArray(list) ? list.find((x) => x && x.videoId === info.videoId) : null;
-    const incomingWords = Array.isArray(info.words) ? info.words : [];
+    const incomingWords = Array.isArray(info.allWords)
+      ? info.allWords
+      : Array.isArray(info.words)
+      ? info.words
+      : [];
     const bestWords = incomingWords.length > 0 ? incomingWords : Array.isArray(prev?.words) ? prev.words : [];
     const bestHeatmap =
       Array.isArray(info.heatmap) && info.heatmap.length > 0
@@ -207,7 +212,7 @@ export function saveYoutubeTranscriptCache(info) {
 }
 
 /**
- * Mencocokkan file lokal yang dipilih pembeli dengan cache subtitle & heatmap YouTube di browser.
+ * Mencocokkan file lokal yang dipilih pembeli dengan cache subtitle utuh & heatmap YouTube di browser.
  */
 export function findMatchingYoutubeCache(file, mediaInfo) {
   if (!file) return null;
@@ -245,6 +250,7 @@ export function findMatchingYoutubeCache(file, mediaInfo) {
             title: entry.title,
             wordCount: entry.words.length,
             words: entry.words,
+            allWords: entry.words,
             heatmap: entry.heatmap || [],
             moments
           };
@@ -263,8 +269,12 @@ export function buildMomentsFromYoutubeWords(
   fallbackTitle = 'Klip Utama Video',
   heatmap = null
 ) {
-  if (!Array.isArray(words) || words.length === 0 || durationSec <= 0) return [];
-  const picked = pickMomentsFromWordsLocally(words, durationSec, { heatmap });
+  if (!Array.isArray(words) || words.length === 0) return [];
+  const effectiveDur =
+    Number(durationSec || 0) > 0
+      ? Number(durationSec)
+      : Math.max(10, Math.ceil((Number(words[words.length - 1]?.end) || 28) + 2));
+  const picked = pickMomentsFromWordsLocally(words, effectiveDur, { heatmap });
   const scoringMeta = picked.scoringMeta || null;
   let moments = picked.map((m, idx) => ({
     ...m,
@@ -272,8 +282,8 @@ export function buildMomentsFromYoutubeWords(
   }));
 
   if (moments.length === 0) {
-    const endClip = Number(Math.min(durationSec, Math.max(1, Math.min(40, durationSec))).toFixed(2));
-    const clipWords = words.filter((w) => w.start <= endClip);
+    const endClip = Number(Math.min(effectiveDur, Math.max(1, Math.min(40, effectiveDur))).toFixed(2));
+    const clipWords = words.filter((w) => w.end >= 0 && w.start <= endClip);
     moments = [
       {
         id: 'yt-momen-1',
@@ -293,15 +303,40 @@ export function buildMomentsFromYoutubeWords(
   return moments;
 }
 
+function enrichYoutubeDataPayload(data, transportMode = 'direct-edge') {
+  const allWords = Array.isArray(data.words) ? data.words : [];
+  const moments = buildMomentsFromYoutubeWords(
+    allWords,
+    data.durationSec,
+    data.title,
+    data.heatmap || null
+  );
+  const wordCount = Number(data.captionMeta?.wordCount ?? allWords.length);
+  const enriched = {
+    ok: true,
+    ...data,
+    transportMode,
+    allWords,
+    words: allWords,
+    thumbnail: data.thumbnail || data.thumbnailUrl || '',
+    hasCaptions: Boolean(data.captionMeta?.available || wordCount >= 5),
+    wordCount,
+    captionLang: String(data.captionMeta?.languageCode || 'id'),
+    moments,
+    scoringMeta: moments.scoringMeta || null
+  };
+  saveYoutubeTranscriptCache(enriched);
+  return enriched;
+}
+
 /**
- * Mengambil informasi video YouTube langsung lewat koneksi internet pembeli sendiri (Ekstensi Pendamping).
- * Apabila ekstensi belum terpasang atau video tidak bisa diakses, mengembalikan alasan yang mudah dimengerti
- * sehingga UI langsung menawarkan tombol Pilih File Video Lokal (.mp4 / .mov / .mkv).
+ * Mengambil informasi video, resolusi unduhan, subtitle kata asli, & grafik Most-Replayed
+ * langsung lewat copy-paste link YouTube TANPA memerlukan ekstensi tambahan!
  */
 export async function fetchYoutubeVideoInfo(rawUrl) {
   const clean = String(rawUrl || '').trim();
   if (!clean) {
-    const err = new Error('Tempelkan link video YouTube terlebih dahulu, atau pilih file video dari laptopmu.');
+    const err = new Error('Tempelkan link video YouTube terlebih dahulu, atau pilih file video dari perangkatmu.');
     err.code = 'EMPTY_URL';
     err.offerLocalUpload = true;
     throw err;
@@ -309,7 +344,7 @@ export async function fetchYoutubeVideoInfo(rawUrl) {
 
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     const err = new Error(
-      'Koneksi internet perangkatmu sedang terputus. Nyalakan kembali internet untuk memproses link YouTube, atau langsung pilih file video lokal (.mp4, .mov, .mkv) dari laptopmu — Klip Auto tetap berjalan offline!'
+      'Koneksi internet perangkatmu sedang terputus. Nyalakan internet untuk memproses link YouTube, atau langsung pilih file video lokal (.mp4, .mov, .mkv) — Klip Auto tetap berjalan offline!'
     );
     err.code = 'OFFLINE';
     err.offerLocalUpload = true;
@@ -319,80 +354,67 @@ export async function fetchYoutubeVideoInfo(rawUrl) {
   const videoId = extractYoutubeVideoId(clean);
   if (!videoId) {
     const err = new Error(
-      'Format link YouTube tidak dikenali. Pastikan link berbentuk youtube.com/watch?v=... atau youtu.be/..., atau pilih file video lokal (.mp4, .mov, .mkv).'
+      'Format link YouTube tidak dikenali. Pastikan link berbentuk youtube.com/watch?v=..., youtu.be/..., atau youtube.com/shorts/...'
     );
     err.code = 'INVALID_URL';
     err.offerLocalUpload = true;
     throw err;
   }
 
-  const bridge = await detectCompanionBridge();
-  if (!bridge.active) {
-    // Cek oEmbed publik langsung dari browser pembeli supaya judul video tetap informatif bila valid
-    let detectedTitle = '';
+  // Jalur Utama v2.2: Langsung panggil endpoint terotentikasi `/api/youtube/info` tanpa ekstensi apa pun!
+  // Dilengkapi rotasi percobaan otomatis (hingga 4x) agar selalu mendapatkan node Edge yang bersih.
+  let serverError = null;
+  for (let att = 1; att <= 4; att++) {
     try {
-      const oeRes = await fetch(
-        `https://www.youtube.com/oembed?url=${encodeURIComponent(
-          `https://www.youtube.com/watch?v=${videoId}`
-        )}&format=json`
-      );
-      if (oeRes.ok) {
-        const oe = await oeRes.json();
-        detectedTitle = oe?.title || '';
-      } else if (oeRes.status === 401 || oeRes.status === 403 || oeRes.status === 404) {
-        const privErr = new Error(
-          'Video YouTube ini bersifat Pribadi (Private), sudah dihapus, atau dibatasi pemilik channel sehingga tidak bisa diakses. Silakan pilih file rekaman video lokal (.mp4, .mov, .mkv) dari perangkatmu.'
-        );
-        privErr.code = 'VIDEO_UNAVAILABLE';
-        privErr.offerLocalUpload = true;
-        throw privErr;
+      const res = await fetch(`./api/youtube/info?url=${encodeURIComponent(clean)}&att=${att}`, {
+        method: 'GET',
+        credentials: 'same-origin',
+        cache: 'no-store'
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data && data.ok) {
+        return enrichYoutubeDataPayload(data, 'direct-edge');
       }
-    } catch (subErr) {
-      if (subErr?.code === 'VIDEO_UNAVAILABLE') throw subErr;
+      serverError = new Error(data?.error || 'Link YouTube belum dapat dimuat saat ini.');
+      serverError.code = data?.code || 'YOUTUBE_RESOLVE_FAILED';
+
+      // Jika video memang privat/dihapus atau sesi belum masuk (401), tidak perlu ulangi
+      if (
+        data?.code === 'VIDEO_UNAVAILABLE' ||
+        res.status === 404 ||
+        res.status === 401 ||
+        res.status === 400
+      ) {
+        break;
+      }
+      if (att < 4) {
+        await new Promise((r) => setTimeout(r, 260 * att));
+      }
+    } catch (netErr) {
+      serverError = netErr;
+      if (att < 4) {
+        await new Promise((r) => setTimeout(r, 300 * att));
+      }
     }
-
-    const titleNote = detectedTitle ? ` ("${detectedTitle.slice(0, 64)}")` : '';
-    const err = new Error(
-      `Agar link YouTube${titleNote} diproses 100% lewat internet perangkatmu sendiri tanpa layanan luar, pasang Ekstensi Jembatan Lokal Klip Auto terlebih dahulu — atau langsung pilih file video (.mp4, .mov, .mkv) dari laptopmu.`
-    );
-    err.code = 'BRIDGE_REQUIRED';
-    err.offerLocalUpload = true;
-    err.offerExtensionGuide = true;
-    err.detectedTitle = detectedTitle;
-    throw err;
   }
 
-  try {
-    const data = await callCompanionBridge('YT_INFO', { videoId });
-    const moments = buildMomentsFromYoutubeWords(
-      data.words,
-      data.durationSec,
-      data.title,
-      data.heatmap || null
-    );
-    const wordCount = Number(data.captionMeta?.wordCount ?? (Array.isArray(data.words) ? data.words.length : 0));
-    const enriched = {
-      ok: true,
-      ...data,
-      thumbnail: data.thumbnail || data.thumbnailUrl || '',
-      hasCaptions: Boolean(data.captionMeta?.available || wordCount >= 8),
-      wordCount,
-      captionLang: String(data.captionMeta?.languageCode || 'id'),
-      moments,
-      scoringMeta: moments.scoringMeta || null
-    };
-    saveYoutubeTranscriptCache(enriched);
-    return enriched;
-  } catch (bridgeErr) {
-    const friendly = new Error(
-      `Link YouTube belum berhasil dimuat (${
-        bridgeErr?.message || 'video dibatasi atau koneksi melambat'
-      }). Kamu bisa langsung memilih file video lokal (.mp4, .mov, .mkv) dari laptopmu untuk segera dipotong.`
-    );
-    friendly.code = bridgeErr?.code || 'LINK_FAILED';
-    friendly.offerLocalUpload = true;
-    throw friendly;
+  // Cadangan opsional senyap jika ekstensi jembatan lokal kebetulan aktif di browser pengguna
+  const bridge = await detectCompanionBridge();
+  if (bridge.active) {
+    try {
+      const bridgeData = await callCompanionBridge('YT_INFO', { videoId });
+      return enrichYoutubeDataPayload(bridgeData, 'companion-bridge');
+    } catch {}
   }
+
+  const friendly = new Error(
+    serverError?.message ||
+      'Video YouTube ini bersifat Pribadi atau dibatasi pemilik channel. Coba link publik lain atau pilih file video lokal (.mp4, .mov, .mkv).'
+  );
+  friendly.code = serverError?.code || 'LINK_FAILED';
+  friendly.offerLocalUpload = true;
+  friendly.offerExtensionGuide = false;
+  throw friendly;
 }
 
 function base64ToUint8Array(b64) {
@@ -402,6 +424,117 @@ function base64ToUint8Array(b64) {
     out[i] = bin.charCodeAt(i);
   }
   return out;
+}
+
+async function fetchSingleServerChunk({ videoId, itag, start, end, signal }) {
+  let lastErr = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    if (signal?.aborted) {
+      throw new DOMException('Proses link YouTube dibatalkan.', 'AbortError');
+    }
+    try {
+      const url = `./api/youtube/stream?v=${encodeURIComponent(videoId)}&itag=${encodeURIComponent(
+        itag
+      )}&start=${start}&end=${end}&att=${attempt + 1}`;
+      const res = await fetch(url, {
+        method: 'GET',
+        credentials: 'same-origin',
+        cache: 'no-store',
+        signal
+      });
+      const ct = (res.headers.get('Content-Type') || '').toLowerCase();
+      if ((!res.ok && res.status !== 206) || ct.includes('application/json')) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || `Gagal mengambil potongan video (${res.status}).`);
+      }
+      return res;
+    } catch (err) {
+      if (err?.name === 'AbortError' || signal?.aborted) throw err;
+      lastErr = err;
+      if (attempt < 4) {
+        await new Promise((r) => setTimeout(r, 320 * (attempt + 1)));
+      }
+    }
+  }
+  throw lastErr || new Error('Gagal mengalirkan data video YouTube.');
+}
+
+async function downloadFormatViaServerStream({
+  videoId,
+  itag,
+  expectedBytes,
+  mimeType,
+  signal,
+  onBytes
+}) {
+  let downloaded = 0;
+  let totalKnown = Number(expectedBytes || 0);
+  const parts = [];
+
+  let pos = 0;
+  while (true) {
+    if (signal?.aborted) {
+      throw new DOMException('Proses link YouTube dibatalkan.', 'AbortError');
+    }
+
+    const reqEnd =
+      totalKnown > 0 ? Math.min(totalKnown - 1, pos + CHUNK_SIZE - 1) : pos + CHUNK_SIZE - 1;
+    const res = await fetchSingleServerChunk({
+      videoId,
+      itag,
+      start: pos,
+      end: reqEnd,
+      signal
+    });
+
+    const headerTotal = Number(res.headers.get('X-Total-Bytes') || 0);
+    if (headerTotal > 0) {
+      totalKnown = headerTotal;
+    } else if (!totalKnown) {
+      const cr = res.headers.get('Content-Range') || '';
+      const m = cr.match(/\/(\d+)/);
+      if (m) totalKnown = Number(m[1]);
+    }
+
+    let chunkByteLen = 0;
+    if (res.body && typeof res.body.getReader === 'function') {
+      const reader = res.body.getReader();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value && value.byteLength > 0) {
+          parts.push(value);
+          chunkByteLen += value.byteLength;
+          downloaded += value.byteLength;
+          if (onBytes) onBytes(downloaded, totalKnown || downloaded);
+        }
+      }
+    } else {
+      const buf = new Uint8Array(await res.arrayBuffer());
+      if (buf.byteLength > 0) {
+        parts.push(buf);
+        chunkByteLen = buf.byteLength;
+        downloaded += buf.byteLength;
+        if (onBytes) onBytes(downloaded, totalKnown || downloaded);
+      }
+    }
+
+    if (chunkByteLen === 0) break;
+    pos += chunkByteLen;
+
+    // Jika sudah mencapai totalKnown, selesai!
+    if (res.status === 200 && pos === chunkByteLen && totalKnown > 0 && downloaded >= totalKnown) {
+      break;
+    }
+    if (totalKnown > 0 && pos >= totalKnown) {
+      break;
+    }
+    if (chunkByteLen < CHUNK_SIZE && totalKnown === 0) {
+      break;
+    }
+  }
+
+  return new Blob(parts, { type: mimeType });
 }
 
 async function downloadFormatViaBridge({ videoId, itag, expectedBytes, mimeType, signal, onBytes }) {
@@ -441,6 +574,13 @@ async function downloadFormatViaBridge({ videoId, itag, expectedBytes, mimeType,
   }
 
   return new Blob(parts, { type: mimeType });
+}
+
+async function downloadSingleStreamFormat(opts) {
+  if (opts.transportMode === 'companion-bridge') {
+    return downloadFormatViaBridge(opts);
+  }
+  return downloadFormatViaServerStream(opts);
 }
 
 async function remuxVideoAndAudioToMp4(videoBlob, audioBlob, signal) {
@@ -511,7 +651,7 @@ async function remuxVideoAndAudioToMp4(videoBlob, audioBlob, signal) {
   }
 }
 
-function pickQualityOption(info, qualityId) {
+export function pickQualityOption(info, qualityId) {
   if (!info || !Array.isArray(info.qualities) || info.qualities.length === 0) {
     throw new Error('Pilihan kualitas video belum tersedia.');
   }
@@ -523,8 +663,27 @@ function pickQualityOption(info, qualityId) {
 }
 
 /**
- * Mengalirkan sumber video YouTube lewat internet pembeli sendiri ke objek File .mp4 di memori browser
- * untuk langsung dipotong menjadi klip 9:16 oleh Klip Auto Studio.
+ * Memicu penyimpanan file .MP4 langsung ke folder Unduhan (Downloads) perangkat pengguna.
+ */
+export function triggerBrowserFileDownload(fileOrBlob, fileName = 'video-youtube.mp4') {
+  const objectUrl = URL.createObjectURL(fileOrBlob);
+  const a = document.createElement('a');
+  a.href = objectUrl;
+  a.download = fileName;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => {
+    try {
+      URL.revokeObjectURL(objectUrl);
+    } catch {}
+  }, 15000);
+}
+
+/**
+ * Mengunduh sumber video YouTube ke objek File .MP4 utuh (siap untuk langsung dipotong menjadi klip 9:16
+ * maupun disimpan sebagai file video YouTube .MP4 ke laptop/HP).
  */
 export async function downloadYoutubeAsMp4File({
   info,
@@ -535,11 +694,18 @@ export async function downloadYoutubeAsMp4File({
   const quality = pickQualityOption(info, qualityId);
   const suffix = quality.shortLabel.replace(/\s+/g, '').toLowerCase();
   const fileName = sanitizeYoutubeFilename(info.title, suffix);
+  const transportMode = info.transportMode || 'direct-edge';
+  const allWords = Array.isArray(info.allWords)
+    ? info.allWords
+    : Array.isArray(info.words)
+    ? info.words
+    : [];
 
   saveYoutubeTranscriptCache(info);
 
   if (quality.mode === 'progressive') {
-    const mp4Blob = await downloadFormatViaBridge({
+    const mp4Blob = await downloadSingleStreamFormat({
+      transportMode,
       videoId: info.videoId,
       itag: quality.videoItag,
       expectedBytes: quality.totalBytes,
@@ -549,20 +715,32 @@ export async function downloadYoutubeAsMp4File({
         if (!onProgress) return;
         const pct = total > 0 ? Math.min(98, Math.round((done / total) * 94) + 4) : 50;
         onProgress({
-          phase: `Memuat sumber video (${formatBytesReadable(done)} / ${formatBytesReadable(total)})...`,
+          phase: `Mengunduh video YouTube ${quality.shortLabel} (${formatBytesReadable(done)}${
+            total > 0 ? ` / ${formatBytesReadable(total)}` : ''
+          })...`,
           percent: pct
         });
       }
     });
+
+    if (onProgress) {
+      onProgress({ phase: 'Video MP4 selesai disiapkan!', percent: 100 });
+    }
+
     return {
+      cacheKey: `${info.videoId}:${quality.id}`,
       file: new File([mp4Blob], fileName, { type: 'video/mp4' }),
+      fileName,
       quality,
+      qualityLabel: quality.shortLabel,
       moments: info.moments || [],
-      heatmap: info.heatmap || []
+      heatmap: info.heatmap || [],
+      allWords
     };
   }
 
-  const videoBlob = await downloadFormatViaBridge({
+  const videoBlob = await downloadSingleStreamFormat({
+    transportMode,
     videoId: info.videoId,
     itag: quality.videoItag,
     expectedBytes: quality.videoBytes,
@@ -573,13 +751,16 @@ export async function downloadYoutubeAsMp4File({
       const denom = Math.max(1, (total || quality.videoBytes || 1) + (quality.audioBytes || 0));
       const pct = Math.min(76, Math.max(4, Math.round((done / denom) * 76)));
       onProgress({
-        phase: `Memuat jalur gambar ${quality.shortLabel} lewat koneksi lokal (${formatBytesReadable(done)})...`,
+        phase: `Mengunduh gambar ${quality.shortLabel} (${formatBytesReadable(done)}${
+          total > 0 ? ` / ${formatBytesReadable(total)}` : ''
+        })...`,
         percent: pct
       });
     }
   });
 
-  const audioBlob = await downloadFormatViaBridge({
+  const audioBlob = await downloadSingleStreamFormat({
+    transportMode,
     videoId: info.videoId,
     itag: quality.audioItag,
     expectedBytes: quality.audioBytes,
@@ -589,25 +770,59 @@ export async function downloadYoutubeAsMp4File({
       if (!onProgress) return;
       const ratio = total > 0 ? done / total : 0.5;
       onProgress({
-        phase: `Memuat jalur suara jernih AAC (${formatBytesReadable(done)})...`,
+        phase: `Mengunduh jalur suara jernih AAC (${formatBytesReadable(done)})...`,
         percent: Math.min(92, 76 + Math.round(ratio * 16))
       });
     }
   });
 
   if (onProgress) {
-    onProgress({ phase: 'Menyatukan gambar & suara di perangkatmu...', percent: 96 });
+    onProgress({ phase: 'Menyatukan gambar HD & suara AAC ke MP4 utuh...', percent: 96 });
   }
   const merged = await remuxVideoAndAudioToMp4(videoBlob, audioBlob, signal);
 
   if (onProgress) {
-    onProgress({ phase: 'Video siap dipotong menjadi klip 9:16!', percent: 100 });
+    onProgress({ phase: 'File MP4 selesai disiapkan!', percent: 100 });
   }
 
   return {
+    cacheKey: `${info.videoId}:${quality.id}`,
     file: new File([merged], fileName, { type: 'video/mp4' }),
+    fileName,
     quality,
+    qualityLabel: quality.shortLabel,
     moments: info.moments || [],
-    heatmap: info.heatmap || []
+    heatmap: info.heatmap || [],
+    allWords
   };
+}
+
+/**
+ * Mengunduh video YouTube utuh (.MP4 — 360p s/d 1080p Full HD) langsung ke perangkat pengguna,
+ * sekaligus mengembalikan hasil `File` agar bila pengguna ingin langsung memotong klip 9:16
+ * tidak perlu mengunduh dua kali!
+ */
+export async function saveYoutubeMp4ToDevice({
+  info,
+  qualityId = null,
+  cachedResult = null,
+  signal = null,
+  onProgress = null
+}) {
+  const quality = pickQualityOption(info, qualityId);
+  const targetKey = `${info.videoId}:${quality.id}`;
+
+  if (cachedResult && cachedResult.cacheKey === targetKey && cachedResult.file) {
+    triggerBrowserFileDownload(cachedResult.file, cachedResult.fileName || cachedResult.file.name);
+    return cachedResult;
+  }
+
+  const downloaded = await downloadYoutubeAsMp4File({
+    info,
+    qualityId: quality.id,
+    signal,
+    onProgress
+  });
+  triggerBrowserFileDownload(downloaded.file, downloaded.fileName);
+  return downloaded;
 }

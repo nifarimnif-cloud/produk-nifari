@@ -414,9 +414,11 @@ function parseWhisperOutputToWords(out, offsetSec, maxEndSec, cleanSamples) {
 
       const spaceTokens = trimmed.split(/\s+/).filter(Boolean);
       const rawT0 = Number(ch.timestamp?.[0] ?? 0);
-      const rawT1 = Number(
-        ch.timestamp?.[1] ?? Math.min(maxEndSec - offsetSec, rawT0 + Math.max(0.32, spaceTokens.length * 0.28))
-      );
+      const fallbackDur = Math.max(0.32, spaceTokens.length * 0.28);
+      const hasValidT1 = ch.timestamp?.[1] != null && Number(ch.timestamp[1]) > rawT0 + 0.04;
+      const rawT1 = hasValidT1
+        ? Number(ch.timestamp[1])
+        : Math.min(maxEndSec - offsetSec, rawT0 + fallbackDur);
       const segStart = Math.max(offsetSec, Math.min(maxEndSec - 0.08, offsetSec + Math.max(0, rawT0)));
       const segEnd = Math.max(segStart + 0.1, Math.min(maxEndSec, offsetSec + Math.max(rawT0 + 0.12, rawT1)));
 
@@ -461,6 +463,62 @@ function parseWhisperOutputToWords(out, offsetSec, maxEndSec, cleanSamples) {
   return [];
 }
 
+export function deduplicateChronologicalWords(words) {
+  if (!Array.isArray(words) || words.length === 0) return [];
+  const sorted = words
+    .filter((w) => w && String(w.word || '').trim())
+    .map((w) => ({
+      word: String(w.word).trim(),
+      start: Number(w.start || 0),
+      end: Number(w.end || 0)
+    }))
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+
+  const out = [];
+  for (const w of sorted) {
+    if (out.length > 0) {
+      const prev = out[out.length - 1];
+      const normPrev = prev.word.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const normCur = w.word.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const nearDuplicate =
+        normPrev &&
+        normPrev === normCur &&
+        Math.abs(w.start - prev.start) <= 0.45;
+      if (nearDuplicate) {
+        prev.end = Math.max(prev.end, w.end);
+        continue;
+      }
+      if (w.start < prev.end - 0.04) {
+        if (w.end <= prev.end + 0.03 && normPrev === normCur) continue;
+        prev.end = Number(Math.max(prev.start + 0.075, w.start).toFixed(3));
+      }
+    }
+    out.push({
+      word: w.word,
+      start: Number(w.start.toFixed(3)),
+      end: Number(Math.max(w.start + 0.08, w.end).toFixed(3))
+    });
+  }
+  return out;
+}
+
+/**
+ * Mengambil seluruh kata sumber yang bersinggungan dengan jendela klip [startSec, endSec]
+ * agar pergeseran batas klip (misal saat snap ke jeda napas) TIDAK PERNAH membuang kata di awal/akhir!
+ */
+export function sliceSourceWordsForWindow(fullSourceWords, startSec, endSec) {
+  if (!Array.isArray(fullSourceWords) || fullSourceWords.length === 0) return [];
+  const sliced = fullSourceWords
+    .filter((w) => w && w.end >= startSec + 0.02 && w.start <= endSec - 0.02)
+    .map((w) => ({
+      word: String(w.word || '').trim(),
+      start: Number(Math.max(startSec, w.start).toFixed(3)),
+      end: Number(Math.min(endSec, Math.max(startSec + 0.085, w.end)).toFixed(3))
+    }))
+    .filter((w) => w.word);
+  return deduplicateChronologicalWords(sliced);
+}
+
 /**
  * Transkrip potongan audio bersih ke kata ber-timestamp akurat memakai Whisper-Small
  * (mendukung obrolan campur Bahasa Indonesia + istilah Bahasa Inggris).
@@ -474,10 +532,8 @@ export async function transcribeCleanAudioToWords(transcriber, rawSamples, offse
     const a = Math.abs(cleanSamples[i]);
     if (a > peak) peak = a;
   }
-  if (peak < 0.014) return [];
+  if (peak < 0.013) return [];
 
-  // Gunakan pulau vokal untuk memotong hening awal/akhir panjang sebelum dikirim ke Whisper
-  // agar cross-attention timestamp tidak meleset akibat keheningan pembuka!
   const env = analyzeVocalEnvelope(cleanSamples, 16000, offsetSec);
   if (env.islands.length === 0) return [];
 
@@ -494,8 +550,8 @@ export async function transcribeCleanAudioToWords(transcriber, rawSamples, offse
       language: 'indonesian',
       task: 'transcribe',
       return_timestamps: 'word',
-      chunk_length_s: 20,
-      stride_length_s: 3
+      chunk_length_s: 24,
+      stride_length_s: 4
     });
     const words = parseWhisperOutputToWords(outWord, trimmedOffsetSec, speechPadEndSec, trimmedSpeech);
     if (words.length > 0) return words;
@@ -507,8 +563,8 @@ export async function transcribeCleanAudioToWords(transcriber, rawSamples, offse
     language: 'indonesian',
     task: 'transcribe',
     return_timestamps: true,
-    chunk_length_s: 20,
-    stride_length_s: 3
+    chunk_length_s: 24,
+    stride_length_s: 4
   });
   return parseWhisperOutputToWords(outSeg, trimmedOffsetSec, speechPadEndSec, trimmedSpeech);
 }
@@ -969,18 +1025,20 @@ export async function transcribeAndPickWithWhisperWeb({
       heatmap,
       audioFeatures
     });
+    moments.allWords = deduplicateChronologicalWords(collectedWords);
     if (onStatus) onStatus('Transkrip vokal & penilaian skor 4 sinyal selesai!', 100);
     return moments;
   }
 
-  // Untuk video <= 18 menit: transkrip menyeluruh per jendela 24 detik hemat memori
+  // Untuk video <= 18 menit: transkrip menyeluruh per jendela 24 detik + overlap 1.2 detik agar kata di batas potongan tidak pernah hilang!
   const chunkSeconds = 24;
+  const overlapSec = 1.2;
   const totalChunks = Math.max(1, Math.ceil(totalDurationSec / chunkSeconds));
-  const allWords = [];
+  const rawCollected = [];
 
   for (let c = 0; c < totalChunks; c++) {
-    const offsetSec = c * chunkSeconds;
-    const sliceEndSec = Math.min(totalDurationSec, (c + 1) * chunkSeconds);
+    const offsetSec = c === 0 ? 0 : Math.max(0, c * chunkSeconds - overlapSec * 0.5);
+    const sliceEndSec = Math.min(totalDurationSec, (c + 1) * chunkSeconds + overlapSec * 0.5);
     if (sliceEndSec - offsetSec < 0.4) break;
 
     if (onStatus) {
@@ -994,9 +1052,10 @@ export async function transcribeAndPickWithWhisperWeb({
       targetSampleRate: 16000
     });
     const chunkWords = await transcribeCleanAudioToWords(transcriber, samples, offsetSec, sliceEndSec);
-    allWords.push(...chunkWords);
+    rawCollected.push(...chunkWords);
   }
 
+  const allWords = deduplicateChronologicalWords(rawCollected);
   if (allWords.length === 0) {
     throw new Error('Tidak terdengar ucapan vokal yang jelas pada video ini. Kamu juga bisa mengetik/menempel teks caption manual.');
   }
@@ -1006,6 +1065,7 @@ export async function transcribeAndPickWithWhisperWeb({
     heatmap,
     audioFeatures
   });
+  moments.allWords = allWords;
   if (onStatus) onStatus('Pembacaan vokal & penilaian momen selesai!', 100);
   return moments;
 }
@@ -1037,6 +1097,130 @@ export async function syncClipWordsWithWhisper(file, startSec, endSec, onStatus 
 
   if (onStatus) onStatus(`Selesai menyelaraskan ${words.length} kata tepat ke vokal pembicara!`, 100);
   return words;
+}
+
+/**
+ * Jaminan Subtitle Anti-Miss (Zero-Miss Vocal Coverage Engine):
+ * 1. Mengambil kata lengkap dari `fullSourceWords` (bila ada) saat batas klip [startSec, endSec] melebar.
+ * 2. Memeriksa pita vokal 10ms (`165–3750 Hz`) apakah ada pulau kalimat bicara aktif (>= 1.05 detik)
+ *    yang kosong tanpa subtitle (misal terlewat oleh caption otomatis YouTube).
+ * 3. Bila ditemukan pulau bicara aktif yang belum memiliki teks, otomatis menambalnya memakai Whisper-Small
+ *    lalu mengunci seluruh kata ke gelombang vokal pembicara sehingga TIDAK ADA ucapan yang terlewat!
+ */
+export async function ensureZeroMissClipSubtitles({
+  file,
+  clipSamples16k = null,
+  startSec,
+  endSec,
+  words = [],
+  fullSourceWords = null,
+  allowWhisperGapFill = true,
+  onStatus = null
+}) {
+  let mergedWords = Array.isArray(words) ? words.map((w) => ({ ...w })) : [];
+
+  if (Array.isArray(fullSourceWords) && fullSourceWords.length > 0) {
+    const fromFull = sliceSourceWordsForWindow(fullSourceWords, startSec, endSec);
+    if (fromFull.length > mergedWords.length) {
+      mergedWords = deduplicateChronologicalWords([...fromFull, ...mergedWords]);
+    }
+  } else {
+    mergedWords = sliceSourceWordsForWindow(mergedWords, startSec, endSec);
+  }
+
+  let samples = clipSamples16k;
+  if (!samples && file) {
+    try {
+      const extracted = await extractMonoAudio(file, {
+        startSec,
+        endSec,
+        targetSampleRate: 16000
+      });
+      samples = extracted.samples;
+    } catch {
+      samples = null;
+    }
+  }
+
+  if (!samples || samples.length < 1600) {
+    return mergedWords;
+  }
+
+  const env = analyzeVocalEnvelope(samples, 16000, startSec);
+  if (env.islands.length === 0) {
+    return mergedWords;
+  }
+
+  // Jika belum ada kata sama sekali padahal ada vokal aktif, transkrip penuh klip ini!
+  if (mergedWords.length === 0 && allowWhisperGapFill && file) {
+    try {
+      const fullWhisper = await syncClipWordsWithWhisper(file, startSec, endSec, onStatus);
+      if (fullWhisper.length > 0) {
+        return refineWhisperWordsWithVocal(fullWhisper, samples, 16000, startSec, endSec);
+      }
+    } catch {}
+    return mergedWords;
+  }
+
+  // Kelompokkan pulau vokal yang berdekatan (< 0.25s) menjadi rentang kalimat suara
+  const speechSpans = [];
+  for (const isl of env.islands) {
+    const prev = speechSpans[speechSpans.length - 1];
+    if (prev && isl.startSec - prev.endSec <= 0.25) {
+      prev.endSec = isl.endSec;
+      prev.peakEnergy = Math.max(prev.peakEnergy, isl.peakEnergy || 0);
+    } else {
+      speechSpans.push({
+        startSec: isl.startSec,
+        endSec: isl.endSec,
+        peakEnergy: isl.peakEnergy || 0
+      });
+    }
+  }
+
+  // Cek apakah ada rentang kalimat vokal >= 1.05 detik yang sama sekali belum tertutup kata subtitle
+  if (allowWhisperGapFill && file) {
+    const uncoveredSpans = speechSpans.filter((sp) => {
+      const dur = sp.endSec - sp.startSec;
+      if (dur < 1.05) return false;
+      if (sp.peakEnergy < env.speechThreshold * 1.25) return false;
+      const overlappingWords = mergedWords.filter(
+        (w) => w.end >= sp.startSec - 0.18 && w.start <= sp.endSec + 0.18
+      );
+      return overlappingWords.length === 0;
+    });
+
+    if (uncoveredSpans.length > 0) {
+      try {
+        const transcriber = await getWhisperPipeline();
+        for (const gap of uncoveredSpans) {
+          const gStart = Math.max(startSec, gap.startSec - 0.18);
+          const gEnd = Math.min(endSec, gap.endSec + 0.22);
+          const i0 = Math.max(0, Math.floor((gStart - startSec) * 16000));
+          const i1 = Math.min(samples.length, Math.ceil((gEnd - startSec) * 16000));
+          if (i1 - i0 < 3200) continue;
+          if (onStatus) {
+            onStatus(
+              `Menambal kalimat vokal yang belum memiliki subtitle (${(gStart - startSec).toFixed(1)}s–${(
+                gEnd - startSec
+              ).toFixed(1)}s)...`,
+              82
+            );
+          }
+          const gapSamples = samples.subarray(i0, i1);
+          const gapWords = await transcribeCleanAudioToWords(transcriber, gapSamples, gStart, gEnd);
+          if (gapWords.length > 0) {
+            mergedWords.push(...gapWords);
+          }
+        }
+        mergedWords = deduplicateChronologicalWords(mergedWords);
+      } catch {
+        // Lanjut dengan kata yang sudah tersedia bila penambalan opsional dilewati
+      }
+    }
+  }
+
+  return refineWhisperWordsWithVocal(mergedWords, samples, 16000, startSec, endSec);
 }
 
 /**

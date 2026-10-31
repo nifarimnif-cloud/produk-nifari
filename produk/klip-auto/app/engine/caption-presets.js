@@ -1,12 +1,140 @@
 /**
- * Klip Auto — Preset Gaya Caption Sinkron Vokal & Compositor Kanvas 9:16 Multi-Framing
+ * Klip Auto — Preset Gaya Caption, Pemilih 9 Font Subtitle Kustom, & Compositor Kanvas 9:16 (v2.2)
  * Mendukung:
- * - 4 Mode Framing Inti + 1 Mode Pro: Otomatis (1/2 Wajah), Fullscreen Tengah, Podcast Split (Atas-Bawah tanpa keyframe),
- *   Cinema Blur (16:9 utuh latar blur), dan Gaming Split (Facecam + Gameplay untuk Paket Pro)
- * - Judul Pembuka 3 Detik (default) yang bisa diedit, dengan opsi tampil penuh
- * - 6 Gaya Caption Paket Inti + 2 Gaya Caption Ekstra Paket Tambahan
- * - Sinkronisasi sorotan kata presisi milidetik mengikuti pulau vokal & jeda napas pembicara
+ * - 9 Pilihan Font Subtitle Kreator (Plus Jakarta Sans, Montserrat, Anton, Bebas Neue, Poppins,
+ *   Rubik, Space Grotesk, Fredoka, Merriweather) + pengatur ukuran & kapitalisasi huruf
+ * - Preloader `ensureCaptionFontLoaded()` agar render MP4 selalu memakai font asli sejak frame pertama
+ * - Penampilan Subtitle Anti-Miss (Zero-Blink): menjembatani celah mikro antar-frasa (< 420ms) tanpa kedipan kosong,
+ *   namun tetap menyembunyikan teks secara bersih pada jeda napas nyata (>= 420ms)
+ * - 4 Mode Framing Inti + 1 Mode Pro: Otomatis (1/2 Wajah), Fullscreen Tengah, Podcast Split, Cinema Blur, Gaming Split
  */
+
+export const CAPTION_FONTS = [
+  {
+    id: 'jakarta',
+    name: 'Plus Jakarta Sans',
+    styleLabel: 'Modern Tebal (Bawaan)',
+    sampleText: 'Kata Tajam',
+    googleFamily: 'Plus Jakarta Sans',
+    fontFamily: '"Plus Jakarta Sans", system-ui, -apple-system, sans-serif',
+    fixedWeight: null,
+    loadWeight: 800,
+    sizeScale: 1.0
+  },
+  {
+    id: 'montserrat',
+    name: 'Montserrat Black',
+    styleLabel: 'Geometris Klip Viral',
+    sampleText: 'KATA TEGAS',
+    googleFamily: 'Montserrat',
+    fontFamily: '"Montserrat", "Plus Jakarta Sans", system-ui, sans-serif',
+    fixedWeight: 900,
+    loadWeight: 900,
+    sizeScale: 0.98
+  },
+  {
+    id: 'anton',
+    name: 'Anton Display',
+    styleLabel: 'Headline Sinematik',
+    sampleText: 'POIN UTAMA',
+    googleFamily: 'Anton',
+    fontFamily: '"Anton", Impact, "Arial Black", sans-serif',
+    fixedWeight: 400,
+    loadWeight: 400,
+    sizeScale: 1.06
+  },
+  {
+    id: 'bebas',
+    name: 'Bebas Neue',
+    styleLabel: 'Poster Tinggi Ringkas',
+    sampleText: 'CEPAT & PADAT',
+    googleFamily: 'Bebas Neue',
+    fontFamily: '"Bebas Neue", Impact, sans-serif',
+    fixedWeight: 400,
+    loadWeight: 400,
+    sizeScale: 1.15
+  },
+  {
+    id: 'poppins',
+    name: 'Poppins ExtraBold',
+    styleLabel: 'Bulat Bersih Podcast',
+    sampleText: 'Obrolan Jernih',
+    googleFamily: 'Poppins',
+    fontFamily: '"Poppins", "Plus Jakarta Sans", sans-serif',
+    fixedWeight: 800,
+    loadWeight: 800,
+    sizeScale: 0.98
+  },
+  {
+    id: 'rubik',
+    name: 'Rubik Bold',
+    styleLabel: 'Sudut Halus Edukasi',
+    sampleText: 'Tips Praktis',
+    googleFamily: 'Rubik',
+    fontFamily: '"Rubik", "Plus Jakarta Sans", sans-serif',
+    fixedWeight: 800,
+    loadWeight: 800,
+    sizeScale: 1.0
+  },
+  {
+    id: 'space-grotesk',
+    name: 'Space Grotesk',
+    styleLabel: 'Teknologi & Bisnis',
+    sampleText: 'Data & Angka',
+    googleFamily: 'Space Grotesk',
+    fontFamily: '"Space Grotesk", system-ui, sans-serif',
+    fixedWeight: 700,
+    loadWeight: 700,
+    sizeScale: 1.0
+  },
+  {
+    id: 'fredoka',
+    name: 'Fredoka Bold',
+    styleLabel: 'Santai & Cerita Seru',
+    sampleText: 'Cerita Seru',
+    googleFamily: 'Fredoka',
+    fontFamily: '"Fredoka", "Plus Jakarta Sans", sans-serif',
+    fixedWeight: 700,
+    loadWeight: 700,
+    sizeScale: 1.03
+  },
+  {
+    id: 'merriweather',
+    name: 'Merriweather Heavy',
+    styleLabel: 'Editorial & Kajian',
+    sampleText: 'Kutipan Buku',
+    googleFamily: 'Merriweather',
+    fontFamily: '"Merriweather", Georgia, serif',
+    fixedWeight: 900,
+    loadWeight: 900,
+    sizeScale: 0.93
+  }
+];
+
+export function getCaptionFontById(fontId) {
+  if (!fontId) return CAPTION_FONTS[0];
+  return CAPTION_FONTS.find((f) => f.id === fontId) || CAPTION_FONTS[0];
+}
+
+/**
+ * Memastikan font web pilihan pengguna sudah termuat di memori `document.fonts`
+ * sebelum kanvas pratinjau atau encoder MP4 menggambar frame pertama.
+ */
+export async function ensureCaptionFontLoaded(fontId = 'jakarta', pxSize = 48) {
+  if (typeof document === 'undefined' || !document.fonts || typeof document.fonts.load !== 'function') {
+    return;
+  }
+  const fontObj = getCaptionFontById(fontId);
+  const spec = `${fontObj.loadWeight || 800} ${Math.max(24, Math.round(pxSize))}px "${fontObj.googleFamily}"`;
+  try {
+    await Promise.race([
+      document.fonts.load(spec, 'KATA AKTIF 123 Halo Kreator'),
+      new Promise((resolve) => setTimeout(resolve, 2200))
+    ]);
+  } catch {
+    // Bila offline penuh dan font belum di-cache, otomatis gunakan fallback sistem dengan rapi
+  }
+}
 
 export const CAPTION_PRESETS = [
   {
@@ -170,8 +298,9 @@ export function getPresetById(id) {
 }
 
 /**
- * Mengelompokkan daftar kata [{ word, start, end }] menjadi grup pendek (maks 4 kata)
- * dan langsung memutus grup pada jeda napas nyata (>= 0.24 detik) agar teks hilang bersih saat pembicara diam!
+ * Mengelompokkan daftar kata [{ word, start, end }] menjadi grup pendek (maks 4 kata),
+ * memutus grup pada jeda napas nyata (>= 0.30 detik), DAN menjembatani celah mikro (< 0.42 detik)
+ * antar-grup berurutan (`displayStart` / `displayEnd`) agar subtitle TIDAK PERNAH berkedip kosong (zero-miss)!
  */
 export function groupWordsIntoPhrases(words, maxWordsPerGroup = 4) {
   if (!Array.isArray(words) || words.length === 0) return [];
@@ -188,18 +317,44 @@ export function groupWordsIntoPhrases(words, maxWordsPerGroup = 4) {
     const endsSentence = /[.!?]$/.test(wordStr);
     const endsClause = /[,;:]$/.test(wordStr);
     const gapToNext = next ? next.start - w.end : 999;
-    const breathPause = gapToNext >= 0.24 || (endsClause && gapToNext >= 0.13);
+    const breathPause = gapToNext >= 0.30 || (endsClause && gapToNext >= 0.16);
     const charLen = current.reduce((acc, item) => acc + String(item.word).length, 0);
 
-    if (current.length >= maxWordsPerGroup || charLen >= 23 || endsSentence || breathPause || !next) {
+    if (current.length >= maxWordsPerGroup || charLen >= 24 || endsSentence || breathPause || !next) {
       groups.push({
         start: current[0].start,
         end: current[current.length - 1].end,
+        displayStart: current[0].start - 0.035,
+        displayEnd: current[current.length - 1].end + 0.14,
         words: current
       });
       current = [];
     }
   }
+
+  // Jembatani celah mikro (< 420ms) saat pembicara masih berbicara sambung-menyambung
+  // sehingga pergantian grup 4 kata berlangsung mulus tanpa frame kosong!
+  for (let gIdx = 0; gIdx < groups.length; gIdx++) {
+    const g = groups[gIdx];
+    const nextG = groups[gIdx + 1] || null;
+    if (gIdx === 0) {
+      g.displayStart = Math.max(0, g.start - 0.04);
+    }
+    if (nextG) {
+      const interGroupGap = nextG.start - g.end;
+      if (interGroupGap >= -0.02 && interGroupGap < 0.42) {
+        const handoff = Number(nextG.start.toFixed(4));
+        g.displayEnd = handoff;
+        nextG.displayStart = handoff;
+      } else {
+        g.displayEnd = g.end + 0.14;
+        nextG.displayStart = Math.max(g.displayEnd + 0.01, nextG.start - 0.035);
+      }
+    } else {
+      g.displayEnd = g.end + 0.16;
+    }
+  }
+
   return groups;
 }
 
@@ -259,7 +414,7 @@ function drawCenteredCrop(ctx, source, srcW, srcH, normX, normY, dx, dy, dw, dh,
 }
 
 /**
- * Menggambar 1 frame utuh klip 9:16 ke canvas tujuan.
+ * Menggambar 1 frame utuh klip 9:16 ke canvas tujuan (termasuk kustomisasi Font, Ukuran, & Format Kapital).
  */
 export function drawClipFrame(ctx, opts) {
   const {
@@ -274,6 +429,9 @@ export function drawClipFrame(ctx, opts) {
     frameMode = 'crop-fill',
     cameraMeta = null,
     presetId = 'kreator-kuning',
+    fontFamilyId = 'jakarta',
+    fontScale = 1.0,
+    textCase = 'auto', // 'auto' | 'uppercase' | 'normal'
     phraseGroups = [],
     captionOffsetSec = 0,
     hookTitle = '',
@@ -302,7 +460,6 @@ export function drawClipFrame(ctx, opts) {
     const sourceAspect = sourceWidth / sourceHeight;
 
     if (effectiveMode === 'podcast-split' && sourceAspect > targetAspect) {
-      // Podcast Split: 2 orang atas-bawah otomatis tanpa keyframe manual!
       const halfH = Math.floor(H / 2);
       const leftX = cameraMeta?.leftSpeakerX ?? 0.28;
       const leftY = cameraMeta?.leftSpeakerY ?? 0.36;
@@ -312,11 +469,9 @@ export function drawClipFrame(ctx, opts) {
       drawCenteredCrop(ctx, source, sourceWidth, sourceHeight, leftX, leftY, 0, 0, W, halfH, 1.06);
       drawCenteredCrop(ctx, source, sourceWidth, sourceHeight, rightX, rightY, 0, halfH, W, H - halfH, 1.06);
 
-      // Garis pemisah tipis bersih di tengah antara pembicara atas & bawah
       ctx.fillStyle = '#14140F';
       ctx.fillRect(0, halfH - 2, W, 4);
     } else if (effectiveMode === 'gaming-split' && sourceAspect > targetAspect) {
-      // Gaming Split (Pro): Panel atas 35% facecam pembicara, panel bawah 65% layar permainan utama
       const topH = Math.floor(H * 0.35);
       const botH = H - topH;
       const camX = cameraMeta?.facecamBox?.centerX ?? 0.84;
@@ -329,7 +484,6 @@ export function drawClipFrame(ctx, opts) {
       ctx.fillStyle = '#BEFF50';
       ctx.fillRect(0, topH - 2, W, 3);
     } else if (effectiveMode === 'blur-fit' && sourceAspect > targetAspect) {
-      // Cinema Blur: Video 16:9 utuh di tengah dengan latar blur gelap untuk slide/presentasi
       const bgH = H;
       const bgW = bgH * sourceAspect;
       const bgX = -((bgW - W) * Math.max(0, Math.min(1, centerX)));
@@ -343,7 +497,6 @@ export function drawClipFrame(ctx, opts) {
       const fgY = Math.round((H - fgH) * 0.44);
       ctx.drawImage(source, 0, 0, sourceWidth, sourceHeight, 0, fgY, fgW, fgH);
     } else if (sourceAspect > targetAspect) {
-      // Fullscreen: 1 pembicara, wajah tetap di tengah 9:16
       const cropH = sourceHeight;
       const cropW = sourceHeight * targetAspect;
       const desiredCenterPx = Math.max(0, Math.min(1, centerX)) * sourceWidth;
@@ -359,6 +512,7 @@ export function drawClipFrame(ctx, opts) {
   }
 
   const preset = getPresetById(presetId);
+  const fontChoice = getCaptionFontById(fontFamilyId);
 
   if (preset.backdropColor === 'gradient-bottom' && effectiveMode !== 'podcast-split') {
     const grad = ctx.createLinearGradient(0, H * 0.58, 0, H);
@@ -480,26 +634,37 @@ export function drawClipFrame(ctx, opts) {
     ctx.restore();
   }
 
-  // 4. Gambar Caption Per Kata yang Terkunci Presisi ke Getaran Vokal
+  // 4. Gambar Caption Per Kata Anti-Miss + Font Kustom Pilihan Pengguna
   const syncedTimeSec = currentTimeSec - (Number(captionOffsetSec) || 0);
   const activeGroup = phraseGroups.find(
-    (g) => syncedTimeSec >= g.start - 0.018 && syncedTimeSec <= g.end + 0.065
+    (g) =>
+      syncedTimeSec >= (g.displayStart ?? g.start - 0.035) &&
+      syncedTimeSec <= (g.displayEnd ?? g.end + 0.12)
   );
 
   if (activeGroup && activeGroup.words.length > 0) {
-    const fontSize = Math.round(W * preset.fontSizeRatio);
-    ctx.font = `${preset.fontWeight} ${fontSize}px ${preset.fontFamily}`;
+    const safeScale = Math.max(0.75, Math.min(1.4, Number(fontScale) || 1.0));
+    const effectiveFontFamily = fontChoice ? fontChoice.fontFamily : preset.fontFamily;
+    const effectiveFontWeight = fontChoice?.fixedWeight ? fontChoice.fixedWeight : preset.fontWeight;
+    const fontIntrinsicScale = fontChoice?.sizeScale || 1.0;
+    const fontSize = Math.max(16, Math.round(W * preset.fontSizeRatio * fontIntrinsicScale * safeScale));
+
+    const useUppercase =
+      textCase === 'uppercase' || fontChoice?.id === 'bebas'
+        ? true
+        : textCase === 'normal'
+        ? false
+        : Boolean(preset.uppercase);
+
+    ctx.font = `${effectiveFontWeight} ${fontSize}px ${effectiveFontFamily}`;
     ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round';
     ctx.miterLimit = 2;
 
     const maxCaptionWidth = W * 0.86;
-    const baseSpace = Math.max(ctx.measureText(' ').width, fontSize * 0.28);
-    const spaceWidth = Math.round(baseSpace * (preset.activePillColor ? 1.78 : 1.46));
+    const baseSpace = Math.max(ctx.measureText(' ').width, fontSize * 0.27);
+    const spaceWidth = Math.round(baseSpace * (preset.activePillColor ? 1.76 : 1.44));
 
-    // Tentukan kata mana yang tepat sedang diucapkan pada milidetik ini:
-    // - Bila celah antar kata <= 120ms (sambungan konsonan), jembatani mulus di titik tengah celah
-    // - Bila celah > 120ms (jeda ekspresif), matikan sorotan tepat saat suara berhenti!
     const gWords = activeGroup.words;
     let activeWordIdx = -1;
     for (let i = 0; i < gWords.length; i++) {
@@ -510,8 +675,8 @@ export function drawClipFrame(ctx, opts) {
       const gapBefore = prev ? w.start - prev.end : 1;
       const gapAfter = next ? next.start - w.end : 1;
 
-      const effStart = gapBefore <= 0.12 && prev ? (prev.end + w.start) * 0.5 : w.start - 0.015;
-      const effEnd = gapAfter <= 0.12 && next ? (w.end + next.start) * 0.5 : w.end + 0.045;
+      const effStart = gapBefore <= 0.20 && prev ? (prev.end + w.start) * 0.5 : w.start - 0.025;
+      const effEnd = gapAfter <= 0.20 && next ? (w.end + next.start) * 0.5 : w.end + 0.08;
 
       if (syncedTimeSec >= effStart && syncedTimeSec <= effEnd) {
         activeWordIdx = i;
@@ -519,8 +684,19 @@ export function drawClipFrame(ctx, opts) {
       }
     }
 
+    // Proteksi Anti-Kedip: jika grup sedang aktif namun di sela konsonan tipis, tetap sorot kata yang baru saja diucapkan!
+    if (activeWordIdx === -1 && gWords.length > 0) {
+      for (let i = gWords.length - 1; i >= 0; i--) {
+        if (syncedTimeSec >= gWords[i].start - 0.04) {
+          activeWordIdx = i;
+          break;
+        }
+      }
+      if (activeWordIdx === -1) activeWordIdx = 0;
+    }
+
     const tokens = gWords.map((w, idx) => {
-      const displayWord = preset.uppercase ? String(w.word).toUpperCase() : String(w.word);
+      const displayWord = useUppercase ? String(w.word).toUpperCase() : String(w.word);
       return {
         raw: w,
         text: displayWord,
@@ -547,10 +723,8 @@ export function drawClipFrame(ctx, opts) {
       lines.push({ tokens: curLine, width: curW });
     }
 
-    const lineHeight = Math.round(fontSize * 1.34);
+    const lineHeight = Math.round(fontSize * 1.32);
     const totalTextH = lines.length * lineHeight;
-    // Pada Podcast Split 2 pembicara atas-bawah, tempatkan caption tepat di garis sabuk tengah (0.50 H)
-    // agar wajah pembicara atas maupun bawah 100% utuh tidak tertutup!
     const yRatio = effectiveMode === 'podcast-split' ? 0.50 : preset.yPositionRatio;
     const centerY = Math.round(H * yRatio);
     const startY = centerY - totalTextH / 2 + lineHeight / 2;

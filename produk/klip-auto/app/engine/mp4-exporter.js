@@ -17,12 +17,17 @@ import {
   QUALITY_HIGH
 } from '../vendor/mediabunny.min.mjs';
 import { extractClipAudioBuffer } from './audio-processor.js';
-import { drawClipFrame, groupWordsIntoPhrases } from './caption-presets.js';
+import {
+  drawClipFrame,
+  ensureCaptionFontLoaded,
+  groupWordsIntoPhrases
+} from './caption-presets.js';
 import {
   buildFaceTrackForClip,
   resolveEffectiveFrameMode,
   sampleCameraCenterX
 } from './face-tracker.js';
+import { ensureZeroMissClipSubtitles } from './transcriber-moments.js';
 
 /**
  * Memeriksa apakah akselerasi GPU perangkat tersedia untuk resolusi target.
@@ -65,7 +70,11 @@ export async function renderClipToMp4({
   manualCenterXOffset = 0,
   prebuiltCameraTrack = null,
   presetId = 'kreator-kuning',
+  fontFamilyId = 'jakarta',
+  fontScale = 1.0,
+  textCase = 'auto',
   words = [],
+  fullSourceWords = null,
   captionOffsetSec = 0,
   hookTitle = '',
   hookStyle = 'white',
@@ -178,7 +187,32 @@ export async function renderClipToMp4({
       timestamps[i] = Math.min(endSec, startSec + i / fps);
     }
 
-    const activeWords = (words || []).filter((w) => w.end >= startSec && w.start <= endSec);
+    // Pastikan font subtitle pilihan sudah dimuat penuh di memori browser sebelum menggambar frame #1
+    await ensureCaptionFontLoaded(
+      fontFamilyId,
+      Math.round(targetWidth * 0.064 * Math.max(0.75, Number(fontScale) || 1))
+    );
+
+    // Pastikan tidak ada kata di tepi klip yang hilang & otomatis baca vokal bila kata belum tersedia
+    let verifiedWords = Array.isArray(words) ? words : [];
+    if (
+      (Array.isArray(fullSourceWords) && fullSourceWords.length > 0) ||
+      verifiedWords.length === 0
+    ) {
+      verifiedWords = await ensureZeroMissClipSubtitles({
+        file,
+        startSec,
+        endSec,
+        words: verifiedWords,
+        fullSourceWords,
+        allowWhisperGapFill: verifiedWords.length === 0,
+        onStatus: (txt) => {
+          if (onProgress) onProgress({ phase: txt, percent: 22 });
+        }
+      });
+    }
+
+    const activeWords = (verifiedWords || []).filter((w) => w.end >= startSec && w.start <= endSec);
     const phraseGroups = groupWordsIntoPhrases(activeWords, 4);
 
     let finalMp4Blob = null;
@@ -255,6 +289,9 @@ export async function renderClipToMp4({
             frameMode: effectiveFrameMode,
             cameraMeta: cameraTrack?.meta || null,
             presetId,
+            fontFamilyId,
+            fontScale,
+            textCase,
             phraseGroups,
             captionOffsetSec,
             hookTitle,

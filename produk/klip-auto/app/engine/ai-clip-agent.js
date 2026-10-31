@@ -12,6 +12,7 @@ import { assertSufficientDiskForRender } from './device-checker.js';
 import { renderClipToMp4 } from './mp4-exporter.js';
 import {
   analyzePodcastWithGemini,
+  ensureZeroMissClipSubtitles,
   pickMomentsFromWordsLocally,
   syncClipWordsWithWhisper
 } from './transcriber-moments.js';
@@ -397,10 +398,14 @@ export async function runAutonomousClipAgent({
   file,
   mediaInfo,
   prebuiltMoments = null,
+  allSourceWords = null,
   heatmap = null,
   geminiApiKey = '',
   clipCount = 5,
   presetId = 'kreator-kuning',
+  fontFamilyId = 'jakarta',
+  fontScale = 1.0,
+  textCase = 'auto',
   frameMode = 'auto',
   autoFaceCenter = true,
   captionOffsetSec = 0,
@@ -448,10 +453,15 @@ export async function runAutonomousClipAgent({
   let scoringMeta = null;
   let sourceModeLabel = 'lokal';
   let scannedAudioFeatures = null;
+  let resolvedFullWords =
+    Array.isArray(allSourceWords) && allSourceWords.length > 0 ? allSourceWords : null;
 
   // 1A. Cek apakah momen sudah tersedia langsung (dari link YouTube atau Video Contoh)
   if (Array.isArray(prebuiltMoments) && prebuiltMoments.length > 0) {
     scoringMeta = prebuiltMoments.scoringMeta || null;
+    if (!resolvedFullWords && Array.isArray(prebuiltMoments.allWords)) {
+      resolvedFullWords = prebuiltMoments.allWords;
+    }
     discoveredMoments = prebuiltMoments.map((m, idx) => ({
       ...m,
       id: m.id || `momen-${idx + 1}`,
@@ -493,6 +503,9 @@ export async function runAutonomousClipAgent({
     const ytMatch = findMatchingYoutubeCache(file, mediaInfo);
     if (ytMatch && Array.isArray(ytMatch.moments) && ytMatch.moments.length > 0) {
       scoringMeta = ytMatch.moments.scoringMeta || null;
+      if (!resolvedFullWords && Array.isArray(ytMatch.allWords) && ytMatch.allWords.length > 0) {
+        resolvedFullWords = ytMatch.allWords;
+      }
       discoveredMoments = ytMatch.moments.map((m, idx) => ({
         ...m,
         id: `yt-momen-${idx + 1}`,
@@ -561,32 +574,46 @@ export async function runAutonomousClipAgent({
     checkAbort();
     const cand = discoveredMoments[idx];
 
-    // Jika kata sudah ada (misal dari subtitle YouTube), tetap rapatkan ke gelombang vokal asli klip!
+    // Jika kata sudah ada (misal dari subtitle YouTube), rapatkan ke jeda napas & pastikan 0% kalimat vokal terlewat!
     if (Array.isArray(cand.words) && cand.words.length >= 3) {
       try {
-        const clip16k = await extractMonoAudio(file, {
-          startSec: cand.startSec,
-          endSec: cand.endSec,
+        const probeStart = Math.max(0, cand.startSec - 1.8);
+        const probeEnd = Math.min(totalDur, cand.endSec + 2.2);
+        const probe16k = await extractMonoAudio(file, {
+          startSec: probeStart,
+          endSec: probeEnd,
           targetSampleRate: 16000
         });
-        const env = analyzeVocalEnvelope(clip16k.samples, 16000, cand.startSec);
+        const env = analyzeVocalEnvelope(probe16k.samples, 16000, probeStart);
         const snapped = snapClipBoundsToBreathPause(cand.startSec, cand.endSec, env, totalDur);
         cand.startSec = snapped.startSec;
         cand.endSec = snapped.endSec;
-        cand.words = refineWhisperWordsWithVocal(
-          cand.words,
-          clip16k.samples,
-          16000,
-          cand.startSec,
-          cand.endSec
+
+        const subStartIdx = Math.max(0, Math.floor((cand.startSec - probeStart) * 16000));
+        const subEndIdx = Math.min(
+          probe16k.samples.length,
+          Math.ceil((cand.endSec - probeStart) * 16000)
         );
+        const exactSamples =
+          subEndIdx > subStartIdx
+            ? probe16k.samples.subarray(subStartIdx, subEndIdx)
+            : probe16k.samples;
+
+        cand.words = await ensureZeroMissClipSubtitles({
+          file,
+          clipSamples16k: exactSamples,
+          startSec: cand.startSec,
+          endSec: cand.endSec,
+          words: cand.words,
+          fullSourceWords: resolvedFullWords,
+          allowWhisperGapFill: true,
+          onStatus: (txt) => emitLog(`Klip #${chosenMoments.length + 1}: ${txt}`)
+        });
       } catch {
         // Tetap gunakan timestamp kata asli bila ekstraksi audio tambahan dilewati
       }
 
-      if (!cand.transcript) {
-        cand.transcript = cand.words.map((w) => w.word).join(' ');
-      }
+      cand.transcript = cand.words.map((w) => w.word).join(' ');
       cand.title = craftCleanHookTitle(cand.title || cand.transcript, chosenMoments.length + 1);
       if (usedScores.has(cand.score) && cand.score > 58) {
         while (usedScores.has(cand.score) && cand.score > 58) cand.score -= 1;
@@ -737,7 +764,11 @@ export async function runAutonomousClipAgent({
         autoFaceCenter,
         manualCenterXOffset: 0,
         presetId,
+        fontFamilyId,
+        fontScale,
+        textCase,
         words: m.words || [],
+        fullSourceWords: resolvedFullWords,
         captionOffsetSec,
         hookTitle: m.title,
         hookStyle,

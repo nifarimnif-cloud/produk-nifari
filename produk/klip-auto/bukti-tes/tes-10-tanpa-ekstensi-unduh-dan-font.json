@@ -1,0 +1,80 @@
+{
+  "testedAt": "2026-10-31T13:30:38.587Z",
+  "version": "2.2.0",
+  "liveUrls": {
+    "app": "https://nifari-klip-auto-app.pages.dev",
+    "lp": "https://nifari-klip-auto-lp.pages.dev"
+  },
+  "browserExtensionInstalled": false,
+  "securityUnauthenticatedGate": {
+    "wizardControllerStatus": 401,
+    "youtubeInfoApiStatus": 401
+  },
+  "youtubeDirectNoExtension": {
+    "statusBadgeText": "Langsung Tempel Link · Tanpa Ekstensi Tambahan",
+    "longIndonesianPodcastProbe": {
+      "ok": true,
+      "attempts": 1,
+      "elapsedMs": 1595,
+      "durationSec": 4710,
+      "captionAvailable": true,
+      "languageCode": "id",
+      "wordCount": 7880,
+      "qualities": [
+        "1080p-fhd",
+        "720p-hd",
+        "360p-fast"
+      ]
+    },
+    "directVideoDownloadMp4": {
+      "bytes": 741641,
+      "elapsedMs": 551,
+      "fetchMetadataMs": 1883,
+      "decodedResolution": "320x240",
+      "decodedDurationSec": 19.06
+    },
+    "cachedReuseStudioImportMs": 115,
+    "zeroMissWordCount": 22
+  },
+  "customFontSubtitleExports": {
+    "availableFontsCount": 9,
+    "lpDemoFontChipsCount": 9,
+    "exportAntonDisplay": {
+      "fontId": "anton",
+      "sizeScalePercent": 115,
+      "bytes": 1229607,
+      "elapsedMs": 3284,
+      "resultMeta": "Podcast Split 2 Wajah · Font Anton Display · Mesin GPU · Resolusi 720×1280 · Durasi 19.6 dtk · Ukuran 1.17 MB · Selesai dalam 3.2 detik.",
+      "decoded": {
+        "width": 720,
+        "height": 1280,
+        "durationSec": 19.61
+      }
+    },
+    "exportFredokaBold": {
+      "fontId": "fredoka",
+      "textCase": "normal",
+      "sizeScalePercent": 105,
+      "bytes": 1239949,
+      "elapsedMs": 1894,
+      "resultMeta": "Podcast Split 2 Wajah · Font Fredoka Bold · Mesin GPU · Resolusi 720×1280 · Durasi 19.6 dtk · Ukuran 1.18 MB · Selesai dalam 1.84 detik.",
+      "decoded": {
+        "width": 720,
+        "height": 1280,
+        "durationSec": 19.61
+      }
+    }
+  },
+  "responsive390px": {
+    "app": {
+      "innerWidth": 390,
+      "scrollWidth": 390
+    },
+    "lp": {
+      "innerWidth": 390,
+      "scrollWidth": 390
+    }
+  },
+  "consoleErrorCount": 0,
+  "consoleErrors": []
+}

@@ -1,5 +1,5 @@
 /* Klip Auto Studio — Editorial Design System (Perk Reference: Electric Lime on Warm Parchment) */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Fredoka:wght@600;700&family=Inter:wght@400;500;600;700&family=Merriweather:wght@700;900&family=Montserrat:wght@700;800;900&family=Plus+Jakarta+Sans:wght@700;800;900&family=Poppins:wght@700;800&family=Rubik:wght@700;800&family=Space+Grotesk:wght@700&display=swap');
 
 :root,
 [data-theme="light"] {
@@ -67,7 +67,7 @@
 }
 
 html {
-  overflow-x: hidden;
+  overflow-x: clip;
   scroll-behavior: smooth;
 }
 
@@ -79,7 +79,7 @@ body {
   background-color: var(--surface-page-canvas);
   color: var(--color-off-black-ink);
   min-height: 100vh;
-  overflow-x: hidden;
+  overflow-x: clip;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -1192,6 +1192,106 @@ input[type="range"] {
   margin-top: 14px;
 }
 
+.preset-card {
+  background-color: var(--surface-dark-island);
+  color: var(--surface-dark-island-text);
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-inner);
+  padding: 13px 15px;
+  cursor: pointer;
+  transition: border-color 0.14s ease, transform 0.12s ease;
+  min-width: 0;
+}
+
+.preset-card:hover {
+  border-color: var(--color-stone);
+}
+
+.preset-card.selected {
+  border-color: var(--color-electric-lime);
+  box-shadow: inset 0 0 0 1px var(--color-electric-lime);
+}
+
+.preset-sample {
+  font-size: 16px;
+  font-weight: 800;
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+}
+
+.preset-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #f5f5eb;
+  margin-bottom: 2px;
+}
+
+.preset-desc {
+  font-size: 12px;
+  color: #c8c8be;
+  line-height: 1.4;
+}
+
+/* PEMILIH 9 FONT SUBTITLE KREATOR */
+.font-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.font-card {
+  background-color: var(--surface-elevated);
+  border: 1.5px solid var(--color-ash);
+  border-radius: 14px;
+  padding: 12px 12px;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  transition: border-color 0.14s ease, background-color 0.14s ease;
+}
+
+.font-card:hover {
+  border-color: var(--color-off-black-ink);
+}
+
+.font-card.selected {
+  background-color: var(--color-electric-lime);
+  border-color: #14140f;
+  color: #14140f;
+}
+
+.font-card-sample {
+  font-size: 18px;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.font-card-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-off-black-ink);
+}
+
+.font-card.selected .font-card-name {
+  color: #14140f;
+}
+
+.font-card-meta {
+  font-size: 11px;
+  color: var(--color-graphite);
+}
+
+.font-card.selected .font-card-meta {
+  color: #14140f;
+  opacity: 0.82;
+}
+
 .preset-btn {
   background-color: var(--surface-elevated);
   border: 1px solid var(--color-ash);
@@ -1508,6 +1608,7 @@ input[type="range"] {
   .stepper,
   .studio-grid,
   .preset-grid,
+  .font-picker-grid,
   .library-grid,
   .yt-input-row,
   .yt-preview-card.visible,
