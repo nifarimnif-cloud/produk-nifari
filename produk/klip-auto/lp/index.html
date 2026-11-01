@@ -271,6 +271,146 @@
       padding: 48px;
     }
 
+    /* BANNER LIFETIME ACCESS ATAS & SPOTLIGHT */
+    .lifetime-top-banner {
+      background-color: #14140f;
+      color: #f5f5eb;
+      border-bottom: 1px solid #30302a;
+      padding: 10px 0;
+      font-size: 13.5px;
+    }
+
+    .lifetime-top-inner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px 14px;
+      text-align: center;
+    }
+
+    .lifetime-top-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 11px;
+      border-radius: var(--radius-pills);
+      background-color: var(--color-electric-lime);
+      color: #14140f;
+      font-size: 10.5px;
+      font-weight: var(--weight-medium);
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .lifetime-top-cta {
+      color: var(--color-electric-lime);
+      font-weight: var(--weight-medium);
+      text-decoration: none;
+      border-bottom: 1px solid var(--color-electric-lime);
+      padding-bottom: 1px;
+      white-space: nowrap;
+    }
+
+    .hero-lifetime-strip {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      border-radius: 16px;
+      background-color: #14140f;
+      color: #f5f5eb;
+      font-size: 13.5px;
+      line-height: 1.48;
+    }
+
+    .hero-lifetime-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background-color: var(--color-electric-lime);
+      color: #14140f;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .lifetime-banner-shell {
+      background-color: #14140f;
+      color: #f5f5eb;
+      border-radius: var(--radius-cards);
+      padding: 44px;
+      margin-bottom: 36px;
+      display: grid;
+      grid-template-columns: 1.35fr 0.65fr;
+      gap: 32px;
+      align-items: center;
+    }
+
+    .lifetime-banner-shell > * {
+      min-width: 0;
+    }
+
+    .lifetime-pillars {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-top: 24px;
+    }
+
+    .lifetime-pillar-card {
+      background-color: #22221c;
+      border: 1px solid rgba(245, 245, 235, 0.14);
+      border-radius: var(--radius-inner);
+      padding: 18px;
+    }
+
+    .lifetime-pillar-card strong {
+      display: block;
+      color: var(--color-electric-lime);
+      font-size: 15.5px;
+      margin-bottom: 6px;
+    }
+
+    .lifetime-pillar-card p {
+      font-size: 13.5px;
+      color: #d2d2c8;
+      line-height: 1.45;
+    }
+
+    .lifetime-price-callout {
+      background-color: var(--color-electric-lime);
+      color: #14140f;
+      border-radius: 22px;
+      padding: 30px 26px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .lifetime-callout-big {
+      font-size: clamp(28px, 3vw, 36px);
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      font-weight: var(--weight-medium);
+    }
+
+    .checkout-lifetime-note {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background-color: var(--color-off-white-canvas);
+      border: 1px solid var(--color-ash);
+      font-size: 13.5px;
+      margin-bottom: 18px;
+    }
+
     /* NAVBAR ATAS */
     .topbar {
       position: sticky;
@@ -921,7 +1061,9 @@
       .feature-row.reverse,
       .steps-grid,
       .pack-grid,
-      .checkout-grid {
+      .checkout-grid,
+      .lifetime-banner-shell,
+      .lifetime-pillars {
         grid-template-columns: 1fr;
       }
 
@@ -957,6 +1099,8 @@
       .white-card,
       .dark-island,
       .lime-surface,
+      .lifetime-banner-shell,
+      .lifetime-price-callout,
       .demo-shell,
       .demo-controls-box,
       .feature-row,
@@ -964,6 +1108,11 @@
       .step-card,
       .pack-item {
         padding: 22px 18px;
+      }
+
+      .lifetime-top-banner {
+        font-size: 12.5px;
+        padding: 9px 0;
       }
 
       .hero-facts,
@@ -997,6 +1146,17 @@
   </style>
 </head>
 <body>
+  <!-- BANNER LIFETIME ACCESS SEKALI BELI (ATAS HALAMAN) -->
+  <div class="lifetime-top-banner" role="region" aria-label="Penawaran Akses Seumur Hidup">
+    <div class="container lifetime-top-inner">
+      <span class="lifetime-top-pill">Lifetime Access · 1x Beli</span>
+      <span>
+        Cukup <strong>1x bayar Rp 99.000</strong> langsung jadi milikmu <strong>seumur hidup</strong> — bebas tagihan langganan bulanan &amp; tanpa batas kuota klip.
+      </span>
+      <a href="#banner-lifetime" class="lifetime-top-cta">Lihat Keuntungannya →</a>
+    </div>
+  </div>
+
   <!-- NAVIGASI ATAS -->
   <header class="topbar">
     <div class="container topbar-inner">
@@ -1017,13 +1177,13 @@
         <a href="#demo">Coba Demo</a>
         <a href="#fitur">Fitur Studio</a>
         <a href="#cek-perangkat">Cek Perangkat</a>
-        <a href="#harga">Harga Paket</a>
+        <a href="#banner-lifetime">Akses Seumur Hidup</a>
         <a href="#faq">Tanya Jawab</a>
       </nav>
 
       <div class="topbar-actions">
         <a href="https://nifari-klip-auto-app.pages.dev" target="_blank" rel="noopener" class="btn btn-outline btn-sm" title="Masuk dengan Kode Lisensi">Login Pembeli</a>
-        <a href="#harga" class="btn btn-primary btn-sm">Mulai Rp 99.000</a>
+        <a href="#harga" class="btn btn-primary btn-sm">1x Beli · Rp 99.000</a>
       </div>
     </div>
   </header>
@@ -1032,15 +1192,27 @@
   <section class="hero-section">
     <div class="container hero-grid">
       <div class="hero-copy-card">
-        <span class="pill-tag lime" style="margin-bottom:18px;">Tanpa Ekstensi Tambahan · Bisa Unduh MP4 · Sekali Bayar</span>
+        <span class="pill-tag lime" style="margin-bottom:18px;">Akses Seumur Hidup · 1x Beli Tanpa Langganan · Tanpa Ekstensi</span>
         <h1 class="display-xl">Copy-paste link YouTube, langsung jadi klip 9:16.</h1>
         <p class="hero-sub">
           Cukup tempel link YouTube <strong>tanpa ekstensi tambahan</strong> untuk langsung mengunduh video (.MP4 360p–1080p) atau memotongnya jadi 5–10 klip vertikal 9:16 — lengkap deteksi 1/2 wajah otomatis, <strong>subtitle anti-miss</strong> presisi vokal 10ms, dan <strong>9 pilihan jenis font</strong> sesuai gaya channelmu.
         </p>
 
-        <div class="hero-cta-row">
-          <a href="#harga" class="btn btn-primary">Ambil Paket Inti — Rp 99.000</a>
+        <div class="hero-cta-row" style="margin-bottom:16px;">
+          <a href="#harga" class="btn btn-primary">Ambil Akses Seumur Hidup — Rp 99.000</a>
           <a href="#demo" class="btn btn-outline">Coba Ganti Font &amp; Klip Live</a>
+        </div>
+
+        <div class="hero-lifetime-strip">
+          <span class="hero-lifetime-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <polyline points="9 12 11 14 15 10"/>
+            </svg>
+          </span>
+          <span>
+            <strong style="color:var(--color-electric-lime);">Cuma 1x Beli Buat Seumur Hidup (Lifetime Access):</strong> Bayar sekali di depan tanpa biaya bulanan berulang. Mau potong 5 klip minggu ini atau ratusan klip bulan depan, aksesmu tetap aktif selamanya.
+          </span>
         </div>
 
         <div style="font-size:13px;color:var(--color-graphite);margin-bottom:18px;padding:10px 14px;border-radius:12px;background:var(--color-off-white-canvas);border:1px solid var(--color-ash);">
@@ -1564,21 +1736,60 @@
     </div>
   </section>
 
-  <!-- 9. HARGA + TOMBOL BELI (CHECKOUT 2 KOLOM TANPA HARGA CORET PALSU) -->
+  <!-- 9. BANNER LIFETIME ACCESS + HARGA CHECKOUT 2 KOLOM -->
   <section class="section-block parchment-band" id="harga">
     <div class="container">
+      <!-- BANNER UTAMA LIFETIME ACCESS SEKALI BELI -->
+      <div class="lifetime-banner-shell" id="banner-lifetime">
+        <div>
+          <span class="pill-tag lime" style="margin-bottom:16px;">Lifetime Access · Cukup 1x Beli Seumur Hidup</span>
+          <h2 class="heading-lg" style="color:#ffffff;">
+            Kenapa harus bayar langganan tiap bulan kalau 1x beli sudah jadi milikmu seumur hidup?
+          </h2>
+          <p style="color:#d2d2c8;font-size:16px;margin-top:14px;line-height:1.6;">
+            Di aplikasi pemotong video langganan bulanan, saldomu tetap terpotong walau bulan ini kamu lagi sibuk kerja atau belum sempat ngonten — dan begitu berhenti bayar, akunmu langsung terkunci. Di Klip Auto Studio, kamu cukup bayar <strong>satu kali saja di awal</strong>. Kapan pun ada podcast atau video panjang yang mau dijadikan klip 9:16, tinggal buka dan pakai sepuasnya tanpa pusing mikirin tagihan bulanan lagi.
+          </p>
+
+          <div class="lifetime-pillars">
+            <div class="lifetime-pillar-card">
+              <strong>Rp 0 Tagihan Bulanan</strong>
+              <p>Bayar sekali waktu beli saja. Bebas dari potong saldo bulanan otomatis maupun biaya perpanjangan tahunan.</p>
+            </div>
+            <div class="lifetime-pillar-card">
+              <strong>Tanpa Kuota &amp; Kredit Habis</strong>
+              <p>Mau potong 10 klip atau ratusan klip 9:16 dari banyak rekaman panjang, tidak pernah disuruh beli koin atau kredit menit lagi.</p>
+            </div>
+            <div class="lifetime-pillar-card">
+              <strong>Milikmu Selamanya</strong>
+              <p>Sudah termasuk pembaruan Studio v2.x gratis, mode kerja offline 7 hari, dan fitur Pindah Perangkat Mandiri saat ganti laptop.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="lifetime-price-callout">
+          <span class="pill-tag dark" style="align-self:flex-start;">Sekali Bayar · Aktif Selamanya</span>
+          <div class="lifetime-callout-big">1x Beli,<br />Pakai Seumur Hidup.</div>
+          <p style="font-size:14.5px;line-height:1.5;color:#14140f;">
+            Mulai dari <strong>Rp 99.000 nett</strong> sekali bayar di depan. Lebih hemat dari sekali bayar langganan aplikasi bulanan luar negeri, tapi bisa kamu pakai terus bertahun-tahun.
+          </p>
+          <a href="#checkout-form" class="btn btn-ink" style="width:100%;margin-top:4px;">
+            Ambil Lisensi Seumur Hidup ↓
+          </a>
+        </div>
+      </div>
+
       <div class="section-head">
-        <span class="eyebrow">Akses Sekali Bayar · 1 Laptop + Pindah Perangkat Mandiri</span>
-        <h2 class="heading-lg">Miliki ruang kerja Klip Auto mulai Rp 99.000 sekali bayar.</h2>
+        <span class="eyebrow">Akses Seumur Hidup · 1 Laptop + Pindah Perangkat Mandiri</span>
+        <h2 class="heading-lg">Miliki ruang kerja Klip Auto cukup 1x beli mulai Rp 99.000.</h2>
       </div>
 
       <div class="checkout-grid">
         <!-- Kolom Kiri: Ringkasan Isi -->
         <div class="white-card">
-          <span class="pill-tag">Yang Kamu Dapatkan di Paket Inti</span>
+          <span class="pill-tag">Yang Kamu Dapatkan Selamanya</span>
           <h3 class="heading-md" style="margin-top:14px;">Klip Auto Studio — Paket Inti (Rp 99.000)</h3>
           <p class="muted" style="margin-top:8px;">
-            Lisensi 1 laptop dengan fitur Pindah Perangkat Mandiri dan tetap bisa dipakai offline hingga 7 hari sejak verifikasi terakhir.
+            <strong>Akses Seumur Hidup (1x Beli)</strong> untuk 1 laptop aktif, dilengkapi Pindah Perangkat Mandiri dan tetap bisa dipakai offline hingga 7 hari sejak verifikasi terakhir.
           </p>
 
           <ul class="check-list">
@@ -1600,22 +1811,27 @@
             </li>
             <li>
               <span class="check-dot">+</span>
-              <span><strong>6 Gaya Caption + Judul Pembuka 3 Detik</strong> yang bebas diedit serta hasil ekspor MP4 murni tanpa watermark bawaan.</span>
+              <span><strong>6 Gaya Caption + 9 Font Kreator + Judul 3 Detik</strong> yang bebas diedit serta hasil ekspor MP4 murni tanpa watermark bawaan.</span>
             </li>
             <li>
               <span class="check-dot">+</span>
-              <span><strong>Akses Penuh 140 Pustaka Kreator</strong> lengkap pencarian, filter ceruk topik, dan simpan favorit.</span>
+              <span><strong>Akses Penuh 140 Pustaka Kreator + Pembaruan v2.x Gratis</strong> selamanya tanpa biaya langganan bulanan.</span>
             </li>
           </ul>
         </div>
 
         <!-- Kolom Kanan: Harga & Tombol Beli -->
         <div class="white-card" style="border-color:var(--color-off-black-ink);">
-          <span class="pill-tag lime" id="checkout-tier-pill">Sekali Bayar · Paket Inti</span>
+          <span class="pill-tag lime" id="checkout-tier-pill">1x Beli Seumur Hidup · Paket Inti</span>
           <div class="price-big" id="checkout-price-display">Rp 99.000</div>
-          <p class="muted" style="font-size:14.5px;margin-bottom:18px;" id="checkout-price-sub">
-            Sekali bayar untuk 1 laptop (dilengkapi Pindah Perangkat Mandiri &amp; mode offline 7 hari). Tanpa tagihan bulanan.
+          <p class="muted" style="font-size:14.5px;margin-bottom:14px;" id="checkout-price-sub">
+            Cukup 1x bayar di awal untuk pemakaian seumur hidup (dilengkapi Pindah Perangkat Mandiri &amp; mode offline 7 hari).
           </p>
+
+          <div class="checkout-lifetime-note">
+            <span class="check-dot" style="margin-top:0;">✓</span>
+            <span><strong>Jaminan 1x Beli:</strong> Tidak ada tagihan bulanan, tidak ada kuota klip harian, aktif selamanya.</span>
+          </div>
 
           <form id="checkout-form" novalidate>
             <label for="order-bump-tambahan" style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-radius:16px;background:var(--color-off-white-canvas);border:1px solid var(--color-off-black-ink);margin-bottom:16px;cursor:pointer;">
@@ -1637,7 +1853,7 @@
             <div id="checkout-error" style="display:none;padding:10px 12px;border-radius:12px;border:1px solid var(--color-off-black-ink);background:var(--color-off-white-canvas);font-size:13px;margin-bottom:12px;"></div>
 
             <button type="submit" class="btn btn-primary" id="btn-checkout-submit" style="width:100%;margin-top:4px;">
-              Pesan Paket Inti — Rp 99.000
+              Ambil Akses Seumur Hidup — Rp 99.000
             </button>
           </form>
 
@@ -1694,8 +1910,18 @@
       <div class="faq-list" id="faq-list">
         <div class="faq-item open">
           <button type="button" class="faq-q">
-            <span>Apakah bisa memproses video podcast panjang 60 menit ke atas di laptop RAM 8 GB?</span>
+            <span>Benarkah cukup 1x beli Rp 99.000 bisa dipakai seumur hidup tanpa biaya bulanan lagi?</span>
             <span class="faq-icon">−</span>
+          </button>
+          <div class="faq-a">
+            Benar 100%. Karena seluruh pemotongan video dan perenderan MP4 berjalan langsung di browser perangkatmu sendiri (bukan menyewa server cloud per menit), kami tidak perlu menagih biaya langganan bulanan atau membatasi jumlah klipmu dengan koin kredit. Cukup bayar satu kali di awal, kode lisensimu aktif seumur hidup lengkap dengan pembaruan versi v2.x gratis dan fitur Pindah Perangkat Mandiri.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button type="button" class="faq-q">
+            <span>Apakah bisa memproses video podcast panjang 60 menit ke atas di laptop RAM 8 GB?</span>
+            <span class="faq-icon">+</span>
           </button>
           <div class="faq-a">
             Bisa. Pemindaian suara pada Klip Auto membaca rekaman per jendela kecil secara bertahap di memori browser sehingga video podcast 60–120 menit tetap ringan di laptop RAM 8 GB tanpa membuat tab browser macet, dilengkapi akselerasi GPU serta fallback CPU otomatis.
@@ -1759,15 +1985,15 @@
   <section class="section-block" style="border-bottom:none;padding-top:20px;">
     <div class="container">
       <div class="lime-surface">
-        <span class="eyebrow" style="color:#14140f;">Siap Produksi Klip Hari Ini</span>
-        <h2 class="heading-lg" style="max-width:740px;margin-bottom:16px;">
-          Berhenti membiarkan rekaman podcast dan diskusi panjang menumpuk di folder laptop.
+        <span class="pill-tag dark" style="margin-bottom:16px;">Lifetime Access · Cukup 1x Beli Seumur Hidup</span>
+        <h2 class="heading-lg" style="max-width:760px;margin-bottom:16px;">
+          Beli sekali hari ini, bebas potong ratusan klip 9:16 seumur hidup tanpa pusing biaya bulanan lagi.
         </h2>
-        <p style="max-width:640px;font-size:17px;margin-bottom:28px;">
-          Tempel link atau pilih file videomu, biarkan wajah pembicara dan ketukan vokal terkunci rapi menjadi klip 9:16 siap upload — mulai Rp 99.000 sekali bayar.
+        <p style="max-width:660px;font-size:17px;margin-bottom:28px;">
+          Jangan biarkan rekaman bagus menumpuk atau uangmu habis buat bayar langganan aplikasi tiap bulan. Cukup <strong>1x bayar mulai Rp 99.000</strong>, ruang kerja Klip Auto Studio langsung resmi jadi milikmu selamanya.
         </p>
         <div style="display:flex;flex-wrap:wrap;gap:12px;">
-          <a href="#harga" class="btn btn-ink">Ambil Paket Inti — Rp 99.000</a>
+          <a href="#harga" class="btn btn-ink">Ambil Akses Seumur Hidup — Rp 99.000</a>
           <a href="#cek-perangkat" class="btn btn-outline" style="border-color:#14140f;">
             Cek Perangkat Dulu
           </a>
@@ -2679,13 +2905,13 @@
         if (priceDisplay) priceDisplay.textContent = withBump ? 'Rp 148.000' : 'Rp 99.000';
         if (tierPill) {
           tierPill.textContent = withBump
-            ? 'Sekali Bayar · Paket Inti + Tambahan'
-            : 'Sekali Bayar · Paket Inti';
+            ? '1x Beli Seumur Hidup · Inti + Tambahan'
+            : '1x Beli Seumur Hidup · Paket Inti';
         }
         if (submitBtn) {
           submitBtn.textContent = withBump
-            ? 'Pesan Paket Inti + Tambahan — Rp 148.000'
-            : 'Pesan Paket Inti — Rp 99.000';
+            ? 'Ambil Akses Seumur Hidup + Tambahan — Rp 148.000'
+            : 'Ambil Akses Seumur Hidup — Rp 99.000';
         }
       }
       if (bumpCheckbox) bumpCheckbox.addEventListener('change', syncPriceWithBump);
